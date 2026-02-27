@@ -298,10 +298,10 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     <option value="comfort">Adaptive Comfort</option>
   </select>
   <select id="comfort-model" class="hidden">
-    <option value="default">Default comfort model</option>
-    <option value="rh_gt_60">RH&gt;60% (Vellei et al.)</option>
+    <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
     <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
     <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
+    <option value="default">Default comfort model</option>
     <option value="none">No comfort band</option>
   </select>
   <button id="download-btn">Download Chart</button>
@@ -380,7 +380,7 @@ const state = {
   selectedRoomLoggers: new Set(),
   showThreshold: true,
   showSeasonLines: true,
-  comfortModel: 'default',
+  comfortModel: 'rh_gt_60',
   betweenStart: null,
   betweenEnd: null,
   selectedYear: null,
