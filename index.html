@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!-- NOTE FOR CLAUDE: After making any changes to this file or build.py,
      add an entry to the Changelog in CLAUDE.md. The heading must include
-     date and time to the second: ### YYYY-MM-DD HH:MM:SS -->
+     date and time to the second in CST (Taiwan, UTC+8) — always run `date`
+     first to get the real time: ### YYYY-MM-DD HH:MM:SS CST -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -520,7 +521,7 @@ function renderAdaptiveComfort() {
     if (!filtered || !filtered.extTemp) continue;
     for (const v of filtered.extTemp) { if (v != null) allExtTemps.push(v); }
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-      name:m.loggerNames[loggerId], marker:{color:m.colors[loggerId], size:4, opacity:0.6},
+      name:m.loggerNames[loggerId], marker:{color:m.colors[loggerId], size:4, opacity:0.2},
       legendgroup:loggerId,
       hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<extra></extra>`});
   }
