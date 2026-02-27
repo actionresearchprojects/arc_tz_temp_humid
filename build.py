@@ -739,7 +739,7 @@ function renderAdaptiveComfort() {
     if (!filtered || !filtered.extTemp) continue;
     for (const v of filtered.extTemp) { if (v != null) allExtTemps.push(v); }
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-      name:m.loggerNames[loggerId], marker:{color:m.colors[loggerId], size:4, opacity:0.6},
+      name:m.loggerNames[loggerId], marker:{color:m.colors[loggerId], size:4, opacity:0.2},
       legendgroup:loggerId,
       hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<extra></extra>`});
   }
