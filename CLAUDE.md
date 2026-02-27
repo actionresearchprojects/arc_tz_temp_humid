@@ -16,5 +16,8 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-02-27 16:45:00
+- Fixed JS spread operator stack overflow on large arrays in adaptive comfort graph. Replaced `Math.min(...allExtTemps)` / `Math.max(...allExtTemps)` and `push(...array)` with explicit `for...of` loops — fixes House 5 (174k records) silently failing to render adaptive comfort. Rebuilt index.html.
+
 ### 2026-02-27 (time not recorded)
 - Created `build.py` and `index.html`: static HTML dashboard for House 5 and Dauda's House TinyTag Excel loggers. Reads .xlsx files from data/house5/ and data/dauda/, embeds both datasets as separate JSON blobs. Dataset switcher in header reloads all controls instantly client-side. EN 15251 exponential running mean (alpha=0.8) for adaptive comfort. All features from omnisense_t_h preserved: line graph, adaptive comfort, time range filtering, logger/metric selection, season lines, 32°C threshold, comfort stats, PNG download, full responsive layout.
