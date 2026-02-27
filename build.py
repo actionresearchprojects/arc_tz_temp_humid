@@ -735,7 +735,7 @@ function renderAdaptiveComfort() {
     if (!series || !series.extTemp) continue;
     const filtered = filterSeries(series, start, end);
     if (!filtered || !filtered.extTemp) continue;
-    allExtTemps.push(...filtered.extTemp.filter(v => v != null));
+    for (const v of filtered.extTemp) { if (v != null) allExtTemps.push(v); }
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
       name:m.loggerNames[loggerId], marker:{color:m.colors[loggerId], size:4, opacity:0.6},
       legendgroup:loggerId,
@@ -743,7 +743,8 @@ function renderAdaptiveComfort() {
   }
 
   if (params && allExtTemps.length > 0) {
-    const xMin = Math.min(...allExtTemps), xMax = Math.max(...allExtTemps);
+    let xMin = Infinity, xMax = -Infinity;
+    for (const v of allExtTemps) { if (v < xMin) xMin = v; if (v > xMax) xMax = v; }
     const xs = Array.from({length:80}, (_, i) => xMin + (xMax-xMin)*i/79);
     const yUp = xs.map(x => params.m*x + params.c + params.delta);
     const yLo = xs.map(x => params.m*x + params.c - params.delta);
