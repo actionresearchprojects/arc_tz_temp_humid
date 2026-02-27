@@ -16,6 +16,9 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-02-27 14:07:16 CST
+- Changed default comfort model to Vellei RH>60%. Rebuilt index.html.
+
 ### 2026-02-27 13:47:22 CST
 - Adaptive comfort: reduced scatter marker opacity 0.6→0.2 for density visualisation. Rebuilt index.html.
 
