@@ -7,7 +7,7 @@ House 5 TinyTag (Excel) logger dashboard — static HTML build.
 - `index.html` — output served by GitHub Pages
 
 ## Instructions for Claude
-Whenever changes are made to `build.py` or `index.html`, append a brief entry to the Changelog below. Each entry heading must include the date and time to the second, e.g. `### 2026-02-27 14:32:05`.
+Whenever changes are made to `build.py` or `index.html`, append a brief entry to the Changelog below. Each entry heading must include the date and time to the second in CST (Taiwan/China Standard Time, UTC+8) — always run `date` first to get the real time, e.g. `### 2026-02-27 14:32:05 CST`.
 
 ## To update data
 1. Add/replace `.xlsx` files in `data/house5/` and/or `data/dauda/`
@@ -16,7 +16,7 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
-### 2026-02-27 16:45:00
+### 2026-02-27 12:45:40 CST
 - Fixed JS spread operator stack overflow on large arrays in adaptive comfort graph. Replaced `Math.min(...allExtTemps)` / `Math.max(...allExtTemps)` and `push(...array)` with explicit `for...of` loops — fixes House 5 (174k records) silently failing to render adaptive comfort. Rebuilt index.html.
 
 ### 2026-02-27 (time not recorded)

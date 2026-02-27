@@ -11,7 +11,8 @@ Output: index.html
 
 NOTE FOR CLAUDE: After making any changes to this file or index.html,
 add an entry to the Changelog in CLAUDE.md. The heading must include
-date and time to the second: ### YYYY-MM-DD HH:MM:SS
+date and time to the second in CST (Taiwan, UTC+8) — always run `date`
+first to get the real time: ### YYYY-MM-DD HH:MM:SS CST
 """
 
 import json
@@ -218,7 +219,8 @@ def build_dataset_json(key, df):
 HTML_TEMPLATE = r"""<!DOCTYPE html>
 <!-- NOTE FOR CLAUDE: After making any changes to this file or build.py,
      add an entry to the Changelog in CLAUDE.md. The heading must include
-     date and time to the second: ### YYYY-MM-DD HH:MM:SS -->
+     date and time to the second in CST (Taiwan, UTC+8) — always run `date`
+     first to get the real time: ### YYYY-MM-DD HH:MM:SS CST -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
