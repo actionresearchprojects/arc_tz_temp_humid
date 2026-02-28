@@ -3,3 +3,16 @@ __pycache__/
 *.pyc
 .DS_Store
 .aider*
+# Data files (large, local only)
+data/
+# Python cache
+__pycache__/
+*.pyc
+# Environment files
+.env
+venv/
+# OS files
+.DS_Store
+# IDE files
+.vscode/
+.idea/
