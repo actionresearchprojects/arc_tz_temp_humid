@@ -1,59 +1,75 @@
 # Updating ecovillage_t_h
 
-## Daily Automatic Updates
+## Data Update Options
 
-For automatic daily updates of Open-Meteo forecast/historical data:
+### Option 1: Manual Update (Recommended for now)
+Run the update script manually when you want fresh Open-Meteo data:
 
-### 1. Set up the daily update script
-
-First, install required packages:
 ```bash
+# Install dependencies (if not already installed)
 pip install pandas requests pytz
-```
 
-### 2. Test the update script
-```bash
+# Run the update
 python daily_update.py
+
+# Check the changes
+git status
+
+# Commit and push if everything looks good
+git add index.html
+git commit -m "update: fresh Open-Meteo data"
+git push
 ```
 
-### 3. Set up a cron job (Linux/macOS) or scheduled task (Windows)
+### Option 2: GitHub Actions (Automatic, runs on GitHub's servers)
+Create a `.github/workflows/daily-update.yml` file to run the update daily:
 
-**On macOS/Linux:**
-1. Open your terminal
-2. Type `crontab -e` and press Enter
-3. This will open the crontab editor (usually in vi or nano)
-4. Press `i` to enter insert mode (if using vi)
-5. Add this line to run daily at 2 AM (adjust timezone as needed):
+```yaml
+name: Daily Data Update
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Run daily at 2 AM UTC
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install pandas requests pytz
+        
+      - name: Run daily update
+        run: python daily_update.py
+        
+      - name: Commit and push if changed
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add index.html
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: auto-update Open-Meteo data"
+          git push
 ```
-0 2 * * * cd /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid && /usr/bin/python3 daily_update.py >> /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid/update.log 2>&1
-```
-6. Press `Esc` then type `:wq` and press Enter to save and exit (if using vi)
-   Or press `Ctrl+X`, then `Y`, then Enter (if using nano)
 
-**To verify your cron job is set:**
-```bash
-crontab -l
-```
+**Note:** GitHub Actions has free minutes for public repositories. This approach doesn't require your computer to be on.
 
-**On Windows:**
-Use Task Scheduler to run `daily_update.py` daily.
+### Option 3: Local Automation (Only if computer is always on)
+If you want to run updates locally, you can use cron (macOS/Linux) or Task Scheduler (Windows). However, this requires your computer to be running at the scheduled time.
 
-### 4. Test the cron job immediately
+---
 
-To test that your cron job will work, you can run it manually with:
-```bash
-cd /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid
-/usr/bin/python3 daily_update.py
-```
+## Important Notes
 
-Or schedule a test run in 1 minute:
-```bash
-# Edit crontab: crontab -e
-# Add this line to run in 1 minute:
-* * * * * cd /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid && /usr/bin/python3 daily_update.py >> /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid/update.log 2>&1
-# Wait a minute, then check the log file
-tail -f update.log
-```
+1. **Open-Meteo API Limits**: The free API has rate limits (10,000 calls/day). Our script makes 1 call per day, which is well within limits.
+2. **No API Key Required**: Basic weather data doesn't require an API key.
+3. **Data Persistence**: The CSV file is updated locally and pushed to GitHub. GitHub Pages serves the latest `index.html`.
+4. **Manual Review**: Even with automation, it's good to occasionally check that the data looks correct.
 
 ### 5. Manual update workflow (if needed)
 
