@@ -31,7 +31,10 @@ The `.github/workflows/daily-update.yml` file is already set up to run daily at 
 4. **Does NOT rebuild the dashboard** (requires Excel files that are local only)
 
 **After GitHub Actions runs:**
-1. Pull the updated CSV to your local machine
+1. Pull the updated CSV to your local machine:
+   ```bash
+   git pull origin main
+   ```
 2. Run `python build.py` locally to rebuild the dashboard with fresh Open-Meteo data
 3. Push the updated `index.html` to GitHub
 
@@ -40,6 +43,11 @@ The `.github/workflows/daily-update.yml` file is already set up to run daily at 
 2. Click on the "Actions" tab
 3. Select "Daily Data Update" workflow
 4. Click "Run workflow" to manually trigger it
+
+**Troubleshooting GitHub Actions failures:**
+- Check the Actions log for error messages
+- The workflow should complete in about 30-60 seconds
+- If it fails, check that the CSV format is correct (3 header lines, proper column names)
 
 **Note:** GitHub Actions has free minutes for public repositories. This approach doesn't require your computer to be on.
 
@@ -70,6 +78,13 @@ python build.py
 git add index.html
 git commit -m "update: rebuild with fresh Open-Meteo data"
 git push
+```
+
+**Tip:** To capture terminal output that scrolls off screen, use:
+```bash
+python daily_update.py 2>&1 | tee update.log
+# Then view the log:
+cat update.log
 ```
 
 ### 5. Manual update workflow (if needed)

@@ -338,6 +338,9 @@ def update_open_meteo_csv():
             "humidity": "relative_humidity_2m (%)",
         })
         
+        # Ensure we have the correct columns in the right order
+        output_df = output_df[["time", "temperature_2m (°C)", "relative_humidity_2m (%)"]]
+        
         # Write to standard filename
         csv_path = standard_csv_path
         
@@ -502,4 +505,7 @@ def main():
     return 0
 
 if __name__ == "__main__":
+    # Test if running with --csv-only
+    if len(sys.argv) > 1 and '--csv-only' in sys.argv:
+        print("Running in CSV-only mode for GitHub Actions")
     sys.exit(main())
