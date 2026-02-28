@@ -130,129 +130,90 @@ def update_open_meteo_csv():
     # If we have existing files, read the data from them
     existing_df = pd.DataFrame()
     if csv_files:
-        # Try to read data from all existing files and combine them
-        all_dfs = []
-        for csv_path in csv_files:
-            print(f"  Reading data from: {csv_path.name}")
+        # Use the standard path if it exists, otherwise use the first found
+        csv_path = standard_csv_path if standard_csv_path.exists() else csv_files[0]
+        print(f"  Reading data from: {csv_path.name}")
+        
+        try:
+            # Read the CSV with the expected format (3 header lines)
+            df = pd.read_csv(csv_path, skiprows=3)
+            # Check if it has the expected columns
+            if 'time' in df.columns:
+                df = df.rename(columns={'time': 'datetime'})
+            df["datetime"] = pd.to_datetime(df["datetime"])
+            df = df.set_index("datetime")
+            existing_df = df
+            print(f"    Successfully read {len(existing_df)} records from {csv_path.name}")
+        except Exception as e:
+            print(f"    Error reading {csv_path.name}: {e}")
+            # Try alternative reading method
             try:
-                # Try different reading strategies
-                # First, check if it's in the format we write (with 3 header lines)
-                try:
-                    df = pd.read_csv(csv_path, skiprows=3)
-                    # Check if it has the expected columns
-                    if 'datetime' in df.columns:
-                        df["datetime"] = pd.to_datetime(df["datetime"])
-                        df = df.set_index("datetime")
-                        all_dfs.append(df)
-                        continue
-                except:
-                    pass
+                df = pd.read_csv(csv_path, engine='python', on_bad_lines='skip')
+                # Look for datetime column
+                datetime_col = None
+                for col in df.columns:
+                    col_lower = str(col).lower()
+                    if 'datetime' in col_lower or 'time' in col_lower or 'date' in col_lower:
+                        datetime_col = col
+                        break
                 
-                # Try reading with engine='python' which is more flexible
-                try:
-                    df = pd.read_csv(csv_path, engine='python', on_bad_lines='skip')
-                    # Look for datetime column (case insensitive)
-                    datetime_col = None
+                if datetime_col:
+                    df = df.rename(columns={datetime_col: "datetime"})
+                    df["datetime"] = pd.to_datetime(df["datetime"], errors='coerce')
+                    df = df.dropna(subset=["datetime"])
+                    
+                    # Look for temperature and humidity columns
+                    temp_col = None
+                    hum_col = None
                     for col in df.columns:
                         col_lower = str(col).lower()
-                        if 'datetime' in col_lower or 'time' in col_lower or 'date' in col_lower:
-                            datetime_col = col
-                            break
+                        if 'temperature' in col_lower or 'temp' in col_lower:
+                            temp_col = col
+                        elif 'humidity' in col_lower or 'hum' in col.lower():
+                            hum_col = col
                     
-                    if datetime_col:
-                        df = df.rename(columns={datetime_col: "datetime"})
-                        df["datetime"] = pd.to_datetime(df["datetime"], errors='coerce')
-                        df = df.dropna(subset=["datetime"])
-                        
-                        # Look for temperature and humidity columns
-                        temp_col = None
-                        hum_col = None
-                        for col in df.columns:
-                            col_lower = str(col).lower()
-                            if 'temperature' in col_lower or 'temp' in col_lower:
-                                temp_col = col
-                            elif 'humidity' in col_lower or 'hum' in col.lower():
-                                hum_col = col
-                        
-                        if temp_col and hum_col:
-                            df = df.rename(columns={temp_col: "temperature", hum_col: "humidity"})
-                            # Convert to numeric, coerce errors
-                            df["temperature"] = pd.to_numeric(df["temperature"], errors='coerce')
-                            df["humidity"] = pd.to_numeric(df["humidity"], errors='coerce')
-                            df = df.dropna(subset=["temperature", "humidity"])
-                            df = df[["datetime", "temperature", "humidity"]]
-                            df = df.set_index("datetime")
-                            all_dfs.append(df)
-                            print(f"    Successfully read {csv_path.name}")
-                            continue
-                        else:
-                            # Try to find columns with any of these patterns
-                            for col in df.columns:
-                                col_lower = str(col).lower()
-                                if '°c' in col_lower or 'c)' in col_lower:
-                                    temp_col = col
-                                elif '%' in col_lower and ('rh' in col_lower or 'hum' in col_lower):
-                                    hum_col = col
-                            
-                            if temp_col and hum_col:
-                                df = df.rename(columns={temp_col: "temperature", hum_col: "humidity"})
-                                df["temperature"] = pd.to_numeric(df["temperature"], errors='coerce')
-                                df["humidity"] = pd.to_numeric(df["humidity"], errors='coerce')
-                                df = df.dropna(subset=["temperature", "humidity"])
-                                df = df[["datetime", "temperature", "humidity"]]
-                                df = df.set_index("datetime")
-                                all_dfs.append(df)
-                                print(f"    Successfully read {csv_path.name} with pattern matching")
-                                continue
-                except Exception as e:
-                    print(f"    Could not read {csv_path.name}: {e}")
-                    
-            except Exception as e:
-                print(f"    Error processing {csv_path.name}: {e}")
-        
-        # Combine all dataframes
-        if all_dfs:
-            existing_df = pd.concat(all_dfs)
-            existing_df = existing_df[~existing_df.index.duplicated(keep='last')]
-            existing_df = existing_df.sort_index()
-            print(f"  Combined {len(existing_df)} records from existing files")
+                    if temp_col and hum_col:
+                        df = df.rename(columns={temp_col: "temperature", hum_col: "humidity"})
+                        df["temperature"] = pd.to_numeric(df["temperature"], errors='coerce')
+                        df["humidity"] = pd.to_numeric(df["humidity"], errors='coerce')
+                        df = df.dropna(subset=["temperature", "humidity"])
+                        df = df[["datetime", "temperature", "humidity"]]
+                        df = df.set_index("datetime")
+                        existing_df = df
+                        print(f"    Successfully read {len(existing_df)} records with alternative method")
+            except Exception as e2:
+                print(f"    Could not read CSV with alternative method: {e2}")
     
     # Determine date range for new data
     today = datetime.now(TIMEZONE).date()
     
-    # We need historical data from 2023-03-15 onward
-    # This is when the House 5 data starts
-    historical_start_date = datetime(2023, 3, 15).date()
+    # Open-Meteo free API only provides data from about 3-4 months ago
+    # We'll only fetch forecast data and rely on existing historical data
     
     if not existing_df.empty:
-        # Get the earliest and latest dates in existing data
-        earliest_date = existing_df.index.min().date()
+        # Get the latest date in existing data
         last_date = existing_df.index.max().date()
-        
-        print(f"  Existing data: {earliest_date} to {last_date}")
-        
-        # Check if we need to fetch earlier historical data
-        if earliest_date > historical_start_date:
-            print(f"  Missing early historical data from {historical_start_date} to {earliest_date - timedelta(days=1)}")
-            early_start = historical_start_date
-            early_end = earliest_date - timedelta(days=1)
-            
-            if early_start <= early_end:
-                print(f"  Fetching early historical data from {early_start} to {early_end}")
-                early_data = fetch_open_meteo_data(early_start, early_end)
-                if early_data is not None and not early_data.empty:
-                    early_data = early_data.set_index("datetime")
-                    existing_df = pd.concat([early_data, existing_df])
+        print(f"  Existing data: {existing_df.index.min().date()} to {last_date}")
         
         # Check if we need to fill gaps up to yesterday
+        # But only if the gap is within Open-Meteo's free range (about 3-4 months)
+        # Calculate the earliest date Open-Meteo provides for free
+        earliest_open_meteo_date = today - timedelta(days=120)  # ~4 months
+        
         if last_date < today - timedelta(days=1):
-            gap_start = last_date + timedelta(days=1)
+            gap_start = max(last_date + timedelta(days=1), earliest_open_meteo_date)
             gap_end = today - timedelta(days=1)
-            print(f"  Filling gap from {gap_start} to {gap_end}")
-            gap_data = fetch_open_meteo_data(gap_start, gap_end)
-            if gap_data is not None and not gap_data.empty:
-                gap_data = gap_data.set_index("datetime")
-                existing_df = pd.concat([existing_df, gap_data])
+            
+            if gap_start <= gap_end:
+                print(f"  Filling gap from {gap_start} to {gap_end}")
+                gap_data = fetch_open_meteo_data(gap_start, gap_end)
+                if gap_data is not None and not gap_data.empty:
+                    gap_data = gap_data.set_index("datetime")
+                    existing_df = pd.concat([existing_df, gap_data])
+                    print(f"    Added {len(gap_data)} records from gap")
+            else:
+                print(f"  Gap is outside Open-Meteo's free historical range (before {earliest_open_meteo_date})")
+                print(f"  Historical data must be maintained locally")
         
         # Always fetch fresh forecast for next 7 days
         forecast_start = today
@@ -267,54 +228,30 @@ def update_open_meteo_csv():
         if forecast_data is not None and not forecast_data.empty:
             forecast_data = forecast_data.set_index("datetime")
             combined_df = pd.concat([existing_df, forecast_data])
+            print(f"    Added {len(forecast_data)} forecast records")
         else:
             combined_df = existing_df
+            print("    No forecast data fetched")
             
         combined_df = combined_df.sort_index()
         
     else:
-        # No existing data, fetch complete historical data from 2023-03-15
-        # up to yesterday, plus forecast for next 7 days
+        # No existing data - this should be the initial setup
+        # We can only fetch forecast data since historical data isn't available via free API
+        print(f"  No existing data found. This appears to be initial setup.")
+        print(f"  Note: Open-Meteo free API only provides ~4 months of historical data.")
+        print(f"  For data from 2023-03-15, you need to maintain historical data locally.")
         
-        print(f"  No existing data found. Fetching complete historical data from {historical_start_date}")
-        
-        # Fetch historical data in chunks to avoid API limits
-        all_historical = []
-        current_start = historical_start_date
-        current_end = today - timedelta(days=1)
-        
-        # Open-Meteo can handle up to 10,000 days per request
-        # Fetch in 2-year chunks to be safe
-        chunk_days = 730  # ~2 years
-        
-        while current_start <= current_end:
-            chunk_end = min(current_start + timedelta(days=chunk_days - 1), current_end)
-            print(f"    Fetching chunk: {current_start} to {chunk_end}")
-            chunk_data = fetch_open_meteo_data(current_start, chunk_end)
-            if chunk_data is not None and not chunk_data.empty:
-                all_historical.append(chunk_data)
-            current_start = chunk_end + timedelta(days=1)
-        
-        # Then fetch forecast
+        # Fetch forecast for next 7 days
         forecast_start = today
         forecast_end = today + timedelta(days=7)
         print(f"  Fetching forecast data from {forecast_start} to {forecast_end}")
         forecast_data = fetch_open_meteo_data(forecast_start, forecast_end)
         
-        # Combine
-        all_dfs = []
-        if all_historical:
-            historical_combined = pd.concat(all_historical)
-            historical_combined = historical_combined.set_index("datetime")
-            all_dfs.append(historical_combined)
-            
         if forecast_data is not None and not forecast_data.empty:
-            forecast_data = forecast_data.set_index("datetime")
-            all_dfs.append(forecast_data)
-            
-        if all_dfs:
-            combined_df = pd.concat(all_dfs)
+            combined_df = forecast_data.set_index("datetime")
             combined_df = combined_df.sort_index()
+            print(f"    Created new dataset with {len(combined_df)} forecast records")
         else:
             print("  No data fetched")
             return False
