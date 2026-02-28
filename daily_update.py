@@ -106,33 +106,44 @@ def update_open_meteo_csv():
                 except:
                     pass
                 
-                # Try without skipping rows
+                # Try without skipping rows - handle quoted fields
                 try:
-                    df = pd.read_csv(csv_path)
+                    # Try reading with different delimiters and quoting
+                    df = pd.read_csv(csv_path, on_bad_lines='skip')
                     # Look for datetime column (case insensitive)
                     datetime_col = None
                     for col in df.columns:
-                        if 'datetime' in col.lower() or 'time' in col.lower():
+                        col_lower = str(col).lower()
+                        if 'datetime' in col_lower or 'time' in col_lower or 'date' in col_lower:
                             datetime_col = col
                             break
                     
                     if datetime_col:
                         df = df.rename(columns={datetime_col: "datetime"})
-                        df["datetime"] = pd.to_datetime(df["datetime"])
+                        df["datetime"] = pd.to_datetime(df["datetime"], errors='coerce')
+                        df = df.dropna(subset=["datetime"])
+                        
                         # Look for temperature and humidity columns
                         temp_col = None
                         hum_col = None
                         for col in df.columns:
-                            if 'temperature' in col.lower() or 'temp' in col.lower():
+                            col_lower = str(col).lower()
+                            if 'temperature' in col_lower or 'temp' in col_lower:
                                 temp_col = col
-                            elif 'humidity' in col.lower() or 'hum' in col.lower():
+                            elif 'humidity' in col_lower or 'hum' in col.lower():
                                 hum_col = col
                         
                         if temp_col and hum_col:
                             df = df.rename(columns={temp_col: "temperature", hum_col: "humidity"})
+                            # Convert to numeric, coerce errors
+                            df["temperature"] = pd.to_numeric(df["temperature"], errors='coerce')
+                            df["humidity"] = pd.to_numeric(df["humidity"], errors='coerce')
+                            df = df.dropna(subset=["temperature", "humidity"])
                             df = df[["datetime", "temperature", "humidity"]]
                             df = df.set_index("datetime")
                             all_dfs.append(df)
+                            print(f"    Successfully read {csv_path.name}")
+                            continue
                 except Exception as e:
                     print(f"    Could not read {csv_path.name}: {e}")
                     
