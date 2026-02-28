@@ -90,10 +90,18 @@ git add build.py CLAUDE.md daily_update.py && git commit -m "describe your chang
 
 ## How the daily update works
 
-1. **Fetches fresh forecast data** from Open-Meteo API (next 3 days)
-2. **Updates the CSV file** with new forecast data
-3. **Maintains historical data** in the same CSV (all past dates remain)
+1. **Maintains complete historical data** from 2023-03-15 (when House 5 monitoring began) up to yesterday
+2. **Fetches fresh forecast data** from Open-Meteo API (next 7 days)
+3. **Updates the CSV file** with any missing historical data and fresh forecast
 4. **Rebuilds the dashboard** automatically
 5. **Optionally pushes to GitHub** (commented out by default)
 
-The script intelligently merges new data with existing data, avoiding duplicates and filling gaps.
+### Data Strategy:
+- **Historical data (2023-03-15 to yesterday)**: Fetched once and maintained continuously
+- **Forecast data (today to +7 days)**: Updated daily with fresh forecasts
+- **Gap filling**: Automatically detects and fills any missing dates in the historical record
+- **Duplicate prevention**: Removes old forecast data before adding new forecast
+
+The script ensures your dashboard always shows:
+- Complete historical temperature/humidity from when monitoring started
+- The most up-to-date forecast for the coming week
