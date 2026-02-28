@@ -22,40 +22,7 @@ git push
 ```
 
 ### Option 2: GitHub Actions (Automatic, runs on GitHub's servers)
-Create a `.github/workflows/daily-update.yml` file to run the update daily:
-
-```yaml
-name: Daily Data Update
-on:
-  schedule:
-    - cron: '0 2 * * *'  # Run daily at 2 AM UTC
-  workflow_dispatch:      # Allow manual trigger
-
-jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-          
-      - name: Install dependencies
-        run: pip install pandas requests pytz
-        
-      - name: Run daily update
-        run: python daily_update.py
-        
-      - name: Commit and push if changed
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add index.html
-          git diff --quiet && git diff --staged --quiet || git commit -m "chore: auto-update Open-Meteo data"
-          git push
-```
+The `.github/workflows/daily-update.yml` file is already set up to run daily at 2 AM UTC. You can also trigger it manually from the GitHub repository's Actions tab.
 
 **Note:** GitHub Actions has free minutes for public repositories. This approach doesn't require your computer to be on.
 
