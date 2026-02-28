@@ -80,6 +80,13 @@ git commit -m "update: rebuild with fresh Open-Meteo data"
 git push
 ```
 
+**Important Note about Historical Data:**
+- Open-Meteo's free API only provides about 4 months of historical data
+- Data from 2023-03-15 must be maintained in your local CSV file
+- The GitHub Actions workflow will only update forecast data and recent historical data
+- Your local CSV file with full historical data should be committed to Git once
+- After that, the daily updates will append new forecast data to it
+
 **Tip:** To capture terminal output that scrolls off screen, use:
 ```bash
 python daily_update.py 2>&1 | tee update.log

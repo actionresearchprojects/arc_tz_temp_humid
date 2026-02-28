@@ -35,13 +35,11 @@ jobs:
           
       - name: Run daily update (CSV only)
         run: |
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-          echo "Data directory contents:"
-          ls -la data/
-          echo "Running daily update to fetch Open-Meteo data..."
+          echo "Running daily update to fetch Open-Meteo forecast data..."
+          echo "Note: This will only update forecast data and recent historical data"
+          echo "Full historical data (from 2023-03-15) must be maintained locally"
           python daily_update.py --csv-only 2>&1
+          echo "Update completed"
           
       - name: Check for CSV changes
         id: check-csv-changes
