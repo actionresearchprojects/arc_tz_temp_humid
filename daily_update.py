@@ -38,10 +38,14 @@ def fetch_open_meteo_data(start_date=None, end_date=None):
     if end_date is None:
         end_date = start_date + timedelta(days=7)
     
-    # Ensure dates are not in the future (for historical data)
-    # Open-Meteo can provide historical data up to 1940
-    # But we only need from 2023-03-15 onward
+    # Don't fetch if start_date is in the future (except for forecast)
+    today = datetime.now(TIMEZONE).date()
+    if start_date > today and start_date != today:
+        print(f"  Skipping fetch: start_date {start_date} is in the future")
+        return None
     
+    # For historical data, we need to use the historical endpoint
+    # Open-Meteo has a single endpoint that handles both historical and forecast
     params = {
         "latitude": LATITUDE,
         "longitude": LONGITUDE,
@@ -51,7 +55,7 @@ def fetch_open_meteo_data(start_date=None, end_date=None):
         "end_date": end_date.isoformat(),
     }
     
-    print(f"Fetching Open-Meteo data from {start_date} to {end_date}...")
+    print(f"  Fetching Open-Meteo data from {start_date} to {end_date}...")
     response = requests.get(OPEN_METEO_BASE_URL, params=params)
     
     if response.status_code != 200:
