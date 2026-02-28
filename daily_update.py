@@ -193,12 +193,14 @@ def update_open_meteo_csv():
             f"# Open-Meteo data for {LATITUDE},{LONGITUDE}",
             f"# Elevation: {ELEVATION}m",
             f"# Timezone: Africa/Dar_es_Salaam",
-            "datetime,temperature_2m (°C),relative_humidity_2m (%)",
+            "time,temperature_2m (°C),relative_humidity_2m (%)",
         ]
         
         # Reset index for CSV writing
         output_df = combined_df.reset_index()
+        # Rename columns to match what build.py expects
         output_df = output_df.rename(columns={
+            "datetime": "time",
             "temperature": "temperature_2m (°C)",
             "humidity": "relative_humidity_2m (%)",
         })
