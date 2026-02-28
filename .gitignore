@@ -1,5 +1,14 @@
 # Data files (large, local only)
-data/
+data/*
+!data/open-meteo*.csv
+!data/omnisense_*.csv
+# But ignore subdirectories
+data/house5/
+data/dauda/
+data/backup/
+data/legacy/
+data/hist_proj/
+
 # Python cache
 __pycache__/
 *.pyc

@@ -24,6 +24,17 @@ git push
 ### Option 2: GitHub Actions (Automatic, runs on GitHub's servers)
 The `.github/workflows/daily-update.yml` file is already set up to run daily at 2 AM UTC. You can also trigger it manually from the GitHub repository's Actions tab.
 
+**What GitHub Actions does:**
+1. Fetches fresh Open-Meteo forecast data
+2. Updates the `open-meteo*.csv` file
+3. Commits and pushes the updated CSV to GitHub
+4. **Does NOT rebuild the dashboard** (requires Excel files that are local only)
+
+**After GitHub Actions runs:**
+1. Pull the updated CSV to your local machine
+2. Run `python build.py` locally to rebuild the dashboard with fresh Open-Meteo data
+3. Push the updated `index.html` to GitHub
+
 **To test GitHub Actions:**
 1. Go to your GitHub repository: `https://github.com/actionresearchprojects/arc_tz_temp_humid`
 2. Click on the "Actions" tab
@@ -44,6 +55,23 @@ If you want to run updates locally, you can use cron (macOS/Linux) or Task Sched
 3. **Data Persistence**: The CSV file is updated locally and pushed to GitHub. GitHub Pages serves the latest `index.html`.
 4. **Manual Review**: Even with automation, it's good to occasionally check that the data looks correct.
 
+### 4. Complete Workflow After GitHub Actions Update
+
+When GitHub Actions has updated the Open-Meteo CSV:
+
+```bash
+# 1. Pull the updated CSV from GitHub
+git pull origin main
+
+# 2. Rebuild the dashboard locally (requires your Excel files)
+python build.py
+
+# 3. Push the updated dashboard
+git add index.html
+git commit -m "update: rebuild with fresh Open-Meteo data"
+git push
+```
+
 ### 5. Manual update workflow (if needed)
 
 **TinyTag loggers:** Drop new `.xlsx` files into `data/house5/` or `data/dauda/` (Schoolteacher's House).
@@ -55,15 +83,17 @@ If you want to run updates locally, you can use cron (macOS/Linux) or Task Sched
 python daily_update.py
 ```
 
-### 5. Rebuild the dashboard
+### 6. Rebuild the dashboard
 ```bash
 python build.py
 ```
 
-### 6. Push to GitHub
-> `data/` is gitignored — the data files are local only. Only `index.html` needs pushing.
+### 7. Push to GitHub
+> Most data files are gitignored — only `open-meteo*.csv` and `omnisense_*.csv` are tracked.
 ```bash
-git add index.html && git commit -m "update data" && git push
+git add index.html data/open-meteo*.csv
+git commit -m "update data"
+git push
 ```
 
 ---

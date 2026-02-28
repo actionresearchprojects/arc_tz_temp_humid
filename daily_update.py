@@ -451,6 +451,13 @@ def ensure_historical_data():
 
 def main():
     """Main update routine."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Daily update for Open-Meteo data')
+    parser.add_argument('--csv-only', action='store_true', 
+                       help='Only update CSV file, skip dashboard rebuild')
+    args = parser.parse_args()
+    
     print(f"=== Daily Update {datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M')} ===")
     
     # Ensure data directory exists
@@ -473,6 +480,11 @@ def main():
     # Step 2: Archive historical data (placeholder)
     print("\nArchiving historical data...")
     archive_historical_data()
+    
+    if args.csv_only:
+        print("\nCSV-only mode: Skipping dashboard rebuild")
+        print("\n=== Daily update (CSV only) completed successfully ===")
+        return 0
     
     # Step 3: Rebuild dashboard
     print("\nRebuilding dashboard...")

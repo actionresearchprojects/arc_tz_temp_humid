@@ -30,39 +30,34 @@ jobs:
           
       - name: Create data directory structure
         run: |
-          mkdir -p data/house5
-          mkdir -p data/dauda
+          mkdir -p data
           mkdir -p data/backup
-          # Create empty placeholder files if they don't exist
-          touch data/omnisense_270226.csv
-          touch data/open-meteo-7.12S39.25E61m.csv
           
-      - name: Run daily update with debug
+      - name: Run daily update (CSV only)
         run: |
           echo "Current directory: $(pwd)"
           echo "Directory contents:"
           ls -la
-          echo "Data directory contents:"
-          ls -la data/
-          python daily_update.py
+          echo "Running daily update to fetch Open-Meteo data..."
+          python daily_update.py --csv-only
           
-      - name: Check for changes
-        id: check-changes
+      - name: Check for CSV changes
+        id: check-csv-changes
         run: |
           git status
-          if git diff --quiet && git diff --staged --quiet; then
-            echo "changes=false" >> $GITHUB_OUTPUT
-            echo "No changes to commit"
+          if git diff --quiet data/open-meteo*.csv 2>/dev/null; then
+            echo "csv_changed=false" >> $GITHUB_OUTPUT
+            echo "No changes to Open-Meteo CSV"
           else
-            echo "changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected"
+            echo "csv_changed=true" >> $GITHUB_OUTPUT
+            echo "Open-Meteo CSV updated"
           fi
           
-      - name: Commit and push if changed
-        if: steps.check-changes.outputs.changes == 'true'
+      - name: Commit and push CSV if changed
+        if: steps.check-csv-changes.outputs.csv_changed == 'true'
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add index.html
-          git commit -m "chore: auto-update Open-Meteo data [skip ci]"
+          git add data/open-meteo*.csv
+          git commit -m "chore: update Open-Meteo CSV [skip ci]"
           git push
