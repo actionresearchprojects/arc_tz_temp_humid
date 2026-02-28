@@ -32,42 +32,12 @@ Combines TinyTag Excel loggers (House 5 + Schoolteacher's House) with Omnisense 
 Whenever changes are made to `build.py` or `index.html`, append a brief entry to the Changelog below. Each entry heading must include the date and time to the second in CST (Taiwan/China Standard Time, UTC+8) — always run `date` first to get the real time, e.g. `### 2026-02-27 14:32:05 CST`.
 
 ## To update data
-
-### Manual update
 1. Add/replace `.xlsx` files in `data/house5/` and/or `data/schoolteacher/`
 2. Add/replace `omnisense_*.csv` and `open-meteo*.csv` in `data/` (see `OMNISENSE_DATA_UPDATE_GUIDE.md` one level up)
 3. Run: `python build.py`
 4. `git add index.html && git commit -m "update data" && git push`
 
-### Update Options
-
-#### Manual Update (Simple)
-```bash
-python daily_update.py
-git add index.html && git commit -m "update data" && git push
-```
-
-#### GitHub Actions (Automatic)
-Create `.github/workflows/daily-update.yml` to run daily on GitHub's servers:
-- No need for your computer to be on
-- Free for public repositories
-- Updates automatically at 2 AM UTC daily
-
-The update script:
-- Fetches fresh Open-Meteo forecast data (no API key needed for basic data)
-- Updates the CSV with new forecast/historical data
-- Rebuilds the dashboard
-- Commits changes if data has been updated
-
 ## Changelog
-
-### 2026-02-28 19:10:00 CST
-- Fixed GitHub Actions workflow to handle missing Excel files
-- Modified `.gitignore` to track Open-Meteo CSV files while ignoring other data
-- Added `--csv-only` mode to daily update script for GitHub Actions
-- GitHub Actions now only updates CSV file without rebuilding dashboard
-- Dashboard rebuild must be done locally after pulling updated CSV
-- Updated documentation with new workflow instructions
 
 ### 2026-02-28 17:30:27 CST
 - Historic mode now applies its effects universally (both line graph and histogram): enables "Historic Mode" checkbox in histogram mode → hides humidity, resets loggers to Open-Meteo only, shows climate series checkboxes. Previously these effects only applied on the line graph.
