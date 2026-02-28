@@ -1,8 +1,3 @@
-data/
-__pycache__/
-*.pyc
-.DS_Store
-.aider*
 # Data files (large, local only)
 data/
 # Python cache
@@ -16,3 +11,5 @@ venv/
 # IDE files
 .vscode/
 .idea/
+# Aider files
+.aider*

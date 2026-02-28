@@ -106,10 +106,9 @@ def update_open_meteo_csv():
                 except:
                     pass
                 
-                # Try without skipping rows - handle quoted fields
+                # Try reading with engine='python' which is more flexible
                 try:
-                    # Try reading with different delimiters and quoting
-                    df = pd.read_csv(csv_path, on_bad_lines='skip')
+                    df = pd.read_csv(csv_path, engine='python', on_bad_lines='skip')
                     # Look for datetime column (case insensitive)
                     datetime_col = None
                     for col in df.columns:
@@ -144,6 +143,25 @@ def update_open_meteo_csv():
                             all_dfs.append(df)
                             print(f"    Successfully read {csv_path.name}")
                             continue
+                        else:
+                            # Try to find columns with any of these patterns
+                            for col in df.columns:
+                                col_lower = str(col).lower()
+                                if '°c' in col_lower or 'c)' in col_lower:
+                                    temp_col = col
+                                elif '%' in col_lower and ('rh' in col_lower or 'hum' in col_lower):
+                                    hum_col = col
+                            
+                            if temp_col and hum_col:
+                                df = df.rename(columns={temp_col: "temperature", hum_col: "humidity"})
+                                df["temperature"] = pd.to_numeric(df["temperature"], errors='coerce')
+                                df["humidity"] = pd.to_numeric(df["humidity"], errors='coerce')
+                                df = df.dropna(subset=["temperature", "humidity"])
+                                df = df[["datetime", "temperature", "humidity"]]
+                                df = df.set_index("datetime")
+                                all_dfs.append(df)
+                                print(f"    Successfully read {csv_path.name} with pattern matching")
+                                continue
                 except Exception as e:
                     print(f"    Could not read {csv_path.name}: {e}")
                     

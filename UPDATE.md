@@ -24,6 +24,12 @@ git push
 ### Option 2: GitHub Actions (Automatic, runs on GitHub's servers)
 The `.github/workflows/daily-update.yml` file is already set up to run daily at 2 AM UTC. You can also trigger it manually from the GitHub repository's Actions tab.
 
+**To test GitHub Actions:**
+1. Go to your GitHub repository: `https://github.com/actionresearchprojects/arc_tz_temp_humid`
+2. Click on the "Actions" tab
+3. Select "Daily Data Update" workflow
+4. Click "Run workflow" to manually trigger it
+
 **Note:** GitHub Actions has free minutes for public repositories. This approach doesn't require your computer to be on.
 
 ### Option 3: Local Automation (Only if computer is always on)
@@ -69,7 +75,7 @@ data/
   house5/                        ← TinyTag .xlsx files (House 5 loggers)
   dauda/                         ← TinyTag .xlsx files (Schoolteacher's House loggers)
   omnisense_270226.csv           ← Omnisense CSV (T&H sensors loaded for House 5)
-  open-meteo-7.07S39.30E81m.csv  ← Open-Meteo external temperature (auto-updated)
+  open-meteo-7.12S39.25E61m.csv  ← Open-Meteo external temperature (auto-updated)
   legacy/                        ← old Omnisense CSVs
 ```
 
