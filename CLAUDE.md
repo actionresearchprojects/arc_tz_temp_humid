@@ -32,12 +32,34 @@ Combines TinyTag Excel loggers (House 5 + Schoolteacher's House) with Omnisense 
 Whenever changes are made to `build.py` or `index.html`, append a brief entry to the Changelog below. Each entry heading must include the date and time to the second in CST (Taiwan/China Standard Time, UTC+8) — always run `date` first to get the real time, e.g. `### 2026-02-27 14:32:05 CST`.
 
 ## To update data
+
+### Manual update
 1. Add/replace `.xlsx` files in `data/house5/` and/or `data/schoolteacher/`
 2. Add/replace `omnisense_*.csv` and `open-meteo*.csv` in `data/` (see `OMNISENSE_DATA_UPDATE_GUIDE.md` one level up)
 3. Run: `python build.py`
 4. `git add index.html && git commit -m "update data" && git push`
 
+### Automatic daily updates
+Set up the `daily_update.py` script with a cron job/scheduled task:
+1. Install dependencies: `pip install pandas requests pytz`
+2. Test: `python daily_update.py`
+3. Schedule to run daily (e.g., at 2 AM)
+
+The script automatically:
+- Fetches fresh Open-Meteo forecast data
+- Updates the CSV with new forecast/historical data
+- Rebuilds the dashboard
+- Can optionally push to GitHub (commented out by default)
+
 ## Changelog
+
+### 2026-02-28 18:00:00 CST
+- Added automatic daily update system with `daily_update.py` script
+- Script fetches fresh Open-Meteo forecast data daily and updates CSV
+- Maintains historical data while adding new forecast data
+- Can be scheduled via cron/scheduled tasks for fully automatic updates
+- Added `.gitignore` to exclude data files from version control
+- Updated documentation in `UPDATE.md` and `CLAUDE.md` with setup instructions
 
 ### 2026-02-28 17:30:27 CST
 - Historic mode now applies its effects universally (both line graph and histogram): enables "Historic Mode" checkbox in histogram mode → hides humidity, resets loggers to Open-Meteo only, shows climate series checkboxes. Previously these effects only applied on the line graph.
