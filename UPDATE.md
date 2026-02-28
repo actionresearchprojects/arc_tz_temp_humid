@@ -19,18 +19,43 @@ python daily_update.py
 ### 3. Set up a cron job (Linux/macOS) or scheduled task (Windows)
 
 **On macOS/Linux:**
-```bash
-# Edit crontab
-crontab -e
+1. Open your terminal
+2. Type `crontab -e` and press Enter
+3. This will open the crontab editor (usually in vi or nano)
+4. Press `i` to enter insert mode (if using vi)
+5. Add this line to run daily at 2 AM (adjust timezone as needed):
+```
+0 2 * * * cd /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid && /usr/bin/python3 daily_update.py >> /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid/update.log 2>&1
+```
+6. Press `Esc` then type `:wq` and press Enter to save and exit (if using vi)
+   Or press `Ctrl+X`, then `Y`, then Enter (if using nano)
 
-# Add this line to run daily at 2 AM (adjust timezone as needed)
-0 2 * * * cd /path/to/arc_tz_temp_humid && /usr/bin/python3 daily_update.py >> /path/to/arc_tz_temp_humid/update.log 2>&1
+**To verify your cron job is set:**
+```bash
+crontab -l
 ```
 
 **On Windows:**
 Use Task Scheduler to run `daily_update.py` daily.
 
-### 4. Manual update workflow (if needed)
+### 4. Test the cron job immediately
+
+To test that your cron job will work, you can run it manually with:
+```bash
+cd /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid
+/usr/bin/python3 daily_update.py
+```
+
+Or schedule a test run in 1 minute:
+```bash
+# Edit crontab: crontab -e
+# Add this line to run in 1 minute:
+* * * * * cd /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid && /usr/bin/python3 daily_update.py >> /Users/archwrth/Downloads/ARC_graphs/arc_tz_temp_humid/update.log 2>&1
+# Wait a minute, then check the log file
+tail -f update.log
+```
+
+### 5. Manual update workflow (if needed)
 
 **TinyTag loggers:** Drop new `.xlsx` files into `data/house5/` or `data/dauda/` (Schoolteacher's House).
 
