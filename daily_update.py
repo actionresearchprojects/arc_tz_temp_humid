@@ -38,6 +38,10 @@ def fetch_open_meteo_data(start_date=None, end_date=None):
     if end_date is None:
         end_date = start_date + timedelta(days=7)
     
+    # Ensure dates are not in the future (for historical data)
+    # Open-Meteo can provide historical data up to 1940
+    # But we only need from 2023-03-15 onward
+    
     params = {
         "latitude": LATITUDE,
         "longitude": LONGITUDE,
@@ -178,45 +182,104 @@ def update_open_meteo_csv():
     # Determine date range for new data
     today = datetime.now(TIMEZONE).date()
     
+    # We need historical data from 2023-03-15 onward
+    # This is when the House 5 data starts
+    historical_start_date = datetime(2023, 3, 15).date()
+    
     if not existing_df.empty:
         # Get the last date in existing data
         last_date = existing_df.index.max().date()
         
-        # If we already have data up to today, we might need to update
-        # the forecast portion (last few days)
-        if last_date >= today:
-            # We already have today's data, fetch next 3 days for forecast
-            start_date = today + timedelta(days=1)
-            end_date = today + timedelta(days=3)
-            new_data = fetch_open_meteo_data(start_date, end_date)
-            
-            if new_data is not None:
-                # Remove any existing forecast data for these dates
-                new_data = new_data.set_index("datetime")
-                mask = existing_df.index.date >= start_date
-                existing_df = existing_df[~mask]
-                
-                # Combine
-                combined_df = pd.concat([existing_df, new_data])
-                combined_df = combined_df.sort_index()
-        else:
-            # We're missing data between last_date+1 and today+3
+        # We need to ensure we have complete historical data from 2023-03-15
+        # Check if we're missing any historical data
+        if last_date < today:
+            # We're missing data between last_date+1 and today
+            # Fetch missing historical data
             start_date = last_date + timedelta(days=1)
-            end_date = today + timedelta(days=3)
-            new_data = fetch_open_meteo_data(start_date, end_date)
+            end_date = today - timedelta(days=1)  # Up to yesterday
             
-            if new_data is not None:
-                new_data = new_data.set_index("datetime")
-                combined_df = pd.concat([existing_df, new_data])
+            # Also fetch forecast for next 7 days
+            forecast_start = today
+            forecast_end = today + timedelta(days=7)
+            
+            # Fetch historical data if needed
+            if start_date <= end_date:
+                print(f"  Fetching missing historical data from {start_date} to {end_date}")
+                historical_data = fetch_open_meteo_data(start_date, end_date)
+            else:
+                historical_data = None
+                
+            # Fetch forecast data
+            print(f"  Fetching forecast data from {forecast_start} to {forecast_end}")
+            forecast_data = fetch_open_meteo_data(forecast_start, forecast_end)
+            
+            # Combine all data
+            combined_df = existing_df.copy()
+            
+            if historical_data is not None and not historical_data.empty:
+                historical_data = historical_data.set_index("datetime")
+                # Remove any overlapping data
+                mask = combined_df.index.date >= start_date
+                combined_df = combined_df[~mask]
+                combined_df = pd.concat([combined_df, historical_data])
+            
+            if forecast_data is not None and not forecast_data.empty:
+                forecast_data = forecast_data.set_index("datetime")
+                # Remove any overlapping forecast data
+                mask = combined_df.index.date >= forecast_start
+                combined_df = combined_df[~mask]
+                combined_df = pd.concat([combined_df, forecast_data])
+                
+            combined_df = combined_df.sort_index()
+        else:
+            # We have data up to today, just update forecast
+            # Remove any existing forecast data (today onward)
+            mask = existing_df.index.date >= today
+            existing_df = existing_df[~mask]
+            
+            # Fetch fresh forecast for next 7 days
+            forecast_start = today
+            forecast_end = today + timedelta(days=7)
+            print(f"  Updating forecast data from {forecast_start} to {forecast_end}")
+            forecast_data = fetch_open_meteo_data(forecast_start, forecast_end)
+            
+            if forecast_data is not None and not forecast_data.empty:
+                forecast_data = forecast_data.set_index("datetime")
+                combined_df = pd.concat([existing_df, forecast_data])
                 combined_df = combined_df.sort_index()
+            else:
+                combined_df = existing_df
     else:
-        # No existing data, fetch last 30 days + next 7 days
-        start_date = today - timedelta(days=30)
-        end_date = today + timedelta(days=7)
-        new_data = fetch_open_meteo_data(start_date, end_date)
+        # No existing data, fetch complete historical data from 2023-03-15
+        # up to yesterday, plus forecast for next 7 days
         
-        if new_data is not None:
-            combined_df = new_data.set_index("datetime")
+        # First, fetch historical data
+        historical_end = today - timedelta(days=1)
+        if historical_start_date <= historical_end:
+            print(f"  Fetching historical data from {historical_start_date} to {historical_end}")
+            historical_data = fetch_open_meteo_data(historical_start_date, historical_end)
+        else:
+            historical_data = None
+            
+        # Then fetch forecast
+        forecast_start = today
+        forecast_end = today + timedelta(days=7)
+        print(f"  Fetching forecast data from {forecast_start} to {forecast_end}")
+        forecast_data = fetch_open_meteo_data(forecast_start, forecast_end)
+        
+        # Combine
+        all_dfs = []
+        if historical_data is not None and not historical_data.empty:
+            all_dfs.append(historical_data.set_index("datetime"))
+        if forecast_data is not None and not forecast_data.empty:
+            all_dfs.append(forecast_data.set_index("datetime"))
+            
+        if all_dfs:
+            combined_df = pd.concat(all_dfs)
+            combined_df = combined_df.sort_index()
+        else:
+            print("  No data fetched")
+            return False
     
     # Write updated CSV
     if 'combined_df' in locals() and not combined_df.empty:
@@ -319,12 +382,44 @@ def git_commit_and_push():
         print(f"Exception during Git operations: {e}")
         return False
 
+def ensure_historical_data():
+    """Ensure we have Open-Meteo data from 2023-03-15 onward."""
+    csv_files = list(DATA_FOLDER.glob("open-meteo*.csv"))
+    if not csv_files:
+        print("  No Open-Meteo CSV found, will create new one with full history")
+        return False
+    
+    # Read the existing CSV
+    try:
+        csv_path = csv_files[0]
+        df = pd.read_csv(csv_path, skiprows=3)
+        df["datetime"] = pd.to_datetime(df["datetime"])
+        df = df.set_index("datetime")
+        
+        # Check the earliest date
+        earliest_date = df.index.min().date()
+        historical_start_date = datetime(2023, 3, 15).date()
+        
+        if earliest_date > historical_start_date:
+            print(f"  Warning: Data starts from {earliest_date}, missing data from {historical_start_date}")
+            # We could fetch missing historical data here
+            return False
+        else:
+            print(f"  Historical data coverage: {earliest_date} to {df.index.max().date()}")
+            return True
+    except Exception as e:
+        print(f"  Error checking historical data: {e}")
+        return False
+
 def main():
     """Main update routine."""
     print(f"=== Daily Update {datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M')} ===")
     
     # Ensure data directory exists
     DATA_FOLDER.mkdir(exist_ok=True)
+    
+    # Check historical data coverage
+    ensure_historical_data()
     
     # Step 1: Update Open-Meteo CSV
     if not update_open_meteo_csv():
