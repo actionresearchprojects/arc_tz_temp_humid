@@ -25,10 +25,10 @@ DATA_FOLDER = Path("data")
 TIMEZONE = pytz.timezone("Africa/Dar_es_Salaam")
 OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
 
-# Coordinates for the house location
-LATITUDE = -7.07  # Approximate for Dar es Salaam
-LONGITUDE = 39.30
-ELEVATION = 81  # meters
+# Coordinates for the house location - using values from existing CSV
+LATITUDE = -7.12  # From existing CSV filename
+LONGITUDE = 39.25
+ELEVATION = 61  # meters
 
 def fetch_open_meteo_data(start_date=None, end_date=None):
     """Fetch temperature and humidity data from Open-Meteo API."""
@@ -76,24 +76,156 @@ def fetch_open_meteo_data(start_date=None, end_date=None):
 
 def update_open_meteo_csv():
     """Update the Open-Meteo CSV file with fresh data."""
-    # Find existing CSV file
+    # Find existing CSV file - use the most recent one
     csv_files = list(DATA_FOLDER.glob("open-meteo*.csv"))
-    if not csv_files:
-        print("No existing Open-Meteo CSV found. Creating new one.")
-        csv_path = DATA_FOLDER / f"open-meteo-{LATITUDE}S{LONGITUDE}E{ELEVATION}m.csv"
-        existing_df = pd.DataFrame()
-    else:
-        csv_path = csv_files[0]
-        print(f"Found existing CSV: {csv_path.name}")
+    
+    # Create a standard filename to avoid issues with spaces/parentheses
+    standard_csv_path = DATA_FOLDER / f"open-meteo-{LATITUDE}S{LONGITUDE}E{ELEVATION}m.csv"
+    
+    # If we have existing files, read the data from them
+    existing_df = pd.DataFrame()
+    if csv_files:
+        # Try to read data from all existing files and combine them
+        all_dfs = []
+        for csv_path in csv_files:
+            print(f"  Reading data from: {csv_path.name}")
+            try:
+                # Try different reading strategies
+                # First, check if it's in the format we write (with 3 header lines)
+                try:
+                    df = pd.read_csv(csv_path, skiprows=3)
+                    # Check if it has the expected columns
+                    if 'datetime' in df.columns:
+                        df["datetime"] = pd.to_datetime(df["datetime"])
+                        df = df.set_index("datetime")
+                        all_dfs.append(df)
+                        continue
+                except:
+                    pass
+                
+                # Try without skipping rows
+                try:
+                    df = pd.read_csv(csv_path)
+                    # Look for datetime column (case insensitive)
+                    datetime_col = None
+                    for col in df.columns:
+                        if 'datetime' in col.lower() or 'time' in col.lower():
+                            datetime_col = col
+                            break
+                    
+                    if datetime_col:
+                        df = df.rename(columns={datetime_col: "datetime"})
+                        df["datetime"] = pd.to_datetime(df["datetime"])
+                        # Look for temperature and humidity columns
+                        temp_col = None
+                        hum_col = None
+                        for col in df.columns:
+                            if 'temperature' in col.lower() or 'temp' in col.lower():
+                                temp_col = col
+                            elif 'humidity' in col.lower() or 'hum' in col.lower():
+                                hum_col = col
+                        
+                        if temp_col and hum_col:
+                            df = df.rename(columns={temp_col: "temperature", hum_col: "humidity"})
+                            df = df[["datetime", "temperature", "humidity"]]
+                            df = df.set_index("datetime")
+                            all_dfs.append(df)
+                except Exception as e:
+                    print(f"    Could not read {csv_path.name}: {e}")
+                    
+            except Exception as e:
+                print(f"    Error processing {csv_path.name}: {e}")
         
-        # Read existing data
-        try:
-            existing_df = pd.read_csv(csv_path, skiprows=3)
-            existing_df["datetime"] = pd.to_datetime(existing_df["datetime"])
-            existing_df = existing_df.set_index("datetime")
-        except Exception as e:
-            print(f"Error reading existing CSV: {e}")
-            existing_df = pd.DataFrame()
+        # Combine all dataframes
+        if all_dfs:
+            existing_df = pd.concat(all_dfs)
+            existing_df = existing_df[~existing_df.index.duplicated(keep='last')]
+            existing_df = existing_df.sort_index()
+            print(f"  Combined {len(existing_df)} records from existing files")
+    
+    # Determine date range for new data
+    today = datetime.now(TIMEZONE).date()
+    
+    if not existing_df.empty:
+        # Get the last date in existing data
+        last_date = existing_df.index.max().date()
+        
+        # If we already have data up to today, we might need to update
+        # the forecast portion (last few days)
+        if last_date >= today:
+            # We already have today's data, fetch next 3 days for forecast
+            start_date = today + timedelta(days=1)
+            end_date = today + timedelta(days=3)
+            new_data = fetch_open_meteo_data(start_date, end_date)
+            
+            if new_data is not None:
+                # Remove any existing forecast data for these dates
+                new_data = new_data.set_index("datetime")
+                mask = existing_df.index.date >= start_date
+                existing_df = existing_df[~mask]
+                
+                # Combine
+                combined_df = pd.concat([existing_df, new_data])
+                combined_df = combined_df.sort_index()
+        else:
+            # We're missing data between last_date+1 and today+3
+            start_date = last_date + timedelta(days=1)
+            end_date = today + timedelta(days=3)
+            new_data = fetch_open_meteo_data(start_date, end_date)
+            
+            if new_data is not None:
+                new_data = new_data.set_index("datetime")
+                combined_df = pd.concat([existing_df, new_data])
+                combined_df = combined_df.sort_index()
+    else:
+        # No existing data, fetch last 30 days + next 7 days
+        start_date = today - timedelta(days=30)
+        end_date = today + timedelta(days=7)
+        new_data = fetch_open_meteo_data(start_date, end_date)
+        
+        if new_data is not None:
+            combined_df = new_data.set_index("datetime")
+    
+    # Write updated CSV
+    if 'combined_df' in locals() and not combined_df.empty:
+        # Create header with metadata
+        header_lines = [
+            f"# Open-Meteo data for {LATITUDE},{LONGITUDE}",
+            f"# Elevation: {ELEVATION}m",
+            f"# Timezone: Africa/Dar_es_Salaam",
+            "datetime,temperature_2m (°C),relative_humidity_2m (%)",
+        ]
+        
+        # Reset index for CSV writing
+        output_df = combined_df.reset_index()
+        output_df = output_df.rename(columns={
+            "temperature": "temperature_2m (°C)",
+            "humidity": "relative_humidity_2m (%)",
+        })
+        
+        # Write to standard filename
+        csv_path = standard_csv_path
+        
+        # Write file
+        with open(csv_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(header_lines) + "\n")
+            output_df.to_csv(f, index=False, date_format="%Y-%m-%d %H:%M")
+        
+        print(f"Updated {csv_path.name} with {len(combined_df)} records")
+        print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+        
+        # Archive old files by moving them to a backup folder
+        backup_folder = DATA_FOLDER / "backup"
+        backup_folder.mkdir(exist_ok=True)
+        for old_csv in csv_files:
+            if old_csv != csv_path:
+                backup_path = backup_folder / old_csv.name
+                old_csv.rename(backup_path)
+                print(f"  Archived {old_csv.name} to backup/")
+        
+        return True
+    
+    return False
     
     # Determine date range for new data
     today = datetime.now(TIMEZONE).date()
