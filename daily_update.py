@@ -80,7 +80,10 @@ def update_open_meteo_csv():
     csv_files = list(DATA_FOLDER.glob("open-meteo*.csv"))
     
     # Create a standard filename to avoid issues with spaces/parentheses
-    standard_csv_path = DATA_FOLDER / f"open-meteo-{LATITUDE}S{LONGITUDE}E{ELEVATION}m.csv"
+    # Ensure LATITUDE is positive with 'S' suffix for south (negative latitude)
+    lat_str = f"{abs(LATITUDE):.2f}S"
+    lon_str = f"{LONGITUDE:.2f}E"
+    standard_csv_path = DATA_FOLDER / f"open-meteo-{lat_str}{lon_str}{ELEVATION}m.csv"
     
     # If we have existing files, read the data from them
     existing_df = pd.DataFrame()
@@ -225,77 +228,6 @@ def update_open_meteo_csv():
                 old_csv.rename(backup_path)
                 print(f"  Archived {old_csv.name} to backup/")
         
-        return True
-    
-    return False
-    
-    # Determine date range for new data
-    today = datetime.now(TIMEZONE).date()
-    
-    if not existing_df.empty:
-        # Get the last date in existing data
-        last_date = existing_df.index.max().date()
-        
-        # If we already have data up to today, we might need to update
-        # the forecast portion (last few days)
-        if last_date >= today:
-            # We already have today's data, fetch next 3 days for forecast
-            start_date = today + timedelta(days=1)
-            end_date = today + timedelta(days=3)
-            new_data = fetch_open_meteo_data(start_date, end_date)
-            
-            if new_data is not None:
-                # Remove any existing forecast data for these dates
-                new_data = new_data.set_index("datetime")
-                mask = existing_df.index.date >= start_date
-                existing_df = existing_df[~mask]
-                
-                # Combine
-                combined_df = pd.concat([existing_df, new_data])
-                combined_df = combined_df.sort_index()
-        else:
-            # We're missing data between last_date+1 and today+3
-            start_date = last_date + timedelta(days=1)
-            end_date = today + timedelta(days=3)
-            new_data = fetch_open_meteo_data(start_date, end_date)
-            
-            if new_data is not None:
-                new_data = new_data.set_index("datetime")
-                combined_df = pd.concat([existing_df, new_data])
-                combined_df = combined_df.sort_index()
-    else:
-        # No existing data, fetch last 30 days + next 7 days
-        start_date = today - timedelta(days=30)
-        end_date = today + timedelta(days=7)
-        new_data = fetch_open_meteo_data(start_date, end_date)
-        
-        if new_data is not None:
-            combined_df = new_data.set_index("datetime")
-    
-    # Write updated CSV
-    if 'combined_df' in locals() and not combined_df.empty:
-        # Create header with metadata
-        header_lines = [
-            f"# Open-Meteo data for {LATITUDE},{LONGITUDE}",
-            f"# Elevation: {ELEVATION}m",
-            f"# Timezone: Africa/Dar_es_Salaam",
-            "datetime,temperature_2m (°C),relative_humidity_2m (%)",
-        ]
-        
-        # Reset index for CSV writing
-        output_df = combined_df.reset_index()
-        output_df = output_df.rename(columns={
-            "temperature": "temperature_2m (°C)",
-            "humidity": "relative_humidity_2m (%)",
-        })
-        
-        # Write file
-        with open(csv_path, 'w', encoding='utf-8') as f:
-            f.write("\n".join(header_lines) + "\n")
-            output_df.to_csv(f, index=False, date_format="%Y-%m-%d %H:%M")
-        
-        print(f"Updated {csv_path.name} with {len(combined_df)} records")
-        print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
         return True
     
     return False
