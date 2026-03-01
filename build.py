@@ -1971,7 +1971,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const texts = {
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable.',
-    comfort: 'Adaptive comfort per EN 15251. X-axis is the exponential running mean of outdoor temperature (\u03b1=0.8). Green band = comfort zone for the selected humidity model.'
+    comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.'
   };
   icon.addEventListener('mouseenter', () => {
     tip.textContent = texts[state.chartType] || '';
