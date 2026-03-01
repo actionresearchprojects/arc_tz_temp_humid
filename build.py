@@ -515,7 +515,7 @@ select:focus { outline: none; border-color: #4a90d9; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, serif; }
 .info-i:hover { background: #666; }
-#info-fixed-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:Georgia,serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:220px; z-index:9999; pointer-events:none; white-space:normal; }
+#info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:Georgia,serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:280px; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .control-row label { font-size: 12px; color: #666; white-space: nowrap; }
@@ -600,6 +600,10 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div id="historic-series-checkboxes" style="display:none;margin-top:4px"></div>
         <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Generated using <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026</div>
       </div>
+      <hr class="divider">
+      <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
+        External temperature data from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a> (hourly, Dar es Salaam). Used as the running mean source for adaptive comfort and as the "External Temperature" logger on line/histogram charts.
+      </div>
     </div>
 
     <div id="comfort-controls" class="hidden">
@@ -641,6 +645,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="default">Default comfort model</option>
             <option value="none">No comfort band</option>
           </select>
+          <span class="info-i" id="chart-info-icon">i</span>
+          <div id="chart-info-tip"></div>
         </div>
         <span id="bar-title"></span>
         <div id="time-bar-right">
@@ -1878,6 +1884,27 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     if (left + 228 > window.innerWidth - 8) left = window.innerWidth - 236;
     tip.style.left = left + 'px';
     tip.style.top  = r.top + 'px';
+  });
+  icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+})();
+
+// Chart type info icon — context-aware tooltip
+(function() {
+  const icon = document.getElementById('chart-info-icon');
+  const tip  = document.getElementById('chart-info-tip');
+  const texts = {
+    line: 'Temperature and humidity readings over time from selected loggers. Gaps appear where readings are more than 2 hours apart. Season lines mark Dar es Salaam dry and rainy periods. The 32\u00b0C threshold highlights overheating risk.',
+    histogram: 'Shows how much time each logger spends at each temperature or humidity level. Each bar is a 1\u00b0C or 1%RH bin. Heights are normalised as fractions of each logger\u2019s total readings, so loggers with different sampling rates (e.g. hourly TinyTag vs 5-min Omnisense) are directly comparable.',
+    comfort: 'Adaptive thermal comfort (EN 15251). Each dot plots a room\u2019s temperature against the running mean of external temperature (exponential average, \u03b1\u2009=\u20090.8). The green band is the comfort zone for the selected humidity model. Points inside the band indicate comfortable conditions.'
+  };
+  icon.addEventListener('mouseenter', () => {
+    tip.textContent = texts[state.chartType] || '';
+    const r = icon.getBoundingClientRect();
+    tip.style.display = 'block';
+    let left = r.left;
+    if (left + 288 > window.innerWidth - 8) left = window.innerWidth - 296;
+    tip.style.left = left + 'px';
+    tip.style.top  = (r.bottom + 6) + 'px';
   });
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 })();
