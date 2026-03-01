@@ -10,7 +10,11 @@ Combines TinyTag Excel loggers (House 5 + Schoolteacher's House) with Omnisense 
 ## Data sources
 - **TinyTag .xlsx** — `data/house5/` (14 loggers) and `data/schoolteacher/` (3 loggers)
 - **Omnisense CSV** — `data/omnisense_*.csv` (10 T&H sensors, loaded into House 5 dataset only)
-- **Open-Meteo CSV** — `data/open-meteo*.csv` (external temperature for adaptive comfort running mean)
+- **Open-Meteo** — split into two series, both in `data/openmeteo/`:
+  - **Historical** (`historical_YYYYMMDD_HHMM.csv`) — recorded data from 2023-03-15 to yesterday. Used for adaptive comfort running mean.
+  - **Forecast** (`forecast_YYYYMMDD_HHMM.csv`) — predicted data for the next 16 days. Shown as dashed line on line graph only; excluded from adaptive comfort.
+  - Fetched automatically by `fetch_openmeteo.py` (daily via GitHub Action, or manually)
+  - Falls back to legacy single `data/open-meteo*.csv` if split files don't exist
 
 ## Datasets
 - **House 5** — TinyTag loggers + Omnisense sensors + Open-Meteo external temp. 24 loggers total. Adaptive comfort uses Open-Meteo for the EN 15251 running mean. TinyTag 861011 (External Ambient) is a regular logger, not the running mean source. Omnisense sensors `320E02D1` and `32760164` excluded from room loggers (outdoor / above-ceiling). TinyTag `759498` excluded (belongs to Schoolteacher's House).
@@ -33,13 +37,29 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## To update data
 
-### Manual update
+### Automated update (daily)
+A GitHub Action (`update-openmeteo.yml`) runs daily at 04:00 UTC. It fetches fresh Open-Meteo data, rebuilds `index.html` using the sensor snapshot, and pushes. No user action needed. Can also be triggered manually from the Actions tab.
+
+### Manual sensor data update
 1. Add/replace `.xlsx` files in `data/house5/` and/or `data/dauda/`
-2. Add/replace `omnisense_*.csv` and `open-meteo*.csv` in `data/` (see `OMNISENSE_DATA_UPDATE_GUIDE.md` one level up)
-3. Run: `python build.py`
-4. `git add index.html && git commit -m "update data" && git push`
+2. Add/replace `omnisense_*.csv` in `data/` (see `OMNISENSE_DATA_UPDATE_GUIDE.md` one level up)
+3. Run: `python build.py` (full build — also saves `data/sensor_snapshot.json`)
+4. `git add index.html data/sensor_snapshot.json data/openmeteo/ data/hist_proj/ && git commit -m "update sensor data" && git push`
 
 ## Changelog
+
+### 2026-03-02 00:43:00 CST
+- **Open-Meteo automation**: Split single `External (Open-Meteo)` logger into two series:
+  - `External Historical (Open-Meteo)` — recorded data from 2023-03-15 to yesterday; used for adaptive comfort running mean.
+  - `External Forecast (Open-Meteo)` — predicted data for next 16 days; shown as dashed line on line graph/histogram only; excluded from adaptive comfort.
+- New `fetch_openmeteo.py` (stdlib only, no pip): fetches historical + forecast from Open-Meteo API, writes timestamped CSVs to `data/openmeteo/`, rotates old files to `data/openmeteo/legacy/`.
+- New `--openmeteo-only` mode for `build.py`: loads `data/sensor_snapshot.json` (pre-processed sensor data) + fresh Open-Meteo CSVs + climate data → rebuilds `index.html` without needing .xlsx/.csv sensor files.
+- Full builds now save `data/sensor_snapshot.json` (~10 MB) containing all non-Open-Meteo logger data.
+- New GitHub Actions workflow (`.github/workflows/update-openmeteo.yml`): runs daily at 04:00 UTC, fetches fresh Open-Meteo data, rebuilds dashboard, commits and pushes.
+- Updated `.gitignore`: selectively un-ignores `data/openmeteo/`, `data/sensor_snapshot.json`, `data/hist_proj/`.
+- JS changes: `isOpenMeteo(id)` / `isForecast(id)` helpers replace hardcoded ID checks. Forecast trace uses dashed line. `forecastLoggers` metadata field added.
+- Updated `CLAUDE.md`, `UPDATE.md` with new workflows.
+- Rebuilt index.html.
 
 ### 2026-03-02 00:29:39 CST
 - Added Open-Meteo data source note at bottom of line-controls sidebar, matching the Copernicus attribution style. Links to open-meteo.com and explains it provides hourly external temperature for Dar es Salaam, used as the adaptive comfort running mean source and the "External Temperature" logger. Rebuilt index.html.
