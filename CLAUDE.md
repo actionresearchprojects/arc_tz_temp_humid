@@ -41,6 +41,10 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 14:27:39 CST
+- Fixed season labels being cut off on line graph: top margin on screen increased from t=20/36 to t=50/65 (season labels sit at y=1.01 paper coords and need ~50px headroom).
+- Fixed white title stroke not appearing on line graph PNG downloads: `Plotly.toImage` with `scale:3` internally re-renders the chart, discarding any manual SVG DOM changes made before the call. Fix: request SVG format from Plotly (which serialises the current DOM including the title), then patch the `.gtitle text` element in the SVG string via DOMParser (adding `stroke=white`, `stroke-width=6`, `paint-order=stroke fill`), render the modified SVG to a canvas at 3× scale, and export as a PNG blob. Histogram and adaptive comfort PNG downloads continue to use the direct `Plotly.toImage` png path. Rebuilt index.html.
+
 ### 2026-03-01 14:15:22 CST
 - Graph title moved from Plotly chart area into the controls bar (`#time-bar`) for on-screen display only. Title is now centred between the left controls (dataset, chart-type, model dropdowns) and the right controls (Range selector + Download PNG button). Plotly chart top margin reduced accordingly for all three chart types (line: t=20/36, histogram: t=20/36, adaptive comfort: t=15/30).
 - PNG downloads: title is temporarily added back to the Plotly chart via `Plotly.relayout` before `Plotly.toImage` captures it, then removed after. For line graph PNGs only, a thick white stroke (`strokeWidth: 5px`, `paintOrder: stroke fill`) is applied to the SVG title text element before capture so the title is legible even when overlapping season labels. Download handler converted from `Plotly.downloadImage` to `Plotly.toImage` + manual `<a>` click to support the async relayout/restore flow. Rebuilt index.html.
