@@ -1,4 +1,17 @@
-data/
+# Ignore everything in data/ by default
+data/*
+
+# But track these:
+!data/openmeteo/
+!data/sensor_snapshot.json
+!data/hist_proj/
+
+# Within openmeteo/, ignore legacy folder
+data/openmeteo/legacy/
+
+# Within hist_proj/, track everything
+!data/hist_proj/**
+
 __pycache__/
 *.pyc
 .DS_Store

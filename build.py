@@ -15,13 +15,17 @@ date and time to the second in CST (Taiwan, UTC+8) — always run `date`
 first to get the real time: ### YYYY-MM-DD HH:MM:SS CST
 """
 
+import argparse
 import json
+import sys
 from pathlib import Path
 
 import pandas as pd
 import pytz
 
 DATA_FOLDER = Path("data")
+OPENMETEO_DIR = DATA_FOLDER / "openmeteo"
+SNAPSHOT_PATH = DATA_FOLDER / "sensor_snapshot.json"
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 TIMEZONE = pytz.timezone("Africa/Dar_es_Salaam")
@@ -33,13 +37,17 @@ OMNISENSE_T_H_SENSORS = {
 }
 NON_ROOM_SENSORS = {"320E02D1", "32760164"}  # outdoor / above-ceiling
 
+OPENMETEO_HISTORICAL_ID = "External Historical (Open-Meteo)"
+OPENMETEO_FORECAST_ID = "External Forecast (Open-Meteo)"
+OPENMETEO_LEGACY_ID = "External (Open-Meteo)"  # backward-compat with old single CSV
+
 DATASETS = {
     "house5": {
         "label": "House 5",
         "folder": Path("data/house5"),
         "skip_rows": 350,
-        "external_logger": "External (Open-Meteo)",
-        "external_sensors": ["External (Open-Meteo)", "861011", "320E02D1"],
+        "external_logger": OPENMETEO_HISTORICAL_ID,
+        "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "320E02D1"],
         "exclude_loggers": {"759498"},
         "room_loggers": ["780981","759493","639148","759522","759521","759209",
                          "759492","861004","861034","759489",
@@ -47,7 +55,8 @@ DATASETS = {
                          "32760208","327601CB","32760371","3276012B"],
         # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
-            "External (Open-Meteo)", "861011", "320E02D1",       # external
+            OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID,       # Open-Meteo
+            "861011", "320E02D1",                                  # other external
             # Living Room
             "780981",                                             # Living Room (TinyTag)
             "759493",                                             # Living Room above ceiling (TinyTag)
@@ -118,7 +127,9 @@ LOGGER_NAMES = {
     "32760205": "Bedroom 1",
     "3276028A": "Study",
     "32760208": "Washrooms area",
-    "External (Open-Meteo)": "External Temperature",
+    OPENMETEO_HISTORICAL_ID: "Historical Temperature",
+    OPENMETEO_FORECAST_ID: "Forecast Temperature",
+    OPENMETEO_LEGACY_ID: "External Temperature",  # backward compat
 }
 
 LOGGER_SOURCES = {
@@ -131,7 +142,9 @@ LOGGER_SOURCES = {
     "3276012B": "Omnisense", "32760164": "Omnisense", "3276003D": "Omnisense",
     "327601CD": "Omnisense", "32760205": "Omnisense", "3276028A": "Omnisense",
     "32760208": "Omnisense",
-    "External (Open-Meteo)": "Open-Meteo",
+    OPENMETEO_HISTORICAL_ID: "Open-Meteo",
+    OPENMETEO_FORECAST_ID: "Open-Meteo",
+    OPENMETEO_LEGACY_ID: "Open-Meteo",
 }
 
 COLORS = [
@@ -213,28 +226,59 @@ def load_copernicus_climate_data():
     return result
 
 
-def load_external_temperature():
-    """Load Open-Meteo external temperature CSV from DATA_FOLDER."""
-    matches = sorted(DATA_FOLDER.glob("open-meteo*.csv"))
-    if not matches:
-        print(f"  Warning: no open-meteo*.csv found in {DATA_FOLDER}, skipping external temperature")
-        return pd.DataFrame()
-    if len(matches) > 1:
-        print(f"  Warning: multiple Open-Meteo files found — using {matches[-1].name}")
-    ext_file = matches[-1]
-    print(f"  Using external temperature: {ext_file.name}")
-    df = pd.read_csv(ext_file, skiprows=3)
+def _load_openmeteo_csv(path, logger_id):
+    """Load a single Open-Meteo CSV file and assign the given logger_id."""
+    df = pd.read_csv(path, skiprows=3)
     df = df.rename(columns={
         "time": "datetime",
         "temperature_2m (°C)": "temperature",
         "relative_humidity_2m (%)": "humidity",
     })
-    df["logger_id"] = "External (Open-Meteo)"
+    df["logger_id"] = logger_id
     df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
     df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
     df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
     df = df.dropna(subset=["datetime", "temperature", "humidity"])
     return df[["datetime", "temperature", "humidity", "logger_id"]]
+
+
+def load_external_temperature():
+    """Load Open-Meteo data — prefers split historical/forecast CSVs in data/openmeteo/,
+    falls back to legacy single open-meteo*.csv in data/."""
+    dfs = []
+
+    # Try new split files first
+    hist_files = sorted(OPENMETEO_DIR.glob("historical_*.csv"))
+    forecast_files = sorted(OPENMETEO_DIR.glob("forecast_*.csv"))
+
+    if hist_files:
+        hist_file = hist_files[-1]
+        print(f"  Using historical Open-Meteo: {hist_file.name}")
+        hist_df = _load_openmeteo_csv(hist_file, OPENMETEO_HISTORICAL_ID)
+        if not hist_df.empty:
+            dfs.append(hist_df)
+            print(f"    {len(hist_df):,} records")
+    if forecast_files:
+        fc_file = forecast_files[-1]
+        print(f"  Using forecast Open-Meteo: {fc_file.name}")
+        fc_df = _load_openmeteo_csv(fc_file, OPENMETEO_FORECAST_ID)
+        if not fc_df.empty:
+            dfs.append(fc_df)
+            print(f"    {len(fc_df):,} records")
+
+    if dfs:
+        return pd.concat(dfs, ignore_index=True)
+
+    # Fallback: legacy single CSV
+    matches = sorted(DATA_FOLDER.glob("open-meteo*.csv"))
+    if not matches:
+        print(f"  Warning: no Open-Meteo data found, skipping external temperature")
+        return pd.DataFrame()
+    if len(matches) > 1:
+        print(f"  Warning: multiple Open-Meteo files found — using {matches[-1].name}")
+    ext_file = matches[-1]
+    print(f"  Using legacy external temperature: {ext_file.name}")
+    return _load_openmeteo_csv(ext_file, OPENMETEO_HISTORICAL_ID)
 
 
 def load_omnisense_csv(path, sensor_filter=None):
@@ -394,15 +438,17 @@ def build_dataset_json(key, df):
         room_loggers = sorted(room_loggers, key=lambda l: order_map_rl.get(l, 9999))
 
     color_map = {l: COLORS[i % len(COLORS)] for i, l in enumerate(unique_loggers)}
-    # Give Open-Meteo the light cyan
-    om_key = "External (Open-Meteo)"
+    # Give Open-Meteo Historical the light cyan, Forecast a blue-grey
     cyan = "#17becf"
-    if om_key in color_map:
-        for k, v in list(color_map.items()):
-            if v == cyan and k != om_key:
-                color_map[k] = color_map[om_key]
-                break
-        color_map[om_key] = cyan
+    forecast_color = "#7fafcf"
+    for om_key, om_color in [(OPENMETEO_HISTORICAL_ID, cyan), (OPENMETEO_FORECAST_ID, forecast_color),
+                              (OPENMETEO_LEGACY_ID, cyan)]:
+        if om_key in color_map:
+            for k, v in list(color_map.items()):
+                if v == om_color and k != om_key:
+                    color_map[k] = color_map.get(om_key, COLORS[0])
+                    break
+            color_map[om_key] = om_color
     logger_names = {l: LOGGER_NAMES.get(l, l) for l in unique_loggers}
     logger_sources = {l: LOGGER_SOURCES.get(l, "Unknown") for l in unique_loggers}
 
@@ -452,6 +498,7 @@ def build_dataset_json(key, df):
             "loggerSources": logger_sources,
             "externalLogger": external_logger,
             "externalLoggers": [l for l in unique_loggers if l in set(cfg.get("external_sensors", [external_logger] if external_logger else []))],
+            "forecastLoggers": [l for l in unique_loggers if l == OPENMETEO_FORECAST_ID],
             "roomLoggers":  room_loggers,
             "colors":       color_map,
             "availableYears": available_years,
@@ -602,7 +649,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider">
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
-        External temperature data from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a> (hourly, Dar es Salaam). Used as the running mean source for adaptive comfort and as the "External Temperature" logger on line/histogram charts.
+        External temperature data from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a> (hourly, Dar es Salaam). Historical data is used as the running mean source for adaptive comfort. Forecast data (dashed line) shows predicted conditions up to 16 days ahead. Updated daily via GitHub Actions.
       </div>
     </div>
 
@@ -724,9 +771,12 @@ const state = {
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
 
+function isOpenMeteo(id) { return id && id.indexOf('(Open-Meteo)') !== -1; }
+function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMeteo(id); }
+
 function loggerTooltip(id, m) {
   const src = (m.loggerSources && m.loggerSources[id]) || '';
-  if (id === 'govee' || id === 'External (Open-Meteo)') return src;
+  if (id === 'govee' || isOpenMeteo(id)) return src;
   return src ? `${src} · ${id}` : id;
 }
 
@@ -1083,8 +1133,7 @@ function setupStaticListeners() {
       if (!_historicEnteredOnce) {
         _historicEnteredOnce = true;
         state.selectedLoggers = new Set();
-        const openMeteoId = 'External (Open-Meteo)';
-        if (m.loggers.includes(openMeteoId)) state.selectedLoggers.add(openMeteoId);
+        m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
         document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
           cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
         });
@@ -1412,7 +1461,7 @@ function omniSuffix(source) {
   return source === 'Omnisense' ? '<span style="color:#aaa"> (OmniSense)</span>' : '';
 }
 function meteoSuffix(id) {
-  return id === 'External (Open-Meteo)' ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
+  return isOpenMeteo(id) ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
 }
 // Converts a UTC epoch ms value to an EAT local time string (YYYY-MM-DD HH:MM:SS).
 // Plotly treats bare date strings as calendar-absolute (no browser-timezone conversion),
@@ -1445,9 +1494,9 @@ function renderLineGraph() {
 
     const color = m.colors[loggerId], name = m.loggerNames[loggerId];
     const source = m.loggerSources[loggerId] || '';
-    const idLabel = (loggerId === 'govee' || loggerId === 'External (Open-Meteo)') ? '' : ` · ID: ${loggerId}`;
+    const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
     const freqLabel = state.historicMode
-      ? (loggerId === 'External (Open-Meteo)' ? ' <span style="color:#aaa">(hourly avg.)</span>'
+      ? (isOpenMeteo(loggerId) ? ' <span style="color:#aaa">(hourly avg.)</span>'
         : source === 'TinyTag' ? ' <span style="color:#aaa">(hourly avg.)</span>'
         : source === 'Omnisense' ? ' <span style="color:#aaa">(5-min avg.)</span>'
         : '') : '';
@@ -1793,7 +1842,7 @@ function updateComfortStats(start, end, params) {
     const div = document.createElement('div');
     div.className = 'room-item';
     const src = (m.loggerSources && m.loggerSources[id]) || '';
-    const idStr = (id === 'govee' || id === 'External (Open-Meteo)') ? '' : id;
+    const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
     const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pct.toFixed(1)}%</div>`;
     const hoverHTML  = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' · ' + idStr : ''}</div>`;
     div.innerHTML = normalHTML;
@@ -1846,7 +1895,7 @@ function _doRender() {
 
   const warn = document.getElementById('ext-data-warning');
   const ext = dataset().meta.extDateRange;
-  if (state.chartType === 'comfort' && ext && ext.max < dataset().meta.dateRange.max && dataset().meta.externalLogger === 'External (Open-Meteo)') {
+  if (state.chartType === 'comfort' && ext && ext.max < dataset().meta.dateRange.max && isOpenMeteo(dataset().meta.externalLogger)) {
     document.getElementById('ext-data-end').textContent = new Date(ext.max).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
     warn.classList.remove('hidden');
   } else {
@@ -1944,16 +1993,118 @@ function setupLegendTooltips() {
 </html>"""
 
 
+# ── Sensor snapshot ─────────────────────────────────────────────────────────────
+OPENMETEO_IDS = {OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, OPENMETEO_LEGACY_ID}
+
+
+def save_sensor_snapshot(datasets_dfs):
+    """Save non-Open-Meteo data from all datasets to sensor_snapshot.json.
+    datasets_dfs: dict of {key: DataFrame} after timezone localisation."""
+    snapshot = {}
+    for key, df in datasets_dfs.items():
+        # Exclude all Open-Meteo loggers from the snapshot
+        sensor_df = df[~df["logger_id"].isin(OPENMETEO_IDS)]
+        loggers = {}
+        for logger_id, ldf in sensor_df.groupby("logger_id"):
+            loggers[logger_id] = {
+                "timestamps": [t.isoformat() for t in ldf.index],
+                "temperature": ldf["temperature"].round(2).tolist(),
+                "humidity": ldf["humidity"].round(2).tolist(),
+            }
+        snapshot[key] = {"loggers": loggers}
+    SNAPSHOT_PATH.write_text(json.dumps(snapshot, separators=(",", ":")), encoding="utf-8")
+    size_mb = SNAPSHOT_PATH.stat().st_size / (1024 * 1024)
+    print(f"  Saved sensor snapshot → {SNAPSHOT_PATH} ({size_mb:.1f} MB)")
+
+
+def load_sensor_snapshot():
+    """Load sensor snapshot and reconstruct DataFrames (without Open-Meteo data)."""
+    print(f"Loading sensor snapshot from {SNAPSHOT_PATH}...")
+    raw = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    datasets_dfs = {}
+    for key, ds_data in raw.items():
+        dfs = []
+        for logger_id, ldata in ds_data["loggers"].items():
+            idx = pd.DatetimeIndex(ldata["timestamps"], name="datetime")
+            # Normalise timezone to match what load_dataset() produces
+            if idx.tz is not None:
+                idx = idx.tz_convert(TIMEZONE)
+            ldf = pd.DataFrame({
+                "temperature": ldata["temperature"],
+                "humidity": ldata["humidity"],
+                "logger_id": logger_id,
+            }, index=idx)
+            dfs.append(ldf)
+        if dfs:
+            df = pd.concat(dfs).sort_index()
+            df["iso_year"] = df.index.isocalendar().year.astype(int)
+            df["iso_week"] = df.index.isocalendar().week.astype(int)
+            datasets_dfs[key] = df
+            print(f"  {DATASETS[key]['label']}: {len(df):,} sensor records · {df['logger_id'].nunique()} loggers")
+        else:
+            datasets_dfs[key] = pd.DataFrame()
+    return datasets_dfs
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
+    parser = argparse.ArgumentParser(description="Build ARC temperature & humidity dashboard")
+    parser.add_argument("--openmeteo-only", action="store_true",
+                        help="Rebuild using sensor snapshot + fresh Open-Meteo data (no .xlsx/.csv sensor files needed)")
+    args = parser.parse_args()
+
     all_data = {}
-    for key, cfg in DATASETS.items():
-        print(f"Loading {cfg['label']}...")
-        df = load_dataset(key)
-        print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
-        print(f"  {df.index.min().date()} → {df.index.max().date()}")
-        print("  Processing...")
-        all_data[key] = build_dataset_json(key, df)
+
+    if args.openmeteo_only:
+        # Load pre-processed sensor data from snapshot
+        if not SNAPSHOT_PATH.exists():
+            print(f"ERROR: {SNAPSHOT_PATH} not found. Run a full build first.", file=sys.stderr)
+            raise SystemExit(1)
+        datasets_dfs = load_sensor_snapshot()
+
+        # Load fresh Open-Meteo data and merge into each dataset's DataFrame
+        print("Loading fresh Open-Meteo data...")
+        ext_df_raw = load_external_temperature()
+        ext_df = pd.DataFrame()
+        if not ext_df_raw.empty:
+            # Localise the Open-Meteo timestamps (same as load_dataset does)
+            ext_df_raw["datetime"] = (
+                pd.to_datetime(ext_df_raw["datetime"], errors="coerce")
+                .dt.tz_localize(TIMEZONE, nonexistent="shift_forward", ambiguous="NaT")
+            )
+            ext_df_raw = ext_df_raw.dropna(subset=["datetime"]).set_index("datetime").sort_index()
+            ext_df_raw["iso_year"] = ext_df_raw.index.isocalendar().year.astype(int)
+            ext_df_raw["iso_week"] = ext_df_raw.index.isocalendar().week.astype(int)
+            ext_df = ext_df_raw
+            print(f"  Open-Meteo: {len(ext_df):,} records")
+
+        for key, cfg in DATASETS.items():
+            df = datasets_dfs.get(key, pd.DataFrame())
+            # Only merge Open-Meteo into datasets that use it as external logger
+            if cfg["external_logger"] in OPENMETEO_IDS and not ext_df.empty:
+                df = pd.concat([df, ext_df]).sort_index()
+            # Exclude loggers not belonging to this dataset
+            exclude = cfg.get("exclude_loggers", set())
+            if exclude:
+                df = df[~df["logger_id"].isin(exclude)]
+            print(f"Processing {cfg['label']}...")
+            print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
+            all_data[key] = build_dataset_json(key, df)
+    else:
+        # Full build: load everything from source files
+        datasets_dfs = {}
+        for key, cfg in DATASETS.items():
+            print(f"Loading {cfg['label']}...")
+            df = load_dataset(key)
+            datasets_dfs[key] = df
+            print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
+            print(f"  {df.index.min().date()} → {df.index.max().date()}")
+            print("  Processing...")
+            all_data[key] = build_dataset_json(key, df)
+
+        # Save sensor snapshot for future --openmeteo-only builds
+        print("Saving sensor snapshot...")
+        save_sensor_snapshot(datasets_dfs)
 
     print("Loading climate data...")
     historic = load_copernicus_climate_data()

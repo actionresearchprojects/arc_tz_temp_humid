@@ -1,0 +1,38 @@
+name: Update Open-Meteo data
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # daily at 04:00 UTC (07:00 EAT)
+  workflow_dispatch:       # manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build dependencies
+        run: pip install pandas pytz
+
+      - name: Fetch Open-Meteo data
+        run: python fetch_openmeteo.py
+
+      - name: Rebuild dashboard (Open-Meteo only)
+        run: python build.py --openmeteo-only
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/openmeteo/ index.html
+          git diff --cached --quiet || git commit -m "auto-update Open-Meteo data $(date -u +%Y-%m-%d)"
+          git push
