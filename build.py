@@ -487,7 +487,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; f
 #logo { height: 32px; width: auto; flex-shrink: 0; }
 .bar-divider { border-left: 1px solid #ccc; height: 20px; flex-shrink: 0; margin: 0 2px; }
 #main { display: flex; flex: 1; overflow: hidden; position: relative; }
-#sidebar { width: 220px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
+#sidebar { width: 240px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
 #chart-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
 #time-bar { background: white; border-bottom: 1px solid #ddd; padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 #time-bar-top { display: flex; align-items: center; width: 100%; gap: 8px; }
@@ -532,7 +532,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 }
 @media (max-width: 680px) {
   #sidebar-toggle { display: block; }
-  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 220px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
+  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 240px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
   #sidebar.open { transform: translateX(0); }
   #sidebar-backdrop.open { display: block; }
   #header { padding: 5px 8px; gap: 6px; }
@@ -589,12 +589,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     <div id="comfort-controls" class="hidden">
       <div class="section">
         <div class="section-title">Room Loggers</div>
-        <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;">
-          <button class="sel-btn" id="room-select-all">All</button>
-          <button class="sel-btn" id="room-select-none">None</button>
-          <button class="sel-btn hidden" id="room-select-tinytag">TinyTag</button>
-          <button class="sel-btn hidden" id="room-select-omnisense">Omnisense</button>
-        </div>
         <div id="room-logger-checkboxes"></div>
       </div>
       <hr class="divider">
@@ -792,26 +786,47 @@ function loadDataset(key) {
     if (allNonExt.length > 0) addLoggerSection('Loggers', allNonExt);
   }
 
-  // Show/hide room source buttons
-  const roomHasTinyTag  = m.roomLoggers.some(id => m.loggerSources[id] === 'TinyTag');
-  const roomHasOmnisense = m.roomLoggers.some(id => m.loggerSources[id] === 'Omnisense');
-  document.getElementById('room-select-tinytag').classList.toggle('hidden', !(roomHasTinyTag && roomHasOmnisense));
-  document.getElementById('room-select-omnisense').classList.toggle('hidden', !(roomHasTinyTag && roomHasOmnisense));
-
-  // Rebuild room logger checkboxes
+  // Rebuild adaptive comfort room logger checkboxes — sectioned by source (TinyTag / OmniSense)
   const roomDiv = document.getElementById('room-logger-checkboxes');
   roomDiv.innerHTML = '';
-  m.roomLoggers.forEach(id => {
-    const lbl = document.createElement('label');
-    lbl.className = 'cb-label';
-    lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
-    lbl.querySelector('input').addEventListener('change', e => {
-      e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
+  function addRoomSection(title, ids) {
+    if (ids.length === 0) return;
+    const titleEl = document.createElement('div');
+    titleEl.className = 'sub-section-title';
+    titleEl.textContent = title;
+    roomDiv.appendChild(titleEl);
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
+    btnRow.appendChild(mkSelBtn('All', () => {
+      ids.forEach(id => { state.selectedRoomLoggers.add(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
       updatePlot();
+    }));
+    btnRow.appendChild(mkSelBtn('None', () => {
+      ids.forEach(id => { state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
+      updatePlot();
+    }));
+    roomDiv.appendChild(btnRow);
+    ids.forEach(id => {
+      const lbl = document.createElement('label');
+      lbl.className = 'cb-label';
+      lbl.dataset.tooltip = loggerTooltip(id, m);
+      lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
+      lbl.querySelector('input').addEventListener('change', e => {
+        e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
+        updatePlot();
+      });
+      roomDiv.appendChild(lbl);
     });
-    roomDiv.appendChild(lbl);
-  });
+  }
+  const ttRoom = m.roomLoggers.filter(id => m.loggerSources[id] === 'TinyTag');
+  const osRoom = m.roomLoggers.filter(id => m.loggerSources[id] === 'Omnisense');
+  if (ttRoom.length > 0 && osRoom.length > 0) {
+    addRoomSection('TinyTag', ttRoom);
+    const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr);
+    addRoomSection('OmniSense', osRoom);
+  } else {
+    addRoomSection('Room', m.roomLoggers);
+  }
 
   // Show historic section if data available
   document.getElementById('historic-section').style.display = HISTORIC ? '' : 'none';
@@ -871,33 +886,6 @@ function toggleAllCheckboxes(containerId, stateSet, loggerList, selectAll) {
 }
 
 function setupStaticListeners() {
-  document.getElementById('room-select-all').addEventListener('click', () => {
-    toggleAllCheckboxes('room-logger-checkboxes', state.selectedRoomLoggers, dataset().meta.roomLoggers, true);
-  });
-  document.getElementById('room-select-none').addEventListener('click', () => {
-    toggleAllCheckboxes('room-logger-checkboxes', state.selectedRoomLoggers, dataset().meta.roomLoggers, false);
-  });
-  document.getElementById('room-select-tinytag').addEventListener('click', () => {
-    const m = dataset().meta;
-    document.getElementById('room-logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
-      const id = cb.dataset.loggerId;
-      const isTinyTag = m.loggerSources[id] === 'TinyTag';
-      cb.checked = isTinyTag;
-      isTinyTag ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
-    });
-    updatePlot();
-  });
-  document.getElementById('room-select-omnisense').addEventListener('click', () => {
-    const m = dataset().meta;
-    document.getElementById('room-logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
-      const id = cb.dataset.loggerId;
-      const isOmni = m.loggerSources[id] === 'Omnisense';
-      cb.checked = isOmni;
-      isOmni ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
-    });
-    updatePlot();
-  });
-
   document.getElementById('dataset-select').addEventListener('change', e => {
     loadDataset(e.target.value);
   });
