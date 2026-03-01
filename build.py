@@ -1969,7 +1969,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const icon = document.getElementById('chart-info-icon');
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
-    line: 'Time series of selected loggers. Breaks in lines indicate data gaps (>2 hrs). Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
+    line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable.',
     comfort: 'Adaptive comfort per EN 15251. X-axis is the exponential running mean of outdoor temperature (\u03b1=0.8). Green band = comfort zone for the selected humidity model.'
   };
