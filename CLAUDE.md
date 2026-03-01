@@ -41,6 +41,11 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 17:10:55 CST
+- Weather Station T&RH (Omnisense 320E02D1): data truncated to 2026-02-17 12:00 EAT onwards. Applied immediately after `load_omnisense_csv()` in `load_dataset()` using a pd.Timestamp cutoff. Omnisense record count dropped from 80,844 to 73,386.
+- Line graph x-axis title updated to "Date / Time (EAT)" to make clear all timestamps are East African Time.
+- Rebuilt index.html.
+
 ### 2026-03-01 15:13:21 CST
 - Reverted adaptive comfort sidebar back to flat list of room loggers only (structural loggers were not part of adaptive comfort and should not appear there). renderAdaptiveComfort and stats loops reverted to iterate over m.roomLoggers. Sidebar width change (240px) from the previous commit is kept. Rebuilt index.html.
 
