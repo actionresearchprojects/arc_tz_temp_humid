@@ -453,7 +453,11 @@ def build_dataset_json(key, df):
     logger_sources = {l: LOGGER_SOURCES.get(l, "Unknown") for l in unique_loggers}
 
     # External data date range (for stale-data warning)
-    ext_data = df[df["logger_id"] == external_logger] if external_logger else pd.DataFrame()
+    # Use all Open-Meteo loggers combined (historical + forecast) so forecast coverage suppresses the warning
+    om_ids = [l for l in unique_loggers if l in OPENMETEO_IDS]
+    ext_data = df[df["logger_id"].isin(om_ids)] if om_ids else (
+        df[df["logger_id"] == external_logger] if external_logger else pd.DataFrame()
+    )
     ext_date_range = None
     if not ext_data.empty:
         ext_date_range = {
