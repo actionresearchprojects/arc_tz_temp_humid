@@ -41,6 +41,9 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-02 00:25:16 CST
+- Restored Georgia serif font on density heatmap info tooltip (`#info-fixed-tip`). Was lost when switching from CSS `::after` (which inherited from `.info-i`) to JS-generated div. Rebuilt index.html.
+
 ### 2026-03-01 18:21:02 CST
 - Overhauled state management for chart-type switching and long-term mode:
   - **Chart switching preserves selections**: switching between Line, Histogram, and Adaptive Comfort no longer resets logger checkboxes, threshold, or other settings. Whatever you have selected carries over. Removed the non-historic histogram "all loggers selected + threshold forced on" reset.
