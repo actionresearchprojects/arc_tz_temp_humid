@@ -53,24 +53,24 @@ DATASETS = {
             "759493",                                             # Living Room (above ceiling)
             "861968",                                             # Living Room (below metal)
             "639148",                                             # Study
-            "759522",                                             # Bed 1
-            "759521",                                             # Bed 2
-            "759209",                                             # Bed 3
-            "861004",                                             # Bed 3 (above ceiling)
-            "861034",                                             # Bed 3 (above ceiling)
-            "759492",                                             # Bed 4
-            "759489",                                             # Bed 4 (above ceiling)
-            "759519",                                             # Bed 4 (below metal)
+            "759522",                                             # Bedroom 1
+            "759521",                                             # Bedroom 2
+            "759209",                                             # Bedroom 3
+            "861004",                                             # Bedroom 3 (above ceiling)
+            "861034",                                             # Bedroom 3 (above ceiling)
+            "759492",                                             # Bedroom 4
+            "759489",                                             # Bedroom 4 (above ceiling)
+            "759519",                                             # Bedroom 4 (below metal)
             # Omnisense room loggers
             "327601CD",                                           # Living Room
             "3276003D",                                           # Kitchen
             "3276028A",                                           # Study
-            "32760205",                                           # Mother's Bedroom
+            "32760205",                                           # Bedroom 1
             "32760208",                                           # Washrooms area
-            "327601CB",                                           # Bed 2
-            "32760371",                                           # Bed 3
-            "3276012B",                                           # Bed 4
-            "32760164",                                           # Bed 4 above ceiling
+            "327601CB",                                           # Bedroom 2
+            "32760371",                                           # Bedroom 3
+            "3276012B",                                           # Bedroom 4
+            "32760164",                                           # Bedroom 4 above ceiling
         ],
     },
     "dauda": {
@@ -89,27 +89,27 @@ LOGGER_NAMES = {
     "861011": "External Ambient",
     "780981": "Living Room",
     "639148": "Study",
-    "759522": "Bed 1",
-    "759521": "Bed 2",
-    "759209": "Bed 3",
-    "759492": "Bed 4",
+    "759522": "Bedroom 1",
+    "759521": "Bedroom 2",
+    "759209": "Bedroom 3",
+    "759492": "Bedroom 4",
     "861968": "Living Room (below metal)",
     "759493": "Living Room (above ceiling)",
     "759498": "Bedroom 1",
-    "861004": "Bed 3 (above ceiling)",
-    "861034": "Bed 3 (above ceiling)",
-    "759519": "Bed 4 (below metal)",
-    "759489": "Bed 4 (above ceiling)",
+    "861004": "Bedroom 3 (above ceiling)",
+    "861034": "Bedroom 3 (above ceiling)",
+    "759519": "Bedroom 4 (below metal)",
+    "759489": "Bedroom 4 (above ceiling)",
     "govee":  "Living Space",
     # Omnisense sensors
     "320E02D1": "Weather Station T&RH",
-    "327601CB": "Bed 2",
-    "32760371": "Bed 3",
-    "3276012B": "Bed 4",
-    "32760164": "Bed 4 above ceiling",
+    "327601CB": "Bedroom 2",
+    "32760371": "Bedroom 3",
+    "3276012B": "Bedroom 4",
+    "32760164": "Bedroom 4 above ceiling",
     "3276003D": "Kitchen",
     "327601CD": "Living Room",
-    "32760205": "Mother's Bedroom",
+    "32760205": "Bedroom 1",
     "3276028A": "Study",
     "32760208": "Washrooms area",
     "External (Open-Meteo)": "External Temperature (Open-Meteo)",
@@ -580,7 +580,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider" id="line-options-divider">
       <div class="section" id="historic-section" style="display:none">
-        <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> Historic Mode</label>
+        <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> <b>Long-Term Mode</b></label>
         <div id="historic-series-checkboxes" style="display:none;margin-top:4px"></div>
         <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Generated using <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026</div>
       </div>
@@ -736,7 +736,7 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
       updatePlot();
@@ -805,7 +805,7 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
       updatePlot();
@@ -1357,6 +1357,11 @@ function getComfortParams() {
   return models[state.comfortModel] || null;
 }
 
+// Returns grey "(OmniSense)" HTML suffix for Omnisense sensors, empty string otherwise.
+function omniSuffix(source) {
+  return source === 'Omnisense' ? '<span style="color:#aaa"> (OmniSense)</span>' : '';
+}
+
 // ── Line graph ────────────────────────────────────────────────────────────────
 function renderLineGraph() {
   const {start, end} = getTimeRange();
@@ -1393,7 +1398,7 @@ function renderLineGraph() {
       const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
       for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
       const unit = metric === 'temperature' ? '°C' : '%RH';
-      traces.push({x, y, type:'scatter', mode:'lines', name: name + freqLabel, line:{color, width:1.4},
+      traces.push({x, y, type:'scatter', mode:'lines', name: name + omniSuffix(source) + freqLabel, line:{color, width:1.4},
         opacity:0.35, connectgaps:false, legendgroup:loggerId, showlegend:firstMetric, meta:{loggerId},
         hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?'Temp':'Humidity'}: %{y:.1f}${unit}<br>Source: ${source}${idLabel}<extra></extra>`});
       firstMetric = false;
@@ -1494,7 +1499,7 @@ function renderLineGraph() {
     : `${dsLabel} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?50:65, b:sm?40:60},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?70:85, b:sm?40:60},
     xaxis:{title:'Date / Time', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
@@ -1519,6 +1524,7 @@ function renderHistogram() {
 
     const color = m.colors[loggerId];
     const name = m.loggerNames[loggerId];
+    const source = m.loggerSources[loggerId] || '';
     let firstMetric = true;
 
     for (const metric of ['temperature', 'humidity']) {
@@ -1532,7 +1538,7 @@ function renderHistogram() {
         x: values,
         type: 'histogram',
         histnorm: 'probability',
-        name: name + suffix,
+        name: name + omniSuffix(source) + suffix,
         xbins: {size: 1},
         marker: {color, opacity: 0.6},
         legendgroup: loggerId,
@@ -1645,7 +1651,7 @@ function renderAdaptiveComfort() {
     const cSource = m.loggerSources[loggerId] || '';
     const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-      name:m.loggerNames[loggerId], marker:{color:m.colors[loggerId], size:4, opacity:0.2},
+      name:m.loggerNames[loggerId] + omniSuffix(cSource), marker:{color:m.colors[loggerId], size:4, opacity:0.2},
       legendgroup:loggerId, meta:{loggerId},
       hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Source: ${cSource}${cIdLabel}<extra></extra>`});
   }
@@ -1714,7 +1720,7 @@ function updateComfortStats(start, end, params) {
     }
     const pct = count > 0 ? inZone/count*100 : 0;
     totalIn += inZone; totalAll += count;
-    roomStats.push({id: loggerId, name: m.loggerNames[loggerId], pct});
+    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + omniSuffix(m.loggerSources[loggerId] || ''), pct});
   }
   const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '—';
   overall.textContent = `Overall: ${overallPct}% below upper comfort boundary`;

@@ -41,6 +41,17 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 14:58:01 CST
+- "Historic Mode" renamed to "**Long-Term Mode**" (bold) in the sidebar checkbox label.
+- Sensor display names updated everywhere (LOGGER_NAMES dict, all graphs, legend keys, sidebar checkboxes, adaptive comfort stats panel):
+  - "Bed 1/2/3/4" → "Bedroom 1/2/3/4" (TinyTag loggers 759522/759521/759209/759492)
+  - "Bed 3/4 (above/below ceiling/metal)" → "Bedroom 3/4 ..." (TinyTag loggers 861004, 861034, 759519, 759489)
+  - "Bed 2/3/4" Omnisense → "Bedroom 2/3/4" (327601CB, 32760371, 3276012B)
+  - "Bed 4 above ceiling" Omnisense → "Bedroom 4 above ceiling" (32760164)
+  - "Mother's Bedroom" → "Bedroom 1" (Omnisense 32760205, privacy)
+- Omnisense sensors now show a grey "(OmniSense)" suffix everywhere they appear (legend, checkboxes, adaptive comfort stats). Added `omniSuffix(source)` JS helper; applied to line graph, histogram, and adaptive comfort traces, both sidebar checkbox lists, and the adaptive comfort stats panel.
+- Rebuilt index.html.
+
 ### 2026-03-01 14:45:45 CST
 - Line graph top margin restored to t=50/65 (was incorrectly reduced to t=35/50 in previous fix attempt).
 - Line graph PNG download now skips `Plotly.relayout` entirely — title is injected directly into the SVG string after capture, so the on-screen chart margin never changes and season labels never shift during download.
