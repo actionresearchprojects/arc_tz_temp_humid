@@ -41,6 +41,10 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 14:15:22 CST
+- Graph title moved from Plotly chart area into the controls bar (`#time-bar`) for on-screen display only. Title is now centred between the left controls (dataset, chart-type, model dropdowns) and the right controls (Range selector + Download PNG button). Plotly chart top margin reduced accordingly for all three chart types (line: t=20/36, histogram: t=20/36, adaptive comfort: t=15/30).
+- PNG downloads: title is temporarily added back to the Plotly chart via `Plotly.relayout` before `Plotly.toImage` captures it, then removed after. For line graph PNGs only, a thick white stroke (`strokeWidth: 5px`, `paintOrder: stroke fill`) is applied to the SVG title text element before capture so the title is legible even when overlapping season labels. Download handler converted from `Plotly.downloadImage` to `Plotly.toImage` + manual `<a>` click to support the async relayout/restore flow. Rebuilt index.html.
+
 ### 2026-02-28 17:30:27 CST
 - Historic mode now applies its effects universally (both line graph and histogram): enables "Historic Mode" checkbox in histogram mode → hides humidity, resets loggers to Open-Meteo only, shows climate series checkboxes. Previously these effects only applied on the line graph.
 - State save/restore (savedBeforeHistoric) is now universal: triggered when historic mode is toggled regardless of which chart type is active. Turning off historic mode in histogram restores the exact pre-historic settings, and switching back to line graph uses those same restored settings.

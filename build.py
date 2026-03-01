@@ -489,7 +489,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; f
 #main { display: flex; flex: 1; overflow: hidden; position: relative; }
 #sidebar { width: 220px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
 #chart-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
-#time-bar { background: white; border-bottom: 1px solid #ddd; padding: 6px 10px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+#time-bar { background: white; border-bottom: 1px solid #ddd; padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+#time-bar-top { display: flex; align-items: center; width: 100%; gap: 8px; }
+#time-bar-left { flex: 1; display: flex; align-items: center; gap: 8px; }
+#bar-title { font-size: 14px; font-weight: 600; color: #222; white-space: nowrap; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
+#time-bar-right { flex: 1; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 #chart { flex: 1; min-height: 0; }
 .section-title { font-weight: 600; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .section { display: flex; flex-direction: column; gap: 2px; }
@@ -533,7 +537,9 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   #sidebar-backdrop.open { display: block; }
   #header { padding: 5px 8px; gap: 6px; }
   #header h1 { font-size: 12px; }
-  #time-bar { padding: 5px 8px; gap: 6px; }
+  #time-bar { padding: 5px 8px; gap: 3px; }
+  #time-bar-top { gap: 5px; }
+  #bar-title { font-size: 12px; }
   select { font-size: 11px; }
   .cb-label { font-size: 11px; }
 }
@@ -601,43 +607,49 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 
   <div id="chart-area">
     <div id="time-bar">
-      <select id="dataset-select">
-        <option value="house5">House 5</option>
-        <option value="dauda">Schoolteacher's House</option>
-      </select>
-      <select id="chart-type">
-        <option value="line">Line Graph</option>
-        <option value="histogram">Histogram</option>
-        <option value="comfort">Adaptive Comfort</option>
-      </select>
-      <select id="comfort-model" class="hidden">
-        <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
-        <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
-        <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
-        <option value="default">Default comfort model</option>
-        <option value="none">No comfort band</option>
-      </select>
-      <button id="download-btn">Download PNG</button>
-      <span class="bar-divider"></span>
-      <div class="control-row">
-        <label>Range:</label>
-        <select id="time-mode">
-          <option value="all">All time</option>
-          <option value="between">Between dates</option>
-          <option value="year">Year</option>
-          <option value="month">Month</option>
-          <option value="week">Week</option>
-          <option value="day">Day</option>
-        </select>
+      <div id="time-bar-top">
+        <div id="time-bar-left">
+          <select id="dataset-select">
+            <option value="house5">House 5</option>
+            <option value="dauda">Schoolteacher's House</option>
+          </select>
+          <select id="chart-type">
+            <option value="line">Line Graph</option>
+            <option value="histogram">Histogram</option>
+            <option value="comfort">Adaptive Comfort</option>
+          </select>
+          <select id="comfort-model" class="hidden">
+            <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
+            <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
+            <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
+            <option value="default">Default comfort model</option>
+            <option value="none">No comfort band</option>
+          </select>
+        </div>
+        <span id="bar-title"></span>
+        <div id="time-bar-right">
+          <div class="control-row">
+            <label>Range:</label>
+            <select id="time-mode">
+              <option value="all">All time</option>
+              <option value="between">Between dates</option>
+              <option value="year">Year</option>
+              <option value="month">Month</option>
+              <option value="week">Week</option>
+              <option value="day">Day</option>
+            </select>
+          </div>
+          <div id="between-inputs" class="control-row hidden">
+            <label>From <input type="date" id="date-start"></label>
+            <label>To <input type="date" id="date-end"></label>
+          </div>
+          <div id="year-input"  class="hidden"><select id="year-select"></select></div>
+          <div id="month-input" class="hidden"><select id="month-select"></select></div>
+          <div id="week-input"  class="hidden"><select id="week-select"></select></div>
+          <div id="day-input"   class="hidden"><select id="day-select"></select></div>
+          <button id="download-btn">Download PNG</button>
+        </div>
       </div>
-      <div id="between-inputs" class="control-row hidden">
-        <label>From <input type="date" id="date-start"></label>
-        <label>To <input type="date" id="date-end"></label>
-      </div>
-      <div id="year-input"  class="hidden"><select id="year-select"></select></div>
-      <div id="month-input" class="hidden"><select id="month-select"></select></div>
-      <div id="week-input"  class="hidden"><select id="week-select"></select></div>
-      <div id="day-input"   class="hidden"><select id="day-select"></select></div>
     </div>
     <div id="ext-data-warning" class="hidden" style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:6px 10px;margin:4px 10px;font-size:12px;color:#856404;flex-shrink:0;">
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
@@ -1140,7 +1152,36 @@ function setupStaticListeners() {
     const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/,'');
     const filename = `ARC_${slug(ds)}_${chart}${metricStr}${modelStr}_${rangeStr}`;
     const chartEl = document.getElementById('chart');
-    Plotly.downloadImage('chart', {format:'png', filename, width:chartEl.offsetWidth, height:chartEl.offsetHeight, scale:3});
+    const sm = window.innerWidth < 680;
+    // PNG top margin (original with-title values, enough room for title)
+    const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60) : (sm ? 55 : 85);
+    // Add title back into chart for export, capture image, then restore
+    Plotly.relayout('chart', {
+      'title.text': `<b>${_currentTitle}</b>`,
+      'title.font.size': sm ? 12 : 14,
+      'margin.t': pngTopMargin,
+    }).then(() => {
+      // Line graphs only: white halo stroke so title reads over season labels
+      if (state.chartType === 'line') {
+        const titleTextEl = document.querySelector('#chart .gtitle text');
+        if (titleTextEl) {
+          titleTextEl.style.stroke = 'white';
+          titleTextEl.style.strokeWidth = '5px';
+          titleTextEl.style.paintOrder = 'stroke fill';
+        }
+      }
+      return Plotly.toImage('chart', {format: 'png', width: chartEl.offsetWidth, height: chartEl.offsetHeight, scale: 3});
+    }).then(imgData => {
+      // Restore chart: remove title, reset margin
+      Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
+      // Trigger browser download
+      const a = document.createElement('a');
+      a.href = imgData;
+      a.download = filename + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
   });
 
   const toggle = document.getElementById('sidebar-toggle');
@@ -1392,15 +1433,15 @@ function renderLineGraph() {
   const plotTitle = state.historicMode
     ? 'Dar es Salaam \u2013 Historic and Projected Temperatures'
     : `${dsLabel} \u2013 ${chartTitle}`;
+  const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    title: {text:`<b>${plotTitle}</b>`, font:{size: sm?12:14}},
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?55:85, b:sm?40:60},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?20:36, b:sm?40:60},
     xaxis:{title:'Date / Time', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest',
-  }};
+  }, title: barTitle};
 }
 
 // ── Histogram ────────────────────────────────────────────────────────────────
@@ -1510,8 +1551,7 @@ function renderHistogram() {
   }
 
   return {traces, layout: {
-    title: {text:`<b>${dsLabel} \u2013 ${chartTitle}</b>`, font:{size: sm?12:14}},
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?55:85, b:useStagger?(sm?80:85):(sm?60:70)},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?20:36, b:useStagger?(sm?80:85):(sm?60:70)},
     xaxis:{title:xTitle, showgrid:true, gridcolor:'#eee', tickangle:0,
       tickfont: TICK_FONT,
       tickmode: tickvals.length ? 'array' : undefined,
@@ -1521,7 +1561,7 @@ function renderHistogram() {
     barmode:'overlay', shapes, annotations: tickAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
-  }};
+  }, title: (`${dsLabel} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
 }
 
 // ── Adaptive comfort ──────────────────────────────────────────────────────────
@@ -1582,13 +1622,12 @@ function renderAdaptiveComfort() {
   const dsLabel = document.getElementById('dataset-select').options[document.getElementById('dataset-select').selectedIndex].text;
 
   return {traces, layout: {
-    title: {text:`<b>${dsLabel} \u2013 Adaptive Comfort</b>`, font:{size:sm?12:14}},
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?36:60, b:sm?60:100},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
     xaxis:{title:'Running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
     yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
-  }};
+  }, title: `${dsLabel} \u2013 Adaptive Comfort`};
 }
 
 // ── Comfort stats ─────────────────────────────────────────────────────────────
@@ -1664,9 +1703,12 @@ function hideLoadingBar() {
 }
 
 function _doRender() {
-  const {traces, layout} = state.chartType === 'line' ? renderLineGraph()
+  const {traces, layout, title} = state.chartType === 'line' ? renderLineGraph()
     : state.chartType === 'histogram' ? renderHistogram()
     : renderAdaptiveComfort();
+  _currentTitle = title || '';
+  _currentLayout = layout;
+  document.getElementById('bar-title').textContent = _currentTitle;
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   document.getElementById('chart').on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
   requestAnimationFrame(setupLegendTooltips);
@@ -1684,6 +1726,8 @@ function _doRender() {
 
 // Tracks last rendered chart type + dataset to detect slow transitions
 let _lastRenderKey = null;
+let _currentTitle = '';
+let _currentLayout = {};
 function updatePlot(forceLoader) {
   const renderKey = state.chartType + '|' + state.datasetKey;
   const isSlowOp = forceLoader || renderKey !== _lastRenderKey;
