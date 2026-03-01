@@ -1925,7 +1925,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
 (function() {
   const icon = document.getElementById('density-info-icon');
   const tip  = document.getElementById('info-fixed-tip');
-  tip.textContent = 'Shows where readings are concentrated. The chart is divided into a grid of bins — darker areas have more readings clustered there. The colour scale shows what % of all plotted points fall in each density region.';
+  tip.textContent = 'Darker areas = more readings concentrated there. Scale shows % of all plotted points in each region.';
   icon.addEventListener('mouseenter', () => {
     const r = icon.getBoundingClientRect();
     tip.style.display = 'block';
@@ -1942,9 +1942,9 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const icon = document.getElementById('chart-info-icon');
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
-    line: 'Temperature and humidity readings over time from selected loggers. Gaps appear where readings are more than 2 hours apart. Season lines mark Dar es Salaam dry and rainy periods. The 32\u00b0C threshold highlights overheating risk.',
-    histogram: 'Shows how much time each logger spends at each temperature or humidity level. Each bar is a 1\u00b0C or 1%RH bin. Heights are normalised as fractions of each logger\u2019s total readings, so loggers with different sampling rates (e.g. hourly TinyTag vs 5-min Omnisense) are directly comparable.',
-    comfort: 'Adaptive thermal comfort (EN 15251). Each dot plots a room\u2019s temperature against the running mean of external temperature (exponential average, \u03b1\u2009=\u20090.8). The green band is the comfort zone for the selected humidity model. Points inside the band indicate comfortable conditions.'
+    line: 'Time series of selected loggers. Breaks in lines indicate data gaps (>2 hrs). Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
+    histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable.',
+    comfort: 'Adaptive comfort per EN 15251. X-axis is the exponential running mean of outdoor temperature (\u03b1=0.8). Green band = comfort zone for the selected humidity model.'
   };
   icon.addEventListener('mouseenter', () => {
     tip.textContent = texts[state.chartType] || '';
