@@ -41,6 +41,12 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 17:19:53 CST
+- Fixed weather station cutoff timezone: Omnisense CSV timestamps are UTC, so midday EAT (12:00 UTC+3) = 09:00 UTC. Cutoff corrected from `2026-02-17 12:00:00` to `2026-02-17 09:00:00` (naive UTC). Previous cutoff was removing data from 09:00–12:00 UTC (12:00–15:00 EAT), causing the graph to start from the next available reading at 14:00 UTC = 17:00 EAT (5pm).
+- Line graph x-axis title updated to `Date / Time <i>(EAT, UTC+03:00)</i>` with grey italic styling via Plotly HTML subset.
+- External Temperature (Open-Meteo) logger: base display name changed to "External Temperature" (parenthetical removed from Python). Added `meteoSuffix(id)` JS helper (parallel to `omniSuffix`) that appends a grey `(Open-Meteo)` label. Applied to all display sites: sidebar checkboxes (both line graph and adaptive comfort lists), line graph/histogram/adaptive comfort trace names, adaptive comfort stats panel.
+- Rebuilt index.html.
+
 ### 2026-03-01 17:10:55 CST
 - Weather Station T&RH (Omnisense 320E02D1): data truncated to 2026-02-17 12:00 EAT onwards. Applied immediately after `load_omnisense_csv()` in `load_dataset()` using a pd.Timestamp cutoff. Omnisense record count dropped from 80,844 to 73,386.
 - Line graph x-axis title updated to "Date / Time (EAT)" to make clear all timestamps are East African Time.
