@@ -41,6 +41,11 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 15:10:31 CST
+- Fixed adaptive comfort checkbox sections: now splits into Structural (unchecked by default) and Room (checked by default), matching the line graph/histogram sidebar — not TinyTag/OmniSense as incorrectly done in previous commit.
+- renderAdaptiveComfort scatter and stats now iterate over all non-external loggers (not just m.roomLoggers), so structural loggers appear on the scatter and in stats when their checkbox is ticked.
+- Rebuilt index.html.
+
 ### 2026-03-01 15:04:26 CST
 - Sidebar width increased from 220px to 240px (desktop and mobile overlay) so "Washrooms area (OmniSense)" fits without wrapping. The width value is in the `#sidebar` CSS rule on the `#sidebar { width: 240px; ... }` line near the top of the CSS block.
 - Adaptive comfort "Room Loggers" checkbox list now sections by source like the line graph sidebar: TinyTag loggers under a "TinyTag" sub-header with All/None buttons, then a divider, then Omnisense loggers under an "OmniSense" sub-header with All/None buttons. Falls back to a single "Room" section if only one source present. Static HTML buttons (All/None/TinyTag/Omnisense) and their static event listeners removed; replaced by the same dynamically-built pattern used by the line graph (`addRoomSection` helper inside `initDataset`). Rebuilt index.html.

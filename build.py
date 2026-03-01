@@ -810,7 +810,8 @@ function loadDataset(key) {
       const lbl = document.createElement('label');
       lbl.className = 'cb-label';
       lbl.dataset.tooltip = loggerTooltip(id, m);
-      lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
+      const isChecked = state.selectedRoomLoggers.has(id);
+      lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}"${isChecked ? ' checked' : ''}> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
       lbl.querySelector('input').addEventListener('change', e => {
         e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
         updatePlot();
@@ -818,15 +819,14 @@ function loadDataset(key) {
       roomDiv.appendChild(lbl);
     });
   }
-  const ttRoom = m.roomLoggers.filter(id => m.loggerSources[id] === 'TinyTag');
-  const osRoom = m.roomLoggers.filter(id => m.loggerSources[id] === 'Omnisense');
-  if (ttRoom.length > 0 && osRoom.length > 0) {
-    addRoomSection('TinyTag', ttRoom);
+  const cExtSet  = new Set(m.externalLoggers || []);
+  const cRoomSet = new Set(m.roomLoggers || []);
+  const structLoggers = m.loggers.filter(id => !cExtSet.has(id) && !cRoomSet.has(id));
+  if (structLoggers.length > 0) {
+    addRoomSection('Structural', structLoggers);
     const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr);
-    addRoomSection('OmniSense', osRoom);
-  } else {
-    addRoomSection('Room', m.roomLoggers);
   }
+  addRoomSection('Room', m.roomLoggers);
 
   // Show historic section if data available
   document.getElementById('historic-section').style.display = HISTORIC ? '' : 'none';
@@ -1623,8 +1623,9 @@ function renderAdaptiveComfort() {
   const m = dataset().meta;
   const traces = [], params = getComfortParams();
   const allExtTemps = [], allTemps = [];
+  const acExtSet = new Set(m.externalLoggers || []);
 
-  for (const loggerId of m.roomLoggers) {
+  for (const loggerId of m.loggers.filter(id => !acExtSet.has(id))) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
@@ -1692,7 +1693,8 @@ function updateComfortStats(start, end, params) {
   const m = dataset().meta;
   let totalIn = 0, totalAll = 0;
   const roomStats = [];
-  for (const loggerId of m.roomLoggers) {
+  const statsExtSet = new Set(m.externalLoggers || []);
+  for (const loggerId of m.loggers.filter(id => !statsExtSet.has(id))) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
