@@ -1153,34 +1153,78 @@ function setupStaticListeners() {
     const filename = `ARC_${slug(ds)}_${chart}${metricStr}${modelStr}_${rangeStr}`;
     const chartEl = document.getElementById('chart');
     const sm = window.innerWidth < 680;
-    // PNG top margin (original with-title values, enough room for title)
+    const W = chartEl.offsetWidth;
+    const H = chartEl.offsetHeight;
+    const scale = 3;
     const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60) : (sm ? 55 : 85);
-    // Add title back into chart for export, capture image, then restore
+
+    function doRestore() {
+      Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
+    }
+
     Plotly.relayout('chart', {
       'title.text': `<b>${_currentTitle}</b>`,
       'title.font.size': sm ? 12 : 14,
       'margin.t': pngTopMargin,
     }).then(() => {
-      // Line graphs only: white halo stroke so title reads over season labels
       if (state.chartType === 'line') {
-        const titleTextEl = document.querySelector('#chart .gtitle text');
-        if (titleTextEl) {
-          titleTextEl.style.stroke = 'white';
-          titleTextEl.style.strokeWidth = '5px';
-          titleTextEl.style.paintOrder = 'stroke fill';
-        }
+        // Get SVG string from Plotly, patch title stroke in-memory, render to canvas.
+        // (Direct DOM modification is lost when Plotly re-renders for high-res export.)
+        return Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
+          // Decode — Plotly may URL-encode or base64-encode the SVG
+          let svgStr;
+          const b64tag = 'data:image/svg+xml;base64,';
+          if (svgDataUrl.startsWith(b64tag)) {
+            svgStr = atob(svgDataUrl.slice(b64tag.length));
+          } else {
+            svgStr = decodeURIComponent(svgDataUrl.slice(svgDataUrl.indexOf(',') + 1));
+          }
+          // Add white halo stroke to the title text node
+          const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
+          const titleEl = doc.querySelector('.gtitle text');
+          if (titleEl) {
+            titleEl.setAttribute('stroke', 'white');
+            titleEl.setAttribute('stroke-width', '6');
+            titleEl.setAttribute('paint-order', 'stroke fill');
+          }
+          const modSvg = new XMLSerializer().serializeToString(doc);
+          // Render SVG to canvas at 3× scale, export as PNG blob
+          return new Promise((resolve, reject) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = W * scale;
+            canvas.height = H * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+            const img = new Image();
+            img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(canvas); };
+            img.onerror = reject;
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modSvg);
+          });
+        }).then(canvas => {
+          doRestore();
+          canvas.toBlob(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename + '.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          }, 'image/png');
+        });
+      } else {
+        // Histogram / adaptive comfort: direct PNG, no stroke needed
+        return Plotly.toImage('chart', {format: 'png', width: W, height: H, scale}).then(imgData => {
+          doRestore();
+          const a = document.createElement('a');
+          a.href = imgData;
+          a.download = filename + '.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        });
       }
-      return Plotly.toImage('chart', {format: 'png', width: chartEl.offsetWidth, height: chartEl.offsetHeight, scale: 3});
-    }).then(imgData => {
-      // Restore chart: remove title, reset margin
-      Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
-      // Trigger browser download
-      const a = document.createElement('a');
-      a.href = imgData;
-      a.download = filename + '.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
     });
   });
 
@@ -1435,7 +1479,7 @@ function renderLineGraph() {
     : `${dsLabel} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?20:36, b:sm?40:60},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?50:65, b:sm?40:60},
     xaxis:{title:'Date / Time', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
