@@ -41,6 +41,12 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 14:45:45 CST
+- Line graph top margin restored to t=50/65 (was incorrectly reduced to t=35/50 in previous fix attempt).
+- Line graph PNG download now skips `Plotly.relayout` entirely — title is injected directly into the SVG string after capture, so the on-screen chart margin never changes and season labels never shift during download.
+- White title halo stroke-width reduced from 10 to 5 (half as thick).
+- Rebuilt index.html.
+
 ### 2026-03-01 14:37:15 CST
 - Fixed three bugs in the graph title bar feature:
   1. **Season labels cut off on initial load**: added double `requestAnimationFrame` after `init()` so `Plotly.relayout({autosize:true})` fires after the flexbox layout has fully settled, correcting annotation positions on first render.

@@ -1156,78 +1156,80 @@ function setupStaticListeners() {
     const W = chartEl.offsetWidth;
     const H = chartEl.offsetHeight;
     const scale = 3;
-    const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60)
-      : state.chartType === 'line' ? (sm ? 35 : 50)
-      : (sm ? 55 : 85);
-
-    function doRestore() {
-      Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
-    }
-
-    Plotly.relayout('chart', {
-      'title.text': `<b>${_currentTitle}</b>`,
-      'title.font.size': sm ? 12 : 14,
-      'margin.t': pngTopMargin,
-    }).then(() => {
-      if (state.chartType === 'line') {
-        // Get SVG string from Plotly, patch title stroke in-memory, render to canvas.
-        // (Direct DOM modification is lost when Plotly re-renders for high-res export.)
-        return Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
-          // Decode — Plotly may URL-encode or base64-encode the SVG
-          let svgStr;
-          const b64tag = 'data:image/svg+xml;base64,';
-          if (svgDataUrl.startsWith(b64tag)) {
-            svgStr = atob(svgDataUrl.slice(b64tag.length));
-          } else {
-            svgStr = decodeURIComponent(svgDataUrl.slice(svgDataUrl.indexOf(',') + 1));
+    if (state.chartType === 'line') {
+      // No relayout for line graph — insert title directly into the captured SVG so the
+      // on-screen chart never changes and season labels never shift position.
+      Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
+        let svgStr;
+        const b64tag = 'data:image/svg+xml;base64,';
+        if (svgDataUrl.startsWith(b64tag)) {
+          svgStr = atob(svgDataUrl.slice(b64tag.length));
+        } else {
+          svgStr = decodeURIComponent(svgDataUrl.slice(svgDataUrl.indexOf(',') + 1));
+        }
+        const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
+        const infolayer = doc.querySelector('.infolayer');
+        const ns = 'http://www.w3.org/2000/svg';
+        const marginT = (_currentLayout.margin && _currentLayout.margin.t) || 50;
+        const fontSize = sm ? 12 : 14;
+        const titleY = marginT / 2;
+        function makeTxt(fill, stroke, sw) {
+          const t = doc.createElementNS(ns, 'text');
+          t.setAttribute('x', String(W / 2));
+          t.setAttribute('y', String(titleY));
+          t.setAttribute('text-anchor', 'middle');
+          t.setAttribute('dominant-baseline', 'middle');
+          t.setAttribute('font-family', '"Open Sans", verdana, arial, sans-serif');
+          t.setAttribute('font-size', String(fontSize));
+          t.setAttribute('font-weight', 'bold');
+          t.setAttribute('fill', fill);
+          if (stroke) {
+            t.setAttribute('stroke', stroke);
+            t.setAttribute('stroke-width', String(sw));
+            t.setAttribute('stroke-linejoin', 'round');
           }
-          // Patch SVG: add white halo behind title and move it to top of z-order
-          const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
-          const infolayer = doc.querySelector('.infolayer');
-          const gtitleGroup = doc.querySelector('.g-gtitle');
-          const titleEl = gtitleGroup ? gtitleGroup.querySelector('text') : null;
-          if (titleEl && infolayer && gtitleGroup) {
-            // White halo: clone of the title group with solid white fill+stroke
-            const haloGroup = gtitleGroup.cloneNode(true);
-            const haloText = haloGroup.querySelector('text');
-            if (haloText) {
-              haloText.setAttribute('stroke', 'white');
-              haloText.setAttribute('stroke-width', '10');
-              haloText.setAttribute('fill', 'white');
-              haloText.querySelectorAll('tspan').forEach(ts => ts.setAttribute('fill', 'white'));
-            }
-            // Append halo then original to end of infolayer — renders on top of season labels
-            infolayer.appendChild(haloGroup);
-            infolayer.appendChild(gtitleGroup);
-          }
-          const modSvg = new XMLSerializer().serializeToString(doc);
-          // Render SVG to canvas at 3× scale, export as PNG blob
-          return new Promise((resolve, reject) => {
-            const canvas = document.createElement('canvas');
-            canvas.width = W * scale;
-            canvas.height = H * scale;
-            const ctx = canvas.getContext('2d');
-            ctx.scale(scale, scale);
-            const img = new Image();
-            img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(canvas); };
-            img.onerror = reject;
-            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modSvg);
-          });
-        }).then(canvas => {
-          doRestore();
-          canvas.toBlob(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename + '.png';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-          }, 'image/png');
+          t.textContent = _currentTitle;
+          return t;
+        }
+        const g = doc.createElementNS(ns, 'g');
+        g.appendChild(makeTxt('white', 'white', 5));
+        g.appendChild(makeTxt('#222', null, 0));
+        (infolayer || doc.documentElement).appendChild(g);
+        const modSvg = new XMLSerializer().serializeToString(doc);
+        return new Promise((resolve, reject) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = W * scale;
+          canvas.height = H * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.scale(scale, scale);
+          const img = new Image();
+          img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(canvas); };
+          img.onerror = reject;
+          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modSvg);
         });
-      } else {
-        // Histogram / adaptive comfort: direct PNG, no stroke needed
+      }).then(canvas => {
+        canvas.toBlob(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename + '.png';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }, 'image/png');
+      });
+    } else {
+      // Histogram / adaptive comfort: briefly add title via relayout, capture PNG, restore.
+      const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60) : (sm ? 55 : 85);
+      function doRestore() {
+        Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
+      }
+      Plotly.relayout('chart', {
+        'title.text': `<b>${_currentTitle}</b>`,
+        'title.font.size': sm ? 12 : 14,
+        'margin.t': pngTopMargin,
+      }).then(() => {
         return Plotly.toImage('chart', {format: 'png', width: W, height: H, scale}).then(imgData => {
           doRestore();
           const a = document.createElement('a');
@@ -1237,8 +1239,8 @@ function setupStaticListeners() {
           a.click();
           document.body.removeChild(a);
         });
-      }
-    });
+      });
+    }
   });
 
   const toggle = document.getElementById('sidebar-toggle');
@@ -1492,7 +1494,7 @@ function renderLineGraph() {
     : `${dsLabel} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?35:50, b:sm?40:60},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?50:65, b:sm?40:60},
     xaxis:{title:'Date / Time', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
