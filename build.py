@@ -649,7 +649,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider">
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
-        External temperature data from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a> (hourly, Dar es Salaam). Historical data is used as the running mean source for adaptive comfort. Forecast data (dashed line) shows predicted conditions up to 16 days ahead. Updated daily via GitHub Actions.
+        Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a> (Dar es Salaam). Historical series drives the adaptive comfort running mean; forecast shows the next 16 days.
       </div>
     </div>
 
