@@ -41,6 +41,17 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-02 00:29:39 CST
+- Added Open-Meteo data source note at bottom of line-controls sidebar, matching the Copernicus attribution style. Links to open-meteo.com and explains it provides hourly external temperature for Dar es Salaam, used as the adaptive comfort running mean source and the "External Temperature" logger. Rebuilt index.html.
+
+### 2026-03-02 00:28:05 CST
+- Added chart-type info (i) icon next to the chart-type dropdown. Tooltip text updates dynamically based on the currently selected chart type:
+  - **Line Graph**: explains time series, gap detection, season lines, 32°C threshold.
+  - **Histogram**: explains per-degree/percent bins, normalised fractions, comparable across different sampling rates.
+  - **Adaptive Comfort**: explains EN 15251 running mean, green comfort zone, humidity model selection.
+- Uses same fixed-position JS tooltip pattern as the density heatmap info icon (Georgia serif, z-index 9999, viewport-clamped). Tooltip opens below the icon. Width 280px.
+- Rebuilt index.html.
+
 ### 2026-03-02 00:25:16 CST
 - Restored Georgia serif font on density heatmap info tooltip (`#info-fixed-tip`). Was lost when switching from CSS `::after` (which inherited from `.info-i`) to JS-generated div. Rebuilt index.html.
 
