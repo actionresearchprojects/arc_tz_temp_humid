@@ -653,7 +653,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider">
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
-        Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a> (Dar es Salaam). Historical series drives the adaptive comfort running mean; forecast shows the next 16 days.
+        Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Historical series drives the adaptive comfort running mean; forecast shows the next 16 days.
       </div>
     </div>
 
@@ -978,10 +978,33 @@ function setupStaticListeners() {
   });
 
   document.getElementById('chart-type').addEventListener('change', e => {
+    const prevType = state.chartType;
     state.chartType = e.target.value;
     const isLine = state.chartType === 'line';
     const isHistogram = state.chartType === 'histogram';
     const isComfort = state.chartType === 'comfort';
+    const m = dataset().meta;
+    const roomSet = new Set(m.roomLoggers || []);
+    // Sync selections between line/histogram ↔ adaptive comfort
+    if (prevType === 'comfort' && !isComfort) {
+      // Leaving comfort → push room logger selections into selectedLoggers
+      for (const id of roomSet) {
+        state.selectedRoomLoggers.has(id) ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
+      }
+      // Update line-controls checkboxes to match
+      document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
+        cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
+      });
+    } else if (isComfort && prevType !== 'comfort') {
+      // Entering comfort → push line logger selections into selectedRoomLoggers
+      for (const id of roomSet) {
+        state.selectedLoggers.has(id) ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
+      }
+      // Update comfort checkboxes to match
+      document.getElementById('room-logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
+        cb.checked = state.selectedRoomLoggers.has(cb.dataset.loggerId);
+      });
+    }
     document.getElementById('line-controls').classList.toggle('hidden', isComfort);
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
     document.getElementById('comfort-model').classList.toggle('hidden', !isComfort);
