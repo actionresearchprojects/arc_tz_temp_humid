@@ -41,6 +41,9 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 15:13:21 CST
+- Reverted adaptive comfort sidebar back to flat list of room loggers only (structural loggers were not part of adaptive comfort and should not appear there). renderAdaptiveComfort and stats loops reverted to iterate over m.roomLoggers. Sidebar width change (240px) from the previous commit is kept. Rebuilt index.html.
+
 ### 2026-03-01 15:10:31 CST
 - Fixed adaptive comfort checkbox sections: now splits into Structural (unchecked by default) and Room (checked by default), matching the line graph/histogram sidebar — not TinyTag/OmniSense as incorrectly done in previous commit.
 - renderAdaptiveComfort scatter and stats now iterate over all non-external loggers (not just m.roomLoggers), so structural loggers appear on the scatter and in stats when their checkbox is ticked.
