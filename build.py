@@ -112,7 +112,7 @@ LOGGER_NAMES = {
     "32760205": "Bedroom 1",
     "3276028A": "Study",
     "32760208": "Washrooms area",
-    "External (Open-Meteo)": "External Temperature (Open-Meteo)",
+    "External (Open-Meteo)": "External Temperature",
 }
 
 LOGGER_SOURCES = {
@@ -317,7 +317,8 @@ def load_dataset(key):
             os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
             if not os_df.empty:
                 # Weather Station T&RH (320E02D1): only reliable from 2026-02-17 12:00 EAT onwards
-                cutoff = pd.Timestamp("2026-02-17 12:00:00")
+                # CSV timestamps are UTC; EAT = UTC+3, so 12:00 EAT = 09:00 UTC
+                cutoff = pd.Timestamp("2026-02-17 09:00:00")
                 os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
                 dfs.append(os_df)
                 print(f"  Omnisense: {len(os_df):,} records")
@@ -733,7 +734,7 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
       updatePlot();
@@ -796,7 +797,7 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${omniSuffix(m.loggerSources[id] || '')}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
       updatePlot();
@@ -1325,6 +1326,9 @@ function getComfortParams() {
 function omniSuffix(source) {
   return source === 'Omnisense' ? '<span style="color:#aaa"> (OmniSense)</span>' : '';
 }
+function meteoSuffix(id) {
+  return id === 'External (Open-Meteo)' ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
+}
 
 // ── Line graph ────────────────────────────────────────────────────────────────
 function renderLineGraph() {
@@ -1362,7 +1366,7 @@ function renderLineGraph() {
       const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
       for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
       const unit = metric === 'temperature' ? '°C' : '%RH';
-      traces.push({x, y, type:'scatter', mode:'lines', name: name + omniSuffix(source) + freqLabel, line:{color, width:1.4},
+      traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel, line:{color, width:1.4},
         opacity:0.35, connectgaps:false, legendgroup:loggerId, showlegend:firstMetric, meta:{loggerId},
         hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?'Temp':'Humidity'}: %{y:.1f}${unit}<br>Source: ${source}${idLabel}<extra></extra>`});
       firstMetric = false;
@@ -1464,7 +1468,7 @@ function renderLineGraph() {
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?70:85, b:sm?40:60},
-    xaxis:{title:'Date / Time (EAT)', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
+    xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
@@ -1502,7 +1506,7 @@ function renderHistogram() {
         x: values,
         type: 'histogram',
         histnorm: 'probability',
-        name: name + omniSuffix(source) + suffix,
+        name: name + meteoSuffix(loggerId) + omniSuffix(source) + suffix,
         xbins: {size: 1},
         marker: {color, opacity: 0.6},
         legendgroup: loggerId,
@@ -1614,7 +1618,7 @@ function renderAdaptiveComfort() {
     const cSource = m.loggerSources[loggerId] || '';
     const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-      name:m.loggerNames[loggerId] + omniSuffix(cSource), marker:{color:m.colors[loggerId], size:4, opacity:0.2},
+      name:m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource), marker:{color:m.colors[loggerId], size:4, opacity:0.2},
       legendgroup:loggerId, meta:{loggerId},
       hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Source: ${cSource}${cIdLabel}<extra></extra>`});
   }
@@ -1683,7 +1687,7 @@ function updateComfortStats(start, end, params) {
     }
     const pct = count > 0 ? inZone/count*100 : 0;
     totalIn += inZone; totalAll += count;
-    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + omniSuffix(m.loggerSources[loggerId] || ''), pct});
+    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct});
   }
   const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '—';
   overall.textContent = `Overall: ${overallPct}% below upper comfort boundary`;
