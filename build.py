@@ -1156,7 +1156,9 @@ function setupStaticListeners() {
     const W = chartEl.offsetWidth;
     const H = chartEl.offsetHeight;
     const scale = 3;
-    const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60) : (sm ? 55 : 85);
+    const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60)
+      : state.chartType === 'line' ? (sm ? 35 : 50)
+      : (sm ? 55 : 85);
 
     function doRestore() {
       Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
@@ -1179,13 +1181,24 @@ function setupStaticListeners() {
           } else {
             svgStr = decodeURIComponent(svgDataUrl.slice(svgDataUrl.indexOf(',') + 1));
           }
-          // Add white halo stroke to the title text node
+          // Patch SVG: add white halo behind title and move it to top of z-order
           const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
-          const titleEl = doc.querySelector('.gtitle text');
-          if (titleEl) {
-            titleEl.setAttribute('stroke', 'white');
-            titleEl.setAttribute('stroke-width', '6');
-            titleEl.setAttribute('paint-order', 'stroke fill');
+          const infolayer = doc.querySelector('.infolayer');
+          const gtitleGroup = doc.querySelector('.g-gtitle');
+          const titleEl = gtitleGroup ? gtitleGroup.querySelector('text') : null;
+          if (titleEl && infolayer && gtitleGroup) {
+            // White halo: clone of the title group with solid white fill+stroke
+            const haloGroup = gtitleGroup.cloneNode(true);
+            const haloText = haloGroup.querySelector('text');
+            if (haloText) {
+              haloText.setAttribute('stroke', 'white');
+              haloText.setAttribute('stroke-width', '10');
+              haloText.setAttribute('fill', 'white');
+              haloText.querySelectorAll('tspan').forEach(ts => ts.setAttribute('fill', 'white'));
+            }
+            // Append halo then original to end of infolayer — renders on top of season labels
+            infolayer.appendChild(haloGroup);
+            infolayer.appendChild(gtitleGroup);
           }
           const modSvg = new XMLSerializer().serializeToString(doc);
           // Render SVG to canvas at 3× scale, export as PNG blob
@@ -1479,7 +1492,7 @@ function renderLineGraph() {
     : `${dsLabel} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?50:65, b:sm?40:60},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?35:50, b:sm?40:60},
     xaxis:{title:'Date / Time', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
@@ -1787,6 +1800,8 @@ function updatePlot(forceLoader) {
 }
 
 init();
+// Re-render after layout settles to fix annotation positions on first load
+requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart', {autosize: true})));
 
 // Legend hover tooltip — attach to SVG legend elements after each render
 const legendTip = document.getElementById('legend-tooltip');
