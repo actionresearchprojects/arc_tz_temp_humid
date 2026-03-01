@@ -316,6 +316,9 @@ def load_dataset(key):
             print(f"  Loading Omnisense CSV: {omnisense_files[-1].name}")
             os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
             if not os_df.empty:
+                # Weather Station T&RH (320E02D1): only reliable from 2026-02-17 12:00 EAT onwards
+                cutoff = pd.Timestamp("2026-02-17 12:00:00")
+                os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
                 dfs.append(os_df)
                 print(f"  Omnisense: {len(os_df):,} records")
         ext_df = load_external_temperature()
@@ -487,7 +490,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; f
 #logo { height: 32px; width: auto; flex-shrink: 0; }
 .bar-divider { border-left: 1px solid #ccc; height: 20px; flex-shrink: 0; margin: 0 2px; }
 #main { display: flex; flex: 1; overflow: hidden; position: relative; }
-#sidebar { width: 240px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
+#sidebar { width: 275px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
 #chart-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
 #time-bar { background: white; border-bottom: 1px solid #ddd; padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 #time-bar-top { display: flex; align-items: center; width: 100%; gap: 8px; }
@@ -532,7 +535,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 }
 @media (max-width: 680px) {
   #sidebar-toggle { display: block; }
-  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 240px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
+  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 275px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
   #sidebar.open { transform: translateX(0); }
   #sidebar-backdrop.open { display: block; }
   #header { padding: 5px 8px; gap: 6px; }
@@ -1461,7 +1464,7 @@ function renderLineGraph() {
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?70:85, b:sm?40:60},
-    xaxis:{title:'Date / Time', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
+    xaxis:{title:'Date / Time (EAT)', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
