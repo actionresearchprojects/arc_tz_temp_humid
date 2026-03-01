@@ -515,7 +515,7 @@ select:focus { outline: none; border-color: #4a90d9; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, serif; }
 .info-i:hover { background: #666; }
-#info-fixed-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; padding:6px 9px; border-radius:4px; line-height:1.5; width:220px; z-index:9999; pointer-events:none; white-space:normal; }
+#info-fixed-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:Georgia,serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:220px; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .control-row label { font-size: 12px; color: #666; white-space: nowrap; }
