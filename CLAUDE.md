@@ -32,7 +32,9 @@ Combines TinyTag Excel loggers (House 5 + Schoolteacher's House) with Omnisense 
 Whenever changes are made to `build.py` or `index.html`, append a brief entry to the Changelog below. Each entry heading must include the date and time to the second in CST (Taiwan/China Standard Time, UTC+8) — always run `date` first to get the real time, e.g. `### 2026-02-27 14:32:05 CST`.
 
 ## To update data
-1. Add/replace `.xlsx` files in `data/house5/` and/or `data/schoolteacher/`
+
+### Manual update
+1. Add/replace `.xlsx` files in `data/house5/` and/or `data/dauda/`
 2. Add/replace `omnisense_*.csv` and `open-meteo*.csv` in `data/` (see `OMNISENSE_DATA_UPDATE_GUIDE.md` one level up)
 3. Run: `python build.py`
 4. `git add index.html && git commit -m "update data" && git push`
