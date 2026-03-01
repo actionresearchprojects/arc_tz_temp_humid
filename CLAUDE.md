@@ -41,6 +41,59 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 18:21:02 CST
+- Overhauled state management for chart-type switching and long-term mode:
+  - **Chart switching preserves selections**: switching between Line, Histogram, and Adaptive Comfort no longer resets logger checkboxes, threshold, or other settings. Whatever you have selected carries over. Removed the non-historic histogram "all loggers selected + threshold forced on" reset.
+  - **Long-term mode persists across chart switches**: entering Adaptive Comfort while Long-Term Mode is active suspends it (not available on adaptive comfort), but returning to Line or Histogram automatically re-applies long-term mode effects (humidity hidden, options hidden on line, series checkboxes rebuilt/shown).
+  - **First-entry-only logger reset**: entering Long-Term Mode for the first time in a session forces loggers to Open-Meteo only (sensible default). Subsequent toggles of Long-Term Mode keep whatever loggers are currently selected — the user's manual selections are preserved.
+  - Exiting Long-Term Mode still restores the pre-entry state snapshot (loggers, metrics, time mode, threshold, seasons).
+- Rebuilt index.html.
+
+### 2026-03-01 18:14:09 CST
+- Density heatmap info icon tooltip: replaced CSS `::after` pseudo-element approach with a JS fixed-position tooltip (`#info-fixed-tip`, `position:fixed`, `z-index:9999`). The old approach was clipped by `overflow:hidden` on `#main`; the fixed approach escapes all overflow constraints and positions to the right of the icon, clamping to viewport width.
+- Sidebar logger ordering: updated House 5 `sidebar_order` to interleave TinyTag and Omnisense loggers by room (Living Room → Kitchen → Study → Bedroom 1–4 → Washrooms) instead of all-TinyTag-first then all-Omnisense. Applies to all checkbox lists (line graph, histogram, adaptive comfort) since they all derive order from `sidebar_order`.
+- Rebuilt index.html.
+
+### 2026-03-01 18:07:53 CST
+- Density heatmap: restored full fill opacities (reverted the halving from 18:01). Changed from `coloring:'heatmap'` back to `coloring:'fill'` (discrete bands) with `showlines:true` and `line:{color:'rgba(80,80,80,0.3)', width:0.5}` — contour outline lines now drawn at ~half opacity rather than hidden.
+- Info (i) tooltip: repositioned to open rightward-from-right (`right:-4px; left:auto`) so it stays within the sidebar instead of overflowing the right edge.
+- Loading progress bar: now shown on every `updatePlot()` call, not just chart-type/dataset switches. Fast updates (checkbox toggles etc.) use a 350ms estimated duration; slow switches keep their existing estimates (1500ms comfort, 800ms line).
+- Rebuilt index.html.
+
+### 2026-03-01 18:01:16 CST
+- Density heatmap: reverted from blue back to grey/black colorscale; all opacity values halved (~0→0, 0.1→0.05, 0.18→0.09, 0.25→0.13, 0.33→0.17, 0.4→0.2).
+- Info (i) tooltip: box widened to 230px, font-size 12px, padding 6×9px, line-height 1.5 for better readability.
+- Download filename: stripped "(Vellei et al.)" from adaptive comfort model label — filename now shows just the RH% portion (e.g. `RH60`).
+- Rebuilt index.html.
+
+### 2026-03-01 17:56:08 CST
+- Density heatmap visibility fix: switched from grey colorscale to blue-tinted gradient (`rgba(25,55,130,0.8)` at peak) with 6 colorscale stops and more aggressive opacity ramp at low values. Changed from `contours.coloring:'fill'` (discrete bands) to `'heatmap'` (smooth continuous gradient). Increased `ncontours` from 10 to 20 for finer granularity. Now visible on House 5 (large dataset) as well as Schoolteacher's House.
+- Added All/None/TinyTag/Omnisense buttons to adaptive comfort room logger checkboxes (mirrors line graph sidebar pattern). TinyTag/Omnisense buttons only appear when both sources exist (House 5).
+- Added (i) info icon next to "Density Heatmap" checkbox with tooltip explaining what the heatmap shows in plain English ("Shows where readings are concentrated...").
+- Rebuilt index.html.
+
+### 2026-03-01 17:48:14 CST
+- Density heatmap on adaptive comfort chart is now toggleable via a "Density Heatmap" checkbox in a new Options section of the comfort sidebar (checked/on by default). Unchecking hides the `histogram2dcontour` trace; scatter points remain.
+- Added colour scale bar to the density heatmap showing percentage of data points in each density region (`histnorm:'percent'`, `showscale:true`, colorbar with `ticksuffix:'%'`). Colorscale opacities slightly increased for better scale bar readability.
+- Rebuilt index.html.
+
+### 2026-03-01 17:41:49 CST
+- Download filename timestamp now uses the viewer's browser local time (`new Date()` with `getFullYear/Month/Date/Hours/Minutes`) rather than EAT, so the timestamp reflects what time it is on the user's machine. Rebuilt index.html.
+
+### 2026-03-01 17:38:20 CST
+- Download spinner: green rotating circle (`#dl-spinner`) appears next to the Download PNG button while export is in progress. Button is disabled during export and re-enables on completion or error. Spinner is purely CSS (`@keyframes dlspin`, `border-top-color` trick), no JS libraries.
+- Download filenames now include an EAT timestamp (`YYYYMMDD_HHmm`) at the end to prevent browser appending `(2)`, `(3)` etc. for repeat downloads of the same graph.
+- Download filenames now encode sensor selection: if 1–2 loggers are selected their slugified display names are included; if a partial subset (3+), the count is included (e.g. `_5of24sensors`); if all are selected nothing extra is added (keeps the common case clean).
+- Rebuilt index.html.
+
+### 2026-03-01 17:33:07 CST
+- Fixed line graph x-axis timezone display: timestamps were showing in browser local time (UTC+8) instead of EAT.
+  - Root cause: x values were passed as UTC epoch ms (`new Date(timestamps[i])`); Plotly converts these using the viewer's browser timezone, shifting times by UTC+8 offset for users in China/Taiwan.
+  - Fix 1 (Python): reverted Weather Station cutoff back to `pd.Timestamp("2026-02-17 12:00:00")` (naive EAT, correct). Previous `09:00:00` was wrong — Omnisense CSV timestamps are EAT, not UTC.
+  - Fix 2 (JS): added `toEATString(ms)` helper that converts UTC epoch to EAT local time string (`new Date(ms + 3h).toISOString().slice(0,19)`). Plotly treats bare date strings as calendar-absolute (no timezone conversion), so viewers in any timezone always see EAT.
+  - Applied: `buildGapArrays` now pushes `toEATString(timestamps[i])` for x values; `renderLineGraph` xaxis range uses `toEATString(dataMinMs/dataMaxMs)` and `type:'date'`.
+- Rebuilt index.html.
+
 ### 2026-03-01 17:19:53 CST
 - Fixed weather station cutoff timezone: Omnisense CSV timestamps are UTC, so midday EAT (12:00 UTC+3) = 09:00 UTC. Cutoff corrected from `2026-02-17 12:00:00` to `2026-02-17 09:00:00` (naive UTC). Previous cutoff was removing data from 09:00–12:00 UTC (12:00–15:00 EAT), causing the graph to start from the next available reading at 14:00 UTC = 17:00 EAT (5pm).
 - Line graph x-axis title updated to `Date / Time <i>(EAT, UTC+03:00)</i>` with grey italic styling via Plotly HTML subset.

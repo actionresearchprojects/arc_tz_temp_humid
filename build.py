@@ -45,32 +45,38 @@ DATASETS = {
                          "759492","861004","861034","759489",
                          "327601CD","3276003D","3276028A","32760205",
                          "32760208","327601CB","32760371","3276012B"],
-        # Sidebar display order: external, then TinyTag rooms, then Omnisense rooms
+        # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
             "External (Open-Meteo)", "861011", "320E02D1",       # external
-            # TinyTag room loggers
-            "780981",                                             # Living Room
-            "759493",                                             # Living Room (above ceiling)
-            "861968",                                             # Living Room (below metal)
-            "639148",                                             # Study
-            "759522",                                             # Bedroom 1
-            "759521",                                             # Bedroom 2
-            "759209",                                             # Bedroom 3
-            "861004",                                             # Bedroom 3 (above ceiling)
-            "861034",                                             # Bedroom 3 (above ceiling)
-            "759492",                                             # Bedroom 4
-            "759489",                                             # Bedroom 4 (above ceiling)
-            "759519",                                             # Bedroom 4 (below metal)
-            # Omnisense room loggers
-            "327601CD",                                           # Living Room
-            "3276003D",                                           # Kitchen
-            "3276028A",                                           # Study
-            "32760205",                                           # Bedroom 1
-            "32760208",                                           # Washrooms area
-            "327601CB",                                           # Bedroom 2
-            "32760371",                                           # Bedroom 3
-            "3276012B",                                           # Bedroom 4
-            "32760164",                                           # Bedroom 4 above ceiling
+            # Living Room
+            "780981",                                             # Living Room (TinyTag)
+            "759493",                                             # Living Room above ceiling (TinyTag)
+            "861968",                                             # Living Room below metal (TinyTag)
+            "327601CD",                                           # Living Room (Omnisense)
+            # Kitchen
+            "3276003D",                                           # Kitchen (Omnisense)
+            # Study
+            "639148",                                             # Study (TinyTag)
+            "3276028A",                                           # Study (Omnisense)
+            # Bedroom 1
+            "759522",                                             # Bedroom 1 (TinyTag)
+            "32760205",                                           # Bedroom 1 (Omnisense)
+            # Bedroom 2
+            "759521",                                             # Bedroom 2 (TinyTag)
+            "327601CB",                                           # Bedroom 2 (Omnisense)
+            # Bedroom 3
+            "759209",                                             # Bedroom 3 (TinyTag)
+            "861004",                                             # Bedroom 3 above ceiling (TinyTag)
+            "861034",                                             # Bedroom 3 above ceiling (TinyTag)
+            "32760371",                                           # Bedroom 3 (Omnisense)
+            # Bedroom 4
+            "759492",                                             # Bedroom 4 (TinyTag)
+            "759489",                                             # Bedroom 4 above ceiling (TinyTag)
+            "759519",                                             # Bedroom 4 below metal (TinyTag)
+            "3276012B",                                           # Bedroom 4 (Omnisense)
+            "32760164",                                           # Bedroom 4 above ceiling (Omnisense)
+            # Washrooms
+            "32760208",                                           # Washrooms area (Omnisense)
         ],
     },
     "dauda": {
@@ -317,8 +323,8 @@ def load_dataset(key):
             os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
             if not os_df.empty:
                 # Weather Station T&RH (320E02D1): only reliable from 2026-02-17 12:00 EAT onwards
-                # CSV timestamps are UTC; EAT = UTC+3, so 12:00 EAT = 09:00 UTC
-                cutoff = pd.Timestamp("2026-02-17 09:00:00")
+                # Omnisense CSV timestamps are in EAT (local time), so compare against naive EAT value
+                cutoff = pd.Timestamp("2026-02-17 12:00:00")
                 os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
                 dfs.append(os_df)
                 print(f"  Omnisense: {len(os_df):,} records")
@@ -507,6 +513,9 @@ select:focus { outline: none; border-color: #4a90d9; }
 .cb-label:hover { color: #1f77b4; }
 [data-tooltip] { position: relative; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
+.info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, serif; }
+.info-i:hover { background: #666; }
+#info-fixed-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; padding:6px 9px; border-radius:4px; line-height:1.5; width:220px; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .control-row label { font-size: 12px; color: #666; white-space: nowrap; }
@@ -525,6 +534,9 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .sub-section-title { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin: 6px 0 2px; }
 #download-btn { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; background: #28a745; color: white; font-weight: 500; white-space: nowrap; }
 #download-btn:hover { background: #218838; }
+#download-btn:disabled { opacity: 0.6; cursor: default; }
+#dl-spinner { display:none; width:16px; height:16px; border:2px solid rgba(40,167,69,0.3); border-top-color:#28a745; border-radius:50%; animation:dlspin 0.7s linear infinite; flex-shrink:0; }
+@keyframes dlspin { to { transform:rotate(360deg); } }
 hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 #dataset-select { font-weight: 600; font-size: 13px; padding: 3px 7px; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
 #sidebar-toggle { display: none; background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 7px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; flex-shrink: 0; }
@@ -592,6 +604,12 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 
     <div id="comfort-controls" class="hidden">
       <div class="section">
+        <div class="section-title">Options</div>
+        <label class="cb-label"><input type="checkbox" id="cb-density" checked> Density Heatmap <span class="info-i" id="density-info-icon">i</span></label>
+        <div id="info-fixed-tip"></div>
+      </div>
+      <hr class="divider">
+      <div class="section">
         <div class="section-title">Room Loggers</div>
         <div id="room-logger-checkboxes"></div>
       </div>
@@ -646,6 +664,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <div id="week-input"  class="hidden"><select id="week-select"></select></div>
           <div id="day-input"   class="hidden"><select id="day-select"></select></div>
           <button id="download-btn">Download PNG</button>
+          <div id="dl-spinner"></div>
         </div>
       </div>
     </div>
@@ -685,6 +704,7 @@ const state = {
   selectedRoomLoggers: new Set(),
   showThreshold: true,
   showSeasonLines: true,
+  showDensity: true,
   historicMode: false,
   selectedHistoricSeries: new Set(),
   comfortModel: 'rh_gt_60',
@@ -790,10 +810,10 @@ function loadDataset(key) {
     if (allNonExt.length > 0) addLoggerSection('Loggers', allNonExt);
   }
 
-  // Rebuild adaptive comfort room logger checkboxes (flat list — room loggers only)
+  // Rebuild adaptive comfort room logger checkboxes with All/None/TinyTag/Omnisense buttons
   const roomDiv = document.getElementById('room-logger-checkboxes');
   roomDiv.innerHTML = '';
-  m.roomLoggers.forEach(id => {
+  function addRoomCheckbox(id) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
@@ -803,7 +823,37 @@ function loadDataset(key) {
       updatePlot();
     });
     roomDiv.appendChild(lbl);
-  });
+  }
+  function mkRoomBtn(label, onClick) {
+    const b = document.createElement('button');
+    b.className = 'sel-btn'; b.textContent = label;
+    b.addEventListener('click', onClick); return b;
+  }
+  const rIds = m.roomLoggers;
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
+  btnRow.appendChild(mkRoomBtn('All', () => {
+    rIds.forEach(id => { state.selectedRoomLoggers.add(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
+    updatePlot();
+  }));
+  btnRow.appendChild(mkRoomBtn('None', () => {
+    rIds.forEach(id => { state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
+    updatePlot();
+  }));
+  const hasRoomTT = rIds.some(id => m.loggerSources[id] === 'TinyTag');
+  const hasRoomOS = rIds.some(id => m.loggerSources[id] === 'Omnisense');
+  if (hasRoomTT && hasRoomOS) {
+    btnRow.appendChild(mkRoomBtn('TinyTag', () => {
+      rIds.forEach(id => { const is = m.loggerSources[id]==='TinyTag'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; });
+      updatePlot();
+    }));
+    btnRow.appendChild(mkRoomBtn('Omnisense', () => {
+      rIds.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; });
+      updatePlot();
+    }));
+  }
+  roomDiv.appendChild(btnRow);
+  rIds.forEach(addRoomCheckbox);
 
   // Show historic section if data available
   document.getElementById('historic-section').style.display = HISTORIC ? '' : 'none';
@@ -882,21 +932,12 @@ function setupStaticListeners() {
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = '';
       if (state.historicMode) {
-        // Historic mode on: humidity stays hidden, loggers already Open-Meteo only
-        // Ensure series checkboxes are built/visible
+        // Historic mode on: keep current state, ensure series checkboxes visible
+        document.getElementById('humidity-label').style.display = 'none';
         if (!document.getElementById('historic-series-checkboxes').children.length) {
           buildHistoricSeriesCheckboxes();
         }
         document.getElementById('historic-series-checkboxes').style.display = '';
-      } else {
-        // Non-historic histogram: all loggers selected, humidity available, threshold on
-        const m = dataset().meta;
-        state.selectedLoggers = new Set(m.loggers);
-        document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = true; });
-        if (!state.showThreshold) {
-          state.showThreshold = true;
-          document.getElementById('cb-threshold').checked = true;
-        }
       }
     } else if (isLine) {
       document.getElementById('cb-seasons').parentElement.style.display = '';
@@ -905,12 +946,16 @@ function setupStaticListeners() {
       if (HISTORIC) document.getElementById('historic-section').style.display = '';
       // Re-apply historic mode visual effects now that we're back on line graph
       if (state.historicMode) {
-        const cbHum = document.getElementById('cb-humidity');
-        cbHum.checked = false;
+        document.getElementById('cb-humidity').checked = false;
         state.selectedMetrics.delete('humidity');
         document.getElementById('humidity-label').style.display = 'none';
         document.getElementById('line-options-section').style.display = 'none';
         document.getElementById('line-options-divider').style.display = 'none';
+        // Ensure series checkboxes visible when returning from adaptive comfort
+        if (!document.getElementById('historic-series-checkboxes').children.length) {
+          buildHistoricSeriesCheckboxes();
+        }
+        document.getElementById('historic-series-checkboxes').style.display = '';
       }
     }
     updatePlot();
@@ -964,6 +1009,9 @@ function setupStaticListeners() {
   document.getElementById('cb-seasons').addEventListener('change', e => {
     state.showSeasonLines = e.target.checked; updatePlot();
   });
+  document.getElementById('cb-density').addEventListener('change', e => {
+    state.showDensity = e.target.checked; updatePlot();
+  });
   function rebuildYearDropdown() {
     const ysel = document.getElementById('year-select');
     const prev = ysel.value;
@@ -999,6 +1047,7 @@ function setupStaticListeners() {
   }
 
   let savedBeforeHistoric = null;
+  let _historicEnteredOnce = false;
   document.getElementById('cb-historic-mode').addEventListener('change', e => {
     state.historicMode = e.target.checked;
     const cbHumidity  = document.getElementById('cb-humidity');
@@ -1006,7 +1055,7 @@ function setupStaticListeners() {
     const cbSeasons   = document.getElementById('cb-seasons');
     const m = dataset().meta;
     if (state.historicMode) {
-      // Save ALL current states (universal — any chart type)
+      // Save current states so exiting historic mode restores them
       savedBeforeHistoric = {
         humidity:      cbHumidity.checked,
         temperature:   document.getElementById('cb-temperature').checked,
@@ -1021,15 +1070,19 @@ function setupStaticListeners() {
         betweenStart:  state.betweenStart,
         betweenEnd:    state.betweenEnd,
       };
-      // Universal: hide humidity, reset loggers to Open-Meteo only
+      // Always: hide humidity
       cbHumidity.checked = false; state.selectedMetrics.delete('humidity');
       document.getElementById('humidity-label').style.display = 'none';
-      state.selectedLoggers = new Set();
-      const openMeteoId = 'External (Open-Meteo)';
-      if (m.loggers.includes(openMeteoId)) state.selectedLoggers.add(openMeteoId);
-      document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
-        cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
-      });
+      // First entry only: force loggers to Open-Meteo only
+      if (!_historicEnteredOnce) {
+        _historicEnteredOnce = true;
+        state.selectedLoggers = new Set();
+        const openMeteoId = 'External (Open-Meteo)';
+        if (m.loggers.includes(openMeteoId)) state.selectedLoggers.add(openMeteoId);
+        document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
+          cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
+        });
+      }
       // Line-graph only: hide options section, turn off threshold/seasons
       if (state.chartType !== 'histogram') {
         cbThreshold.checked = false; state.showThreshold = false;
@@ -1041,7 +1094,7 @@ function setupStaticListeners() {
       buildHistoricSeriesCheckboxes();
       document.getElementById('historic-series-checkboxes').style.display = '';
     } else {
-      // Restore ALL saved states (universal — any chart type)
+      // Restore saved states from before entering historic mode
       if (savedBeforeHistoric) {
         const s = savedBeforeHistoric;
         // Metrics
@@ -1089,6 +1142,11 @@ function setupStaticListeners() {
   });
 
   document.getElementById('download-btn').addEventListener('click', () => {
+    const btn = document.getElementById('download-btn');
+    const spinner = document.getElementById('dl-spinner');
+    function dlStart() { btn.disabled = true; spinner.style.display = 'inline-block'; }
+    function dlDone()  { btn.disabled = false; spinner.style.display = 'none'; }
+
     const dsSel = document.getElementById('dataset-select');
     const ds = dsSel.options[dsSel.selectedIndex].text;
     const chart = state.chartType === 'line' ? 'Line' : state.chartType === 'histogram' ? 'Histogram' : 'AdaptiveComfort';
@@ -1105,7 +1163,7 @@ function setupStaticListeners() {
     let modelStr = '';
     if (state.chartType === 'comfort') {
       const modelSel = document.getElementById('comfort-model');
-      modelStr = '_' + modelSel.options[modelSel.selectedIndex].text.replace(/[^a-zA-Z0-9%<>≤]/g,'').slice(0,20);
+      modelStr = '_' + modelSel.options[modelSel.selectedIndex].text.replace(/\(Vellei et al\.\)/gi,'').replace(/[^a-zA-Z0-9%<>≤]/g,'').slice(0,20);
     }
     let metricStr = '';
     if (state.chartType === 'line' || state.chartType === 'histogram') {
@@ -1115,12 +1173,31 @@ function setupStaticListeners() {
       metricStr = '_' + metrics.join('+');
     }
     const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/,'');
-    const filename = `ARC_${slug(ds)}_${chart}${metricStr}${modelStr}_${rangeStr}`;
+    // Sensor selection: name 1–2 selected sensors, count if a partial subset, omit if all selected
+    let sensorStr = '';
+    if (state.chartType === 'line' || state.chartType === 'histogram') {
+      const selIds = [...state.selectedLoggers];
+      const total = m.loggers.length;
+      if (selIds.length === 0) sensorStr = '_NoSensors';
+      else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(m.loggerNames[id] || id)).join('+');
+      else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
+    } else if (state.chartType === 'comfort') {
+      const selIds = [...state.selectedRoomLoggers];
+      const total = m.roomLoggers.length;
+      if (selIds.length === 0) sensorStr = '_NoSensors';
+      else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(m.loggerNames[id] || id)).join('+');
+      else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
+    }
+    // Local-time timestamp makes every filename unique — prevents browser appending " (2)", " (3)" etc.
+    const _n = new Date(), _p = n => String(n).padStart(2,'0');
+    const ts = `${_n.getFullYear()}${_p(_n.getMonth()+1)}${_p(_n.getDate())}_${_p(_n.getHours())}${_p(_n.getMinutes())}`;
+    const filename = `ARC_${slug(ds)}_${chart}${metricStr}${modelStr}${sensorStr}_${rangeStr}_${ts}`;
     const chartEl = document.getElementById('chart');
     const sm = window.innerWidth < 680;
     const W = chartEl.offsetWidth;
     const H = chartEl.offsetHeight;
     const scale = 3;
+    dlStart();
     if (state.chartType === 'line') {
       // No relayout for line graph — insert title directly into the captured SVG so the
       // on-screen chart never changes and season labels never shift position.
@@ -1182,8 +1259,9 @@ function setupStaticListeners() {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(blobUrl);
+          dlDone();
         }, 'image/png');
-      });
+      }).catch(dlDone);
     } else {
       // Histogram / adaptive comfort: briefly add title via relayout, capture PNG, restore.
       const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60) : (sm ? 55 : 85);
@@ -1203,8 +1281,9 @@ function setupStaticListeners() {
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
+          dlDone();
         });
-      });
+      }).catch(dlDone);
     }
   });
 
@@ -1287,7 +1366,7 @@ function buildGapArrays(timestamps, values) {
   const x = [], y = [];
   for (let i = 0; i < timestamps.length; i++) {
     if (i > 0 && timestamps[i] - timestamps[i-1] > GAP_MS) { x.push(null); y.push(null); }
-    x.push(new Date(timestamps[i])); y.push(values[i]);
+    x.push(toEATString(timestamps[i])); y.push(values[i]);
   }
   return {x, y};
 }
@@ -1328,6 +1407,12 @@ function omniSuffix(source) {
 }
 function meteoSuffix(id) {
   return id === 'External (Open-Meteo)' ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
+}
+// Converts a UTC epoch ms value to an EAT local time string (YYYY-MM-DD HH:MM:SS).
+// Plotly treats bare date strings as calendar-absolute (no browser-timezone conversion),
+// so this ensures timestamps always display in EAT regardless of the viewer's browser timezone.
+function toEATString(ms) {
+  return new Date(ms + 3 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
 }
 
 // ── Line graph ────────────────────────────────────────────────────────────────
@@ -1468,7 +1553,7 @@ function renderLineGraph() {
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?70:85, b:sm?40:60},
-    xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', showgrid:true, gridcolor:'#eee', range:[new Date(dataMinMs), new Date(dataMaxMs)],
+    xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range:[toEATString(dataMinMs), toEATString(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
@@ -1634,7 +1719,7 @@ function renderAdaptiveComfort() {
       hoverinfo:'skip', showlegend:false});
   }
 
-  if (allExtTemps.length > 30) {
+  if (state.showDensity && allExtTemps.length > 30) {
     // Subsample for density heatmap if too many points (performance)
     let heatX = allExtTemps, heatY = allTemps;
     if (allExtTemps.length > 20000) {
@@ -1643,9 +1728,16 @@ function renderAdaptiveComfort() {
       for (let i = 0; i < allExtTemps.length; i += step) { heatX.push(allExtTemps[i]); heatY.push(allTemps[i]); }
     }
     traces.unshift({x:heatX, y:heatY, type:'histogram2dcontour',
-      colorscale:[[0,'rgba(200,200,200,0)'],[0.35,'rgba(160,160,160,0.3)'],[1,'rgba(50,50,50,0.55)']],
-      showscale:false, ncontours:10,
-      contours:{coloring:'fill', showlines:false},
+      histnorm:'percent',
+      colorscale:[[0,'rgba(220,220,220,0)'],[0.05,'rgba(190,190,190,0.2)'],[0.15,'rgba(150,150,150,0.36)'],[0.35,'rgba(110,110,110,0.5)'],[0.6,'rgba(70,70,70,0.66)'],[1,'rgba(30,30,30,0.8)']],
+      showscale:true, ncontours:20,
+      colorbar:{
+        title:{text:'% of points', side:'right', font:{size:11}},
+        thickness:12, len:0.5, x:1.01,
+        ticksuffix:'%', tickfont:{size:10}
+      },
+      line:{color:'rgba(80,80,80,0.3)', width:0.5},
+      contours:{coloring:'fill', showlines:true},
       hoverinfo:'skip', showlegend:false});
   }
 
@@ -1764,19 +1856,31 @@ function updatePlot(forceLoader) {
   const renderKey = state.chartType + '|' + state.datasetKey;
   const isSlowOp = forceLoader || renderKey !== _lastRenderKey;
   _lastRenderKey = renderKey;
-  if (isSlowOp) {
-    // Estimated render time: adaptive comfort ~1.5s, line ~0.8s
-    const ms = state.chartType === 'comfort' ? 1500 : 800;
-    showLoadingBar(ms);
-    setTimeout(_doRender, 30); // give browser time to paint the overlay
-  } else {
-    _doRender();
-  }
+  // Always show loading bar — slower estimate for chart/dataset switches, short for other updates
+  const ms = isSlowOp ? (state.chartType === 'comfort' ? 1500 : 800) : 350;
+  showLoadingBar(ms);
+  setTimeout(_doRender, 30);
 }
 
 init();
 // Re-render after layout settles to fix annotation positions on first load
 requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart', {autosize: true})));
+
+// Density heatmap info icon — fixed-position tooltip to escape overflow:hidden on #main
+(function() {
+  const icon = document.getElementById('density-info-icon');
+  const tip  = document.getElementById('info-fixed-tip');
+  tip.textContent = 'Shows where readings are concentrated. The chart is divided into a grid of bins — darker areas have more readings clustered there. The colour scale shows what % of all plotted points fall in each density region.';
+  icon.addEventListener('mouseenter', () => {
+    const r = icon.getBoundingClientRect();
+    tip.style.display = 'block';
+    let left = r.right + 8;
+    if (left + 228 > window.innerWidth - 8) left = window.innerWidth - 236;
+    tip.style.left = left + 'px';
+    tip.style.top  = r.top + 'px';
+  });
+  icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+})();
 
 // Legend hover tooltip — attach to SVG legend elements after each render
 const legendTip = document.getElementById('legend-tooltip');
