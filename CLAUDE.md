@@ -41,6 +41,10 @@ Whenever changes are made to `build.py` or `index.html`, append a brief entry to
 
 ## Changelog
 
+### 2026-03-01 15:04:26 CST
+- Sidebar width increased from 220px to 240px (desktop and mobile overlay) so "Washrooms area (OmniSense)" fits without wrapping. The width value is in the `#sidebar` CSS rule on the `#sidebar { width: 240px; ... }` line near the top of the CSS block.
+- Adaptive comfort "Room Loggers" checkbox list now sections by source like the line graph sidebar: TinyTag loggers under a "TinyTag" sub-header with All/None buttons, then a divider, then Omnisense loggers under an "OmniSense" sub-header with All/None buttons. Falls back to a single "Room" section if only one source present. Static HTML buttons (All/None/TinyTag/Omnisense) and their static event listeners removed; replaced by the same dynamically-built pattern used by the line graph (`addRoomSection` helper inside `initDataset`). Rebuilt index.html.
+
 ### 2026-03-01 14:58:01 CST
 - "Historic Mode" renamed to "**Long-Term Mode**" (bold) in the sidebar checkbox label.
 - Sensor display names updated everywhere (LOGGER_NAMES dict, all graphs, legend keys, sidebar checkboxes, adaptive comfort stats panel):
