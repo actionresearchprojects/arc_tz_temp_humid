@@ -11,13 +11,15 @@ Output: index.html
 
 NOTE FOR CLAUDE: After making any changes to this file or index.html,
 add an entry to the Changelog in CHANGELOG.md. The heading must include
-date and time to the second in CST (Taiwan, UTC+8) — always run `date`
+date and time to the second in CST (Taiwan, UTC+8) - always run `date`
 first to get the real time: ### YYYY-MM-DD HH:MM:SS CST
 """
 
 import argparse
+import base64
 import json
 import re
+import struct
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -231,7 +233,7 @@ def load_copernicus_climate_data():
     })
     print(f"  ERA5 Historic: {len(years)} years ({years[0]}–{era5_end_year})")
 
-    # Load SSP projection files — truncated to start after ERA5 ends
+    # Load SSP projection files - truncated to start after ERA5 ends
     ssp_files = sorted(hist_folder.glob("t-CMIP6_timeseries_SSP*.csv"))
     for path in ssp_files:
         # Extract SSP name from filename: t-CMIP6_timeseries_SSP2-4.5.csv → SSP2-4.5
@@ -275,7 +277,7 @@ def _load_openmeteo_csv(path, logger_id):
 
 
 def load_external_temperature():
-    """Load Open-Meteo data — prefers split historical/forecast CSVs in data/openmeteo/,
+    """Load Open-Meteo data - prefers split historical/forecast CSVs in data/openmeteo/,
     falls back to legacy single open-meteo*.csv in data/."""
     dfs = []
 
@@ -307,7 +309,7 @@ def load_external_temperature():
         print(f"  Warning: no Open-Meteo data found, skipping external temperature")
         return pd.DataFrame()
     if len(matches) > 1:
-        print(f"  Warning: multiple Open-Meteo files found — using {matches[-1].name}")
+        print(f"  Warning: multiple Open-Meteo files found - using {matches[-1].name}")
     ext_file = matches[-1]
     print(f"  Using legacy external temperature: {ext_file.name}")
     return _load_openmeteo_csv(ext_file, OPENMETEO_HISTORICAL_ID)
@@ -482,7 +484,7 @@ def build_dataset_json(key, df):
         order_map_rl = {l: i for i, l in enumerate(sidebar_order)}
         room_loggers = sorted(room_loggers, key=lambda l: order_map_rl.get(l, 9999))
 
-    # Structural loggers (above-ceiling etc) — also used in adaptive comfort
+    # Structural loggers (above-ceiling etc) - also used in adaptive comfort
     structural_cfg = cfg.get("structural_loggers", [])
     structural_loggers = [l for l in structural_cfg if l in unique_loggers]
     if sidebar_order:
@@ -592,7 +594,7 @@ def build_dataset_json(key, df):
 HTML_TEMPLATE = r"""<!DOCTYPE html>
 <!-- NOTE FOR CLAUDE: After making any changes to this file or build.py,
      add an entry to the Changelog in CLAUDE.md. The heading must include
-     date and time to the second in CST (Taiwan, UTC+8) — always run `date`
+     date and time to the second in CST (Taiwan, UTC+8) - always run `date`
      first to get the real time: ### YYYY-MM-DD HH:MM:SS CST -->
 <html lang="en">
 <head>
@@ -741,8 +743,16 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider">
       <div id="comfort-stats">
-        <div id="comfort-overall">—</div>
+        <div id="comfort-overall">-</div>
         <div class="room-grid" id="comfort-room-grid"></div>
+      </div>
+      <div style="margin-top:8px;margin-bottom:4px;">
+        <div style="font-size:11px;color:#666;margin-bottom:3px;">Percentage calculation</div>
+        <select id="comfort-pct-mode" style="width:100%;font-size:12px;">
+          <option value="below_upper" selected>Below upper boundary</option>
+          <option value="within">Within comfort zone</option>
+          <option value="above_lower">Above lower boundary</option>
+        </select>
       </div>
     </div>
 
@@ -809,6 +819,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 const ALL_DATA = __DATA__;
 const HISTORIC = __HISTORIC__;
 const FETCH_TIMES = __FETCH_TIMES__;
+const LOGO_B64 = '__LOGO_B64__';
+const LOGO_ASPECT = __LOGO_ASPECT__;
 const CLIMATE_COLORS = {
   'ERA5': '#333333',
   'SSP1-1.9': '#1a9850',
@@ -832,6 +844,7 @@ const state = {
   historicMode: false,
   selectedHistoricSeries: new Set(),
   comfortModel: 'rh_gt_60',
+  comfortPctMode: 'below_upper',
   betweenStart: null,
   betweenEnd: null,
   selectedYear: null,
@@ -922,7 +935,7 @@ function loadDataset(key) {
   ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
     document.getElementById(id).classList.add('hidden'));
 
-  // Rebuild logger checkboxes: External / Structural / Room — each with their own buttons
+  // Rebuild logger checkboxes: External / Structural / Room - each with their own buttons
   const loggerDiv = document.getElementById('logger-checkboxes');
   loggerDiv.innerHTML = '';
   function mkSelBtn(label, onClick) {
@@ -988,7 +1001,7 @@ function loadDataset(key) {
     addLoggerSection('Structural', midLoggers);
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
-    // Fallback: dataset has no room/structural split — show all non-external flat
+    // Fallback: dataset has no room/structural split - show all non-external flat
     const allNonExt = m.loggers.filter(id => !extSet.has(id));
     if (allNonExt.length > 0) addLoggerSection('Loggers', allNonExt);
   }
@@ -1085,7 +1098,7 @@ function loadDataset(key) {
   }
 
   // Reset comfort stats
-  document.getElementById('comfort-overall').textContent = '—';
+  document.getElementById('comfort-overall').textContent = '-';
   document.getElementById('comfort-room-grid').innerHTML = '';
 
   updatePlot();
@@ -1122,6 +1135,8 @@ function resetComfortDefaults() {
   });
   state.comfortModel = 'rh_gt_60';
   document.getElementById('comfort-model').value = 'rh_gt_60';
+  state.comfortPctMode = 'below_upper';
+  document.getElementById('comfort-pct-mode').value = 'below_upper';
   resetTimeMode();
   updatePlot();
 }
@@ -1133,6 +1148,74 @@ function toggleAllCheckboxes(containerId, stateSet, loggerList, selectAll) {
   stateSet.clear();
   if (selectAll) loggerList.forEach(id => stateSet.add(id));
   updatePlot();
+}
+
+// ── PNG watermark (SVG DOM injection) ─────────────────────────────────────────
+// atTop=false → bottom-right, full opacity (line graph & histogram)
+// atTop=true  → top-right, 80% opacity (adaptive comfort)
+function injectSVGWatermark(doc, svgW, svgH, atTop, opacity) {
+  if (!LOGO_B64) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  const root = doc.querySelector('.infolayer') || doc.documentElement;
+  const logoH = 40;                              // ← logo height (px in SVG coords)
+  const logoW = Math.round(logoH * LOGO_ASPECT);
+  const textSize = 9;                            // ← watermark font size (px)
+  const lineH = 14;                              // ← line spacing between the two text lines (px)
+  const leftMargin = 12;                         // ← gap from left edge for logo (px)
+  const rightMargin = 12;                        // ← gap from right edge for text (px)
+  const bottomEdge = 10;                         // ← gap from bottom edge for text (px)
+  const topEdge = 12;                             // ← gap from top edge for logo (px)
+  const logoTopPad = 0;                          // ← transparent px at TOP of logo.png (adjust to match your logo)
+  const line1 = 'Graph generated by ARC (architecture.resilience.community).';
+  const line2 = 'Find out more about what we do at actionresearchprojects.net.';
+
+  // Logo: always top-left
+  const logoX = leftMargin;
+  const logoY = topEdge - logoTopPad;
+
+  // Text: always bottom-right
+  const txt2Y = svgH - bottomEdge;
+  const txt1Y = txt2Y - lineH;
+  const txtBaseline = 'auto';
+
+  const imgEl = doc.createElementNS(ns, 'image');
+  imgEl.setAttribute('href', LOGO_B64);
+  imgEl.setAttribute('x', String(logoX));
+  imgEl.setAttribute('y', String(logoY));
+  imgEl.setAttribute('width', String(logoW));
+  imgEl.setAttribute('height', String(logoH));
+  imgEl.setAttribute('opacity', String(opacity));
+  root.appendChild(imgEl);
+
+  function mkTxt(y, content) {
+    const el = doc.createElementNS(ns, 'text');
+    el.setAttribute('x', String(svgW - rightMargin));
+    el.setAttribute('y', String(y));
+    el.setAttribute('text-anchor', 'end');
+    el.setAttribute('dominant-baseline', txtBaseline);
+    el.setAttribute('font-family', 'Georgia, serif');
+    el.setAttribute('font-size', String(textSize));
+    el.setAttribute('fill', '#555');
+    el.setAttribute('opacity', String(opacity));
+    el.textContent = content;
+    return el;
+  }
+  root.appendChild(mkTxt(txt1Y, line1));
+  root.appendChild(mkTxt(txt2Y, line2));
+}
+
+// ── SVG → canvas → PNG helper ─────────────────────────────────────────────────
+function svgToCanvas(svgStr, W, H, scale) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = W * scale; canvas.height = H * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(canvas); };
+    img.onerror = reject;
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+  });
 }
 
 function setupStaticListeners() {
@@ -1211,6 +1294,10 @@ function setupStaticListeners() {
 
   document.getElementById('comfort-model').addEventListener('change', e => {
     state.comfortModel = e.target.value; updatePlot();
+  });
+
+  document.getElementById('comfort-pct-mode').addEventListener('change', e => {
+    state.comfortPctMode = e.target.value; updatePlot();
   });
 
   document.getElementById('time-mode').addEventListener('change', e => {
@@ -1435,7 +1522,7 @@ function setupStaticListeners() {
       else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(m.loggerNames[id] || id)).join('+');
       else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
     }
-    // Local-time timestamp makes every filename unique — prevents browser appending " (2)", " (3)" etc.
+    // Local-time timestamp makes every filename unique - prevents browser appending " (2)", " (3)" etc.
     const _n = new Date(), _p = n => String(n).padStart(2,'0');
     const ts = `${_n.getFullYear()}${_p(_n.getMonth()+1)}${_p(_n.getDate())}_${_p(_n.getHours())}${_p(_n.getMinutes())}`;
     const filename = `ARC_${slug(ds)}_${chart}${metricStr}${modelStr}${sensorStr}_${rangeStr}_${ts}`;
@@ -1445,93 +1532,88 @@ function setupStaticListeners() {
     const H = chartEl.offsetHeight;
     const scale = 3;
     dlStart();
+    // Shared: parse SVG data URL → string
+    function parseSVGDataUrl(svgDataUrl) {
+      const b64tag = 'data:image/svg+xml;base64,';
+      if (svgDataUrl.startsWith(b64tag)) return atob(svgDataUrl.slice(b64tag.length));
+      return decodeURIComponent(svgDataUrl.slice(svgDataUrl.indexOf(',') + 1));
+    }
+    // Shared: inject title text into SVG (for line graph which avoids relayout)
+    function injectSVGTitle(doc, svgW) {
+      const infolayer = doc.querySelector('.infolayer');
+      const ns = 'http://www.w3.org/2000/svg';
+      const marginT = (_currentLayout.margin && _currentLayout.margin.t) || 50;
+      const fontSize = sm ? 12 : 14;
+      function makeTxt(fill, stroke, sw) {
+        const t = doc.createElementNS(ns, 'text');
+        t.setAttribute('x', String(svgW / 2));
+        t.setAttribute('y', String(marginT / 2));
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('dominant-baseline', 'middle');
+        t.setAttribute('font-family', '"Open Sans", verdana, arial, sans-serif');
+        t.setAttribute('font-size', String(fontSize));
+        t.setAttribute('font-weight', 'bold');
+        t.setAttribute('fill', fill);
+        if (stroke) { t.setAttribute('stroke', stroke); t.setAttribute('stroke-width', String(sw)); t.setAttribute('stroke-linejoin', 'round'); }
+        t.textContent = _currentTitle;
+        return t;
+      }
+      const g = doc.createElementNS(ns, 'g');
+      g.appendChild(makeTxt('white', 'white', 5));
+      g.appendChild(makeTxt('#222', null, 0));
+      (infolayer || doc.documentElement).appendChild(g);
+    }
+    // Shared: finish canvas → PNG download
+    function canvasToPNG(canvas) {
+      canvas.toBlob(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl; a.download = filename + '.png';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a); URL.revokeObjectURL(blobUrl);
+        dlDone();
+      }, 'image/png');
+    }
+
+    setTimeout(() => {
     if (state.chartType === 'line') {
-      // No relayout for line graph — insert title directly into the captured SVG so the
-      // on-screen chart never changes and season labels never shift position.
+      // No relayout for line graph - inject title + watermark directly into SVG.
       Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
-        let svgStr;
-        const b64tag = 'data:image/svg+xml;base64,';
-        if (svgDataUrl.startsWith(b64tag)) {
-          svgStr = atob(svgDataUrl.slice(b64tag.length));
-        } else {
-          svgStr = decodeURIComponent(svgDataUrl.slice(svgDataUrl.indexOf(',') + 1));
-        }
-        const doc = new DOMParser().parseFromString(svgStr, 'image/svg+xml');
-        const infolayer = doc.querySelector('.infolayer');
-        const ns = 'http://www.w3.org/2000/svg';
-        const marginT = (_currentLayout.margin && _currentLayout.margin.t) || 50;
-        const fontSize = sm ? 12 : 14;
-        const titleY = marginT / 2;
-        function makeTxt(fill, stroke, sw) {
-          const t = doc.createElementNS(ns, 'text');
-          t.setAttribute('x', String(W / 2));
-          t.setAttribute('y', String(titleY));
-          t.setAttribute('text-anchor', 'middle');
-          t.setAttribute('dominant-baseline', 'middle');
-          t.setAttribute('font-family', '"Open Sans", verdana, arial, sans-serif');
-          t.setAttribute('font-size', String(fontSize));
-          t.setAttribute('font-weight', 'bold');
-          t.setAttribute('fill', fill);
-          if (stroke) {
-            t.setAttribute('stroke', stroke);
-            t.setAttribute('stroke-width', String(sw));
-            t.setAttribute('stroke-linejoin', 'round');
-          }
-          t.textContent = _currentTitle;
-          return t;
-        }
-        const g = doc.createElementNS(ns, 'g');
-        g.appendChild(makeTxt('white', 'white', 5));
-        g.appendChild(makeTxt('#222', null, 0));
-        (infolayer || doc.documentElement).appendChild(g);
-        const modSvg = new XMLSerializer().serializeToString(doc);
-        return new Promise((resolve, reject) => {
-          const canvas = document.createElement('canvas');
-          canvas.width = W * scale;
-          canvas.height = H * scale;
-          const ctx = canvas.getContext('2d');
-          ctx.scale(scale, scale);
-          const img = new Image();
-          img.onload = () => { ctx.drawImage(img, 0, 0, W, H); resolve(canvas); };
-          img.onerror = reject;
-          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(modSvg);
-        });
-      }).then(canvas => {
-        canvas.toBlob(blob => {
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = filename + '.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(blobUrl);
-          dlDone();
-        }, 'image/png');
-      }).catch(dlDone);
+        const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
+        injectSVGTitle(doc, W);
+        injectSVGWatermark(doc, W, H, false, 1.0);
+        unlockLegendScroll(doc.documentElement);
+        return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
+      }).then(canvasToPNG).catch(dlDone);
     } else {
-      // Histogram / adaptive comfort: briefly add title via relayout, capture PNG, restore.
-      const pngTopMargin = state.chartType === 'comfort' ? (sm ? 36 : 60) : (sm ? 55 : 85);
+      // Histogram / adaptive comfort: add title via relayout, capture as SVG,
+      // inject watermark into SVG DOM, render to canvas, restore.
+      const isComfort = state.chartType === 'comfort';
+      const pngTopMargin = isComfort ? (sm ? 36 : 60) : (sm ? 55 : 85);
+      const origAnnotations = _currentLayout.annotations || [];
+      const origImages = _currentLayout.images || [];
+      const origMarginT = (_currentLayout.margin && _currentLayout.margin.t) || 50;
       function doRestore() {
-        Plotly.relayout('chart', {'title.text': '', 'margin.t': _currentLayout.margin.t});
+        Plotly.relayout('chart', {
+          'title.text': '', 'margin.t': origMarginT,
+          images: origImages, annotations: origAnnotations,
+        });
       }
       Plotly.relayout('chart', {
         'title.text': `<b>${_currentTitle}</b>`,
         'title.font.size': sm ? 12 : 14,
         'margin.t': pngTopMargin,
       }).then(() => {
-        return Plotly.toImage('chart', {format: 'png', width: W, height: H, scale}).then(imgData => {
-          doRestore();
-          const a = document.createElement('a');
-          a.href = imgData;
-          a.download = filename + '.png';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          dlDone();
-        });
-      }).catch(dlDone);
+        return Plotly.toImage('chart', {format: 'svg', width: W, height: H});
+      }).then(svgDataUrl => {
+        doRestore();
+        const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
+        injectSVGWatermark(doc, W, H, isComfort, isComfort ? 0.8 : 1.0);
+        if (!isComfort) unlockLegendScroll(doc.documentElement);
+        return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
+      }).then(canvasToPNG).catch(dlDone);
     }
+    }, 0);
   });
 
   const toggle = document.getElementById('sidebar-toggle');
@@ -1801,11 +1883,11 @@ function renderLineGraph() {
     : `${dsLabel} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?70:85, b:sm?40:60},
+    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
     xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range:[toEATString(dataMinMs), toEATString(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
-    legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
+    legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest',
   }, title: barTitle};
 }
@@ -1965,7 +2047,7 @@ function renderHistogram() {
       ticktext: tickvals.length ? ticktext : undefined},
     yaxis:{title:'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
     barmode:'stack', shapes, annotations: histAnnotations,
-    legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
+    legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
   }, title: (`${dsLabel} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
 }
@@ -2062,19 +2144,25 @@ function updateComfortStats(start, end, params) {
     const filtered = filterSeries(series, start, end);
     if (!filtered || !filtered.extTemp) continue;
     let inZone = 0, count = 0;
+    const mode = state.comfortPctMode || 'below_upper';
     for (let i = 0; i < filtered.temperature.length; i++) {
       const ext = filtered.extTemp[i], temp = filtered.temperature[i];
       if (ext == null || temp == null) continue;
-      const upper = params.m*ext + params.c + params.delta;
-      if (temp <= upper) inZone++;
+      const mid = params.m*ext + params.c;
+      const upper = mid + params.delta;
+      const lower = mid - params.delta;
+      if (mode === 'below_upper' && temp <= upper) inZone++;
+      else if (mode === 'within' && temp >= lower && temp <= upper) inZone++;
+      else if (mode === 'above_lower' && temp >= lower) inZone++;
       count++;
     }
     const pct = count > 0 ? inZone/count*100 : 0;
     totalIn += inZone; totalAll += count;
     roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct});
   }
-  const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '—';
-  overall.textContent = `Overall: ${overallPct}% below upper comfort boundary`;
+  const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '-';
+  const modeLabel = {below_upper: 'below upper boundary', within: 'within comfort zone', above_lower: 'above lower boundary'}[state.comfortPctMode || 'below_upper'];
+  overall.textContent = `Overall: ${overallPct}% ${modeLabel}`;
   roomStats.forEach(({id, name, pct}) => {
     const div = document.createElement('div');
     div.className = 'room-item';
@@ -2087,6 +2175,38 @@ function updateComfortStats(start, end, params) {
     div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
     grid.appendChild(div);
   });
+}
+
+// ── Legend style helper - scales font/gap based on number of visible items ─────
+function legendStyle(n) {
+  const t = Math.max(0, Math.min(1, (n - 10) / 14)); // 0 at n≤10, 1 at n≥24
+  return {font:{size: Math.round(11 - 3*t)}, tracegroupgap: Math.round(10*(1-t))};
+}
+
+// ── Remove Plotly legend scroll clip and compact vertical spacing ───────────────
+// Plotly renders every legend item in the SVG DOM but hides overflow ones with a
+// clip-path. We remove it and repack items tighter so they all fit.
+function unlockLegendScroll(root) {
+  if (!root) return;
+  const legend = root.querySelector ? root.querySelector('.legend') : null;
+  if (!legend) return;
+  legend.querySelectorAll('[clip-path]').forEach(el => el.removeAttribute('clip-path'));
+  legend.querySelectorAll('[class*="scroll"]:not(.scrollbox)').forEach(el => el.remove());
+  // Block Plotly's wheel-scroll handler on the legend (live DOM only, not SVG export docs)
+  if (legend.ownerDocument === document) {
+    legend.addEventListener('wheel', e => { e.stopImmediatePropagation(); e.preventDefault(); }, {capture: true, passive: false});
+  }
+  const items = Array.from(legend.querySelectorAll('.traces'));
+  if (items.length < 2) return;
+  const getXY = el => {
+    const m = (el.getAttribute('transform') || '').match(/translate\(\s*([-\d.]+)[\s,]+([-\d.]+)/);
+    return m ? [parseFloat(m[1]), parseFloat(m[2])] : [0, 0];
+  };
+  const [x0, y0] = getXY(items[0]);
+  const dy = getXY(items[1])[1] - y0;
+  if (dy <= 8) return; // already tight enough
+  const newDy = Math.max(8, dy - 2); // reduce by 2px per item
+  items.forEach((item, i) => item.setAttribute('transform', `translate(${x0}, ${y0 + i * newDy})`));
 }
 
 // ── Main update ───────────────────────────────────────────────────────────────
@@ -2128,6 +2248,7 @@ function _doRender() {
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   document.getElementById('chart').on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
   requestAnimationFrame(setupLegendTooltips);
+  requestAnimationFrame(() => unlockLegendScroll(document.getElementById('chart')));
   hideLoadingBar();
 
   const warn = document.getElementById('ext-data-warning');
@@ -2148,7 +2269,7 @@ function updatePlot(forceLoader) {
   const renderKey = state.chartType + '|' + state.datasetKey;
   const isSlowOp = forceLoader || renderKey !== _lastRenderKey;
   _lastRenderKey = renderKey;
-  // Always show loading bar — slower estimate for chart/dataset switches, short for other updates
+  // Always show loading bar - slower estimate for chart/dataset switches, short for other updates
   const ms = isSlowOp ? (state.chartType === 'comfort' ? 1500 : 800) : 350;
   showLoadingBar(ms);
   setTimeout(_doRender, 30);
@@ -2158,7 +2279,7 @@ init();
 // Re-render after layout settles to fix annotation positions on first load
 requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart', {autosize: true})));
 
-// Density heatmap info icon — fixed-position tooltip to escape overflow:hidden on #main
+// Density heatmap info icon - fixed-position tooltip to escape overflow:hidden on #main
 (function() {
   const icon = document.getElementById('density-info-icon');
   const tip  = document.getElementById('info-fixed-tip');
@@ -2174,13 +2295,13 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 })();
 
-// Chart type info icon — context-aware tooltip
+// Chart type info icon - context-aware tooltip
 (function() {
   const icon = document.getElementById('chart-info-icon');
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
-    histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable.',
+    histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are stacked \u2014 hover to see individual logger values.',
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.'
   };
   icon.addEventListener('mouseenter', () => {
@@ -2195,7 +2316,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 })();
 
-// Legend hover tooltip — attach to SVG legend elements after each render
+// Legend hover tooltip - attach to SVG legend elements after each render
 const legendTip = document.getElementById('legend-tooltip');
 document.addEventListener('mousemove', e => {
   if (legendTip.style.display === 'block') {
@@ -2428,12 +2549,26 @@ def main():
         fetch_times["omnisense"] = format_fetch_time(parse_fetch_time(os_files[-1]))
 
     print("Writing output...")
+    # Embed logo as base64 for PNG watermarks
+    logo_path = Path("logo.png")
+    if logo_path.exists():
+        logo_bytes = logo_path.read_bytes()
+        logo_b64 = "data:image/png;base64," + base64.b64encode(logo_bytes).decode()
+        logo_w = struct.unpack('>I', logo_bytes[16:20])[0]
+        logo_h = struct.unpack('>I', logo_bytes[20:24])[0]
+        logo_aspect = round(logo_w / logo_h, 4)
+    else:
+        logo_b64 = ""
+        logo_aspect = 3.0
+
     json_str = json.dumps(all_data, separators=(',', ':'))
     fetch_times_str = json.dumps(fetch_times)
     html = (HTML_TEMPLATE
             .replace('__DATA__', json_str)
             .replace('__HISTORIC__', historic_str)
-            .replace('__FETCH_TIMES__', fetch_times_str))
+            .replace('__FETCH_TIMES__', fetch_times_str)
+            .replace('__LOGO_B64__', logo_b64)
+            .replace('__LOGO_ASPECT__', str(logo_aspect)))
     OUTPUT_FILE.write_text(html, encoding='utf-8')
 
     size_kb = len(html.encode('utf-8')) / 1024
