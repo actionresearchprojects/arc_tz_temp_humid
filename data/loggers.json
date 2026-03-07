@@ -7,157 +7,235 @@
         "id": "External Historical (Open-Meteo)",
         "name": "Historical Temperature",
         "source": "Open-Meteo",
-        "category": "external"
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "External Forecast (Open-Meteo)",
         "name": "Forecast Temperature",
         "source": "Open-Meteo",
-        "category": "external"
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "861011",
         "name": "External Ambient",
         "source": "TinyTag",
-        "category": "external"
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "320E02D1",
         "name": "Weather Station T&RH",
         "source": "Omnisense",
-        "category": "external"
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "780981",
         "name": "Living Room",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759493",
         "name": "Living Room (above ceiling)",
         "source": "TinyTag",
-        "category": "structural"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "861968",
         "name": "Living Room (below metal roof)",
         "source": "TinyTag",
-        "category": "other"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "327601CD",
         "name": "Living Room",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "3276003D",
         "name": "Kitchen",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "639148",
         "name": "Study",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "3276028A",
         "name": "Study",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759522",
         "name": "Bedroom 1",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "32760205",
         "name": "Bedroom 1",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759521",
         "name": "Bedroom 2",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "327601CB",
         "name": "Bedroom 2",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759209",
         "name": "Bedroom 3",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759498",
         "name": "Bedroom 3 (below metal roof)",
         "source": "TinyTag",
-        "category": "other"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "861004",
         "name": "Bedroom 3 (above ceiling, below insulation)",
         "source": "TinyTag",
-        "category": "structural"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "861034",
         "name": "Bedroom 3 (above ceiling, above insulation)",
         "source": "TinyTag",
-        "category": "structural"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "32760371",
         "name": "Bedroom 3",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759492",
         "name": "Bedroom 4",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759489",
         "name": "Bedroom 4 (above ceiling)",
         "source": "TinyTag",
-        "category": "structural"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "759519",
         "name": "Bedroom 4 (below metal roof)",
         "source": "TinyTag",
-        "category": "other"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "3276012B",
         "name": "Bedroom 4",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "32760164",
         "name": "Bedroom 4 (above ceiling)",
         "source": "Omnisense",
-        "category": "structural"
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "32760208",
         "name": "Washrooms area",
         "source": "Omnisense",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       }
     ]
   },
@@ -169,19 +247,28 @@
         "id": "861011",
         "name": "External Ambient",
         "source": "TinyTag",
-        "category": "external"
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": false
       },
       {
         "id": "759498",
         "name": "Bedroom 1",
         "source": "TinyTag",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       },
       {
         "id": "govee",
         "name": "Living Space",
         "source": "Govee Smart Hygrometer",
-        "category": "room"
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInComfort": true
       }
     ]
   }

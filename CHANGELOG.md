@@ -1,5 +1,16 @@
 ## Changelog
 
+### 2026-03-07 16:59:30 CST
+- **Config UI rework**: replaced single category dropdown with three visibility checkboxes (Line Graph / Histogram / Adaptive Comfort) per logger in config.html.
+- Below-roof loggers (861968, 759519, 759498) now correctly get `section: "structural"` in loggers.json (previously "other"). All have `showInLine: true`, `showInHistogram: true`, `showInComfort: false` as defaults.
+- `generate_loggers_manifest`: uses `section` (not `category`); all non-external non-room loggers → section="structural"; `showInComfort` derived from `comfortLoggers` set.
+- `build_dataset_json`: added `lineLoggers` and `histogramLoggers` to meta (both default to all `unique_loggers`).
+- `applyUserConfig`: handles `section`, `showInLine`, `showInHistogram`, `showInComfort` overrides independently. `section` moves logger between `roomLoggers`. `showInLine`/`showInHistogram` filter `lineLoggers`/`histogramLoggers`. `showInComfort` filters `comfortLoggers`.
+- `loadDataset`: sidebar now filters Room/Structural sections by `m.lineLoggers`; `state.selectedLoggers` initialised from `m.lineLoggers` (not all loggers).
+- `resetLineDefaults`: uses `m.lineLoggers` as default selection.
+- `renderLineGraph`: skips loggers not in `m.lineLoggers`. `renderHistogram`: skips loggers not in `m.histogramLoggers`.
+- `config.html`: section dropdown (Room/Structural, hasCat datasets only) + three checkbox columns (Line, Histogram, Adaptive Comfort). External loggers show "—" in all editable columns.
+
 ### 2026-03-07 16:47:03 CST
 - **Config admin UI**: Added `config.html` — a GitHub Pages admin page for editing logger display names and categories without rebuilding.
 - `build.py` changes:
