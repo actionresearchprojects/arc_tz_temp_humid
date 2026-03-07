@@ -10,7 +10,7 @@ To update with new data:
 Output: index.html
 
 NOTE FOR CLAUDE: After making any changes to this file or index.html,
-add an entry to the Changelog in CLAUDE.md. The heading must include
+add an entry to the Changelog in CHANGELOG.md. The heading must include
 date and time to the second in CST (Taiwan, UTC+8) — always run `date`
 first to get the real time: ### YYYY-MM-DD HH:MM:SS CST
 """
@@ -76,8 +76,8 @@ DATASETS = {
             "327601CB",                                           # Bedroom 2 (Omnisense)
             # Bedroom 3
             "759209",                                             # Bedroom 3 (TinyTag)
-            "861004",                                             # Bedroom 3 above ceiling (TinyTag)
-            "861034",                                             # Bedroom 3 above ceiling (TinyTag)
+            "861004",                                             # Bedroom 3 above ceiling, below insulation (TinyTag)
+            "861034",                                             # Bedroom 3 above ceiling, above insulation (TinyTag)
             "32760371",                                           # Bedroom 3 (Omnisense)
             # Bedroom 4
             "759492",                                             # Bedroom 4 (TinyTag)
@@ -109,12 +109,12 @@ LOGGER_NAMES = {
     "759521": "Bedroom 2",
     "759209": "Bedroom 3",
     "759492": "Bedroom 4",
-    "861968": "Living Room (below metal)",
+    "861968": "Living Room (below metal roof)",
     "759493": "Living Room (above ceiling)",
     "759498": "Bedroom 1",
-    "861004": "Bedroom 3 (above ceiling)",
-    "861034": "Bedroom 3 (above ceiling)",
-    "759519": "Bedroom 4 (below metal)",
+    "861004": "Bedroom 3 (above ceiling, below insulation)",
+    "861034": "Bedroom 3 (above ceiling, above insulation)",
+    "759519": "Bedroom 4 (below metal roof)",
     "759489": "Bedroom 4 (above ceiling)",
     "govee":  "Living Space",
     # Omnisense sensors
@@ -122,7 +122,7 @@ LOGGER_NAMES = {
     "327601CB": "Bedroom 2",
     "32760371": "Bedroom 3",
     "3276012B": "Bedroom 4",
-    "32760164": "Bedroom 4 above ceiling",
+    "32760164": "Bedroom 4 (above ceiling)",
     "3276003D": "Kitchen",
     "327601CD": "Living Room",
     "32760205": "Bedroom 1",
