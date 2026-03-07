@@ -19,7 +19,7 @@
 - New `fetch_openmeteo.py` (stdlib only, no pip): fetches historical + forecast from Open-Meteo API, writes timestamped CSVs to `data/openmeteo/`, rotates old files to `data/openmeteo/legacy/`.
 - New `--openmeteo-only` mode for `build.py`: loads `data/sensor_snapshot.json` (pre-processed sensor data) + fresh Open-Meteo CSVs + climate data → rebuilds `index.html` without needing .xlsx/.csv sensor files.
 - Full builds now save `data/sensor_snapshot.json` (~10 MB) containing all non-Open-Meteo logger data.
-- New GitHub Actions workflow (`.github/workflows/update-openmeteo.yml`): runs daily at 04:00 UTC, fetches fresh Open-Meteo data, rebuilds dashboard, commits and pushes.
+- New GitHub Actions workflow (`.github/workflows/update-dashboard-data.yml`): runs daily at 04:00 UTC, fetches fresh Open-Meteo data, rebuilds dashboard, commits and pushes.
 - Updated `.gitignore`: selectively un-ignores `data/openmeteo/`, `data/sensor_snapshot.json`, `data/hist_proj/`.
 - JS changes: `isOpenMeteo(id)` / `isForecast(id)` helpers replace hardcoded ID checks. Forecast trace uses dashed line. `forecastLoggers` metadata field added.
 - Updated `CLAUDE.md`, `UPDATE.md` with new workflows.
