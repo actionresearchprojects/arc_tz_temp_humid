@@ -6,10 +6,12 @@ Uses only the standard library (no pip installs needed).
 Authenticates via environment variables OMNISENSE_USERNAME and OMNISENSE_PASSWORD.
 Writes CSV to data/omnisense/omnisense_YYYYMMDD_HHMM.csv
 
-The Omnisense server tracks sessions by IP (no cookies), so all requests
-must go through the same opener to maintain the authenticated session.
+The Omnisense server tracks sessions by IP (no cookies). All requests must go
+through the same opener to maintain the authenticated session. The exact browser
+flow must be replicated: login → site_select.asp → dnld_rqst.asp → POST form.
 """
 
+import argparse
 import os
 import re
 import shutil
@@ -22,12 +24,35 @@ from pathlib import Path
 # ── Configuration ─────────────────────────────────────────────────────────────
 SITE_NBR = "152865"
 LOGIN_URL = "https://omnisense.com/user_login.asp"
-DOWNLOAD_URL = "https://omnisense.com/dnld_rqst5.asp"
+DOWNLOAD_FORM_URL = f"https://omnisense.com/dnld_rqst.asp?siteNbr={SITE_NBR}"
+DOWNLOAD_POST_URL = "https://omnisense.com/dnld_rqst5.asp"
+BASE_URL = "https://omnisense.com"
 OUTPUT_DIR = Path("data/omnisense")
 LEGACY_DIR = OUTPUT_DIR / "legacy"
 EARLIEST_DATE = "2025-01-25"
 DEFAULT_LOOKBACK_DAYS = 90
-USER_AGENT = "arc-tz-temp-humid/1.0"
+
+# Match real browser UA — old ASP sites sometimes check this
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+)
+
+
+def make_request(url, headers=None, data=None):
+    """Build a urllib Request with default headers."""
+    req = urllib.request.Request(url, data=data)
+    req.add_header("User-Agent", USER_AGENT)
+    if headers:
+        for k, v in headers.items():
+            req.add_header(k, v)
+    return req
+
+
+def to_ddmmyyyy(iso_date):
+    """Convert yyyy-mm-dd to dd/mm/yyyy."""
+    y, m, d = iso_date.split("-")
+    return f"{d}/{m}/{y}"
 
 
 def rotate_legacy():
@@ -51,7 +76,6 @@ def main():
         sys.exit(1)
 
     # ── Date range ────────────────────────────────────────────────────────────
-    import argparse
     parser = argparse.ArgumentParser(description="Fetch Omnisense sensor data")
     parser.add_argument("--full-history", action="store_true",
                         help=f"Fetch from {EARLIEST_DATE} to today (instead of last {DEFAULT_LOOKBACK_DAYS} days)")
@@ -69,141 +93,124 @@ def main():
         start_dt = now_eat - timedelta(days=DEFAULT_LOOKBACK_DAYS)
         start_date = start_dt.strftime("%Y-%m-%d")
 
-    # Prepare both date formats to try
-    start_parts = start_date.split("-")
-    end_parts = today_str.split("-")
-    date_formats = [
-        # Try mm/dd/yyyy first (US format seen in HAR capture)
-        (f"{start_parts[1]}/{start_parts[2]}/{start_parts[0]}",
-         f"{end_parts[1]}/{end_parts[2]}/{end_parts[0]}",
-         "mm/dd/yyyy"),
-        # Try dd/mm/yyyy (European format — indistinguishable in HAR's 02/02 and 03/03)
-        (f"{start_parts[2]}/{start_parts[1]}/{start_parts[0]}",
-         f"{end_parts[2]}/{end_parts[1]}/{end_parts[0]}",
-         "dd/mm/yyyy"),
-        # Fall back to yyyy-mm-dd (dateFormat=SE might expect ISO input)
-        (start_date, today_str, "yyyy-mm-dd"),
-    ]
+    # HAR confirms dd/mm/yyyy (06/02/2026 = Feb 6, captured on Mar 7)
+    form_start = to_ddmmyyyy(start_date)
+    form_end = to_ddmmyyyy(today_str)
 
     print(f"Omnisense fetch — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Date range: {start_date} → {today_str}")
+    print(f"  Form dates (dd/mm/yyyy): {form_start} → {form_end}")
 
-    # ── Build opener (shares state across requests for IP-based session) ──────
+    # ── Build opener ──────────────────────────────────────────────────────────
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
 
     # ── Step 1: Login ─────────────────────────────────────────────────────────
-    print("\n[1/3] Logging in...")
+    print("\n[1/4] Logging in...")
     login_data = urllib.parse.urlencode({
         "target": "",
         "userId": username,
         "userPass": password,
         "btnAct": "Log-In",
     }).encode()
-    login_req = urllib.request.Request(
-        LOGIN_URL,
-        data=login_data,
-        headers={"User-Agent": USER_AGENT},
-    )
+    login_req = make_request(LOGIN_URL, headers={
+        "Origin": BASE_URL,
+        "Referer": f"{BASE_URL}/user_login.asp",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }, data=login_data)
     try:
         login_resp = opener.open(login_req, timeout=60)
+        login_resp.read()  # consume body
     except urllib.error.HTTPError as e:
         print(f"ERROR: Login failed with HTTP {e.code}.", file=sys.stderr)
         sys.exit(1)
 
-    # Check we ended up at the right place (redirect to site_select.asp)
     final_url = login_resp.geturl()
     if "site_select" not in final_url and "site_home" not in final_url:
         print(f"ERROR: Login may have failed. Redirected to: {final_url}", file=sys.stderr)
-        body = login_resp.read().decode("utf-8", errors="replace")
-        if "invalid" in body.lower() or "error" in body.lower():
-            print("  Server indicated invalid credentials.", file=sys.stderr)
         sys.exit(1)
     print("  Login successful.")
 
-    # ── Step 1b: Establish session context (replicate browser flow) ─────────
-    # The server needs these page visits to register the site in the session.
-    # Browser flow: login → site_select.asp → dnld_rqst.asp?siteNbr=... → POST form
-    print("  Establishing session context...")
-    for ctx_url in [
-        "https://omnisense.com/site_select.asp",
-        f"https://omnisense.com/dnld_rqst.asp?siteNbr={SITE_NBR}",
-    ]:
-        ctx_req = urllib.request.Request(ctx_url, headers={"User-Agent": USER_AGENT})
-        try:
-            ctx_resp = opener.open(ctx_req, timeout=60)
-            ctx_resp.read()  # consume response body
-            print(f"  Visited {ctx_url.split('/')[-1]}")
-        except urllib.error.HTTPError as e:
-            print(f"  Warning: {ctx_url.split('/')[-1]} returned HTTP {e.code}", file=sys.stderr)
+    # ── Step 2: Visit site_select.asp (establishes session context) ───────────
+    print("\n[2/4] Visiting site_select.asp...")
+    site_select_req = make_request(f"{BASE_URL}/site_select.asp", headers={
+        "Referer": f"{BASE_URL}/user_login.asp",
+    })
+    try:
+        resp = opener.open(site_select_req, timeout=60)
+        resp.read()
+        print("  OK")
+    except urllib.error.HTTPError as e:
+        print(f"  Warning: HTTP {e.code}", file=sys.stderr)
 
-    # ── Step 2: Request the download (try multiple date formats) ────────────
-    csv_path = None
-    last_html = ""
-    for form_start, form_end, fmt_label in date_formats:
-        print(f"\n[2/3] Requesting data export ({fmt_label}: {form_start} → {form_end})...")
-        download_data = urllib.parse.urlencode({
-            "siteNbr": SITE_NBR,
-            "sensorId": "",
-            "gwayId": "",
-            "dateFormat": "SE",
-            "dnldFrDate": form_start,
-            "dnldToDate": form_end,
-            "averaging": "N",
-            "btnAct": "Submit",
-        }).encode()
-        download_req = urllib.request.Request(
-            DOWNLOAD_URL,
-            data=download_data,
-            headers={
-                "User-Agent": USER_AGENT,
-                "Referer": f"https://omnisense.com/site_home.asp?siteNbr={SITE_NBR}",
-            },
-        )
-        try:
-            resp = opener.open(download_req, timeout=120)
-        except urllib.error.HTTPError as e:
-            print(f"  HTTP {e.code} — trying next format...", file=sys.stderr)
-            continue
+    # ── Step 3: Visit download page (registers site in session) ───────────────
+    print("\n[3/4] Visiting download page...")
+    dnld_page_req = make_request(DOWNLOAD_FORM_URL, headers={
+        "Referer": f"{BASE_URL}/site_select.asp",
+    })
+    try:
+        resp = opener.open(dnld_page_req, timeout=60)
+        resp.read()
+        print("  OK")
+    except urllib.error.HTTPError as e:
+        print(f"  Warning: HTTP {e.code}", file=sys.stderr)
 
-        last_html = resp.read().decode("utf-8", errors="replace")
+    # ── Step 4: POST the download form ────────────────────────────────────────
+    print(f"\n[4/4] Requesting data export ({form_start} → {form_end})...")
+    download_data = urllib.parse.urlencode({
+        "siteNbr": SITE_NBR,
+        "sensorId": "",
+        "gwayId": "",
+        "dateFormat": "SE",
+        "dnldFrDate": form_start,
+        "dnldToDate": form_end,
+        "averaging": "N",
+        "btnAct": "Submit",
+    }).encode()
+    download_req = make_request(DOWNLOAD_POST_URL, headers={
+        "Origin": BASE_URL,
+        "Referer": DOWNLOAD_FORM_URL,
+        "Content-Type": "application/x-www-form-urlencoded",
+    }, data=download_data)
+    try:
+        resp = opener.open(download_req, timeout=180)
+    except urllib.error.HTTPError as e:
+        print(f"ERROR: Download request failed with HTTP {e.code}.", file=sys.stderr)
+        sys.exit(1)
 
-        # Parse the CSV URL from response HTML
-        # Pattern: go('/fileshare/images/download_NNNNN.csv')
-        match = re.search(r"go\('(/fileshare/images/download_\d+\.csv)'\)", last_html)
-        if match:
-            csv_path = match.group(1)
-            print(f"  Download link found: {csv_path}")
-            break
-        elif "No data found" in last_html:
-            print(f"  No data found with {fmt_label} format, trying next...")
-        else:
-            print(f"  Unexpected response with {fmt_label} format, trying next...")
-            # Print snippet for debugging
-            print(f"  Response snippet: {last_html[:300]}", file=sys.stderr)
+    html = resp.read().decode("utf-8", errors="replace")
 
-    if not csv_path:
-        if "No data found" in last_html:
-            print("WARNING: No Omnisense data found for any date format tried. Skipping.", file=sys.stderr)
+    # Parse the CSV URL from response HTML
+    match = re.search(r"go\('(/fileshare/images/download_\d+\.csv)'\)", html)
+    if not match:
+        if "No data found" in html:
+            print("WARNING: No data found for the selected date range. Skipping.", file=sys.stderr)
+            print(f"  Dates sent: dnldFrDate={form_start}, dnldToDate={form_end}", file=sys.stderr)
         else:
             print("WARNING: Could not find download link in response. Skipping.", file=sys.stderr)
-            print(last_html[:500], file=sys.stderr)
+            print(f"  Response snippet: {html[:500]}", file=sys.stderr)
         print("\nDone (no data downloaded).")
         sys.exit(0)
 
-    csv_url = f"https://omnisense.com{csv_path}"
+    csv_path = match.group(1)
+    csv_url = f"{BASE_URL}{csv_path}"
+    row_match = re.search(r"(\d+) rows of data", html)
+    row_count = row_match.group(1) if row_match else "?"
+    print(f"  Download ready: {row_count} rows → {csv_path}")
 
-    # ── Step 3: Download the CSV ──────────────────────────────────────────────
-    print("\n[3/3] Downloading CSV...")
-    csv_req = urllib.request.Request(csv_url, headers={"User-Agent": USER_AGENT})
+    # ── Step 5: Download the CSV ──────────────────────────────────────────────
+    print("  Downloading CSV...")
+    csv_req = make_request(csv_url, headers={
+        "Referer": f"{BASE_URL}/dnld_rqst5.asp",
+    })
     try:
-        csv_resp = opener.open(csv_req, timeout=120)
+        csv_resp = opener.open(csv_req, timeout=300)
     except urllib.error.HTTPError as e:
         print(f"ERROR: CSV download failed with HTTP {e.code}.", file=sys.stderr)
         sys.exit(1)
 
     csv_data = csv_resp.read()
 
-    # Validate the CSV
+    # Validate
     if len(csv_data) < 100:
         print(f"ERROR: Downloaded file is too small ({len(csv_data)} bytes).", file=sys.stderr)
         sys.exit(1)
