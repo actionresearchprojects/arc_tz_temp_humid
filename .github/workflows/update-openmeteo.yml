@@ -27,6 +27,7 @@ jobs:
         run: python fetch_openmeteo.py
 
       - name: Fetch Omnisense data
+        continue-on-error: true
         env:
           OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
           OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
@@ -39,6 +40,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@users.noreply.github.com"
-          git add data/openmeteo/ data/omnisense/ index.html
+          git add data/openmeteo/ index.html
+          [ -d data/omnisense ] && git add data/omnisense/ || true
           git diff --cached --quiet || git commit -m "auto-update data $(date -u +%Y-%m-%d)"
           git push
