@@ -77,6 +77,10 @@ def main():
         (f"{start_parts[1]}/{start_parts[2]}/{start_parts[0]}",
          f"{end_parts[1]}/{end_parts[2]}/{end_parts[0]}",
          "mm/dd/yyyy"),
+        # Try dd/mm/yyyy (European format — indistinguishable in HAR's 02/02 and 03/03)
+        (f"{start_parts[2]}/{start_parts[1]}/{start_parts[0]}",
+         f"{end_parts[2]}/{end_parts[1]}/{end_parts[0]}",
+         "dd/mm/yyyy"),
         # Fall back to yyyy-mm-dd (dateFormat=SE might expect ISO input)
         (start_date, today_str, "yyyy-mm-dd"),
     ]
@@ -116,6 +120,22 @@ def main():
         sys.exit(1)
     print("  Login successful.")
 
+    # ── Step 1b: Establish session context (replicate browser flow) ─────────
+    # The server needs these page visits to register the site in the session.
+    # Browser flow: login → site_select.asp → dnld_rqst.asp?siteNbr=... → POST form
+    print("  Establishing session context...")
+    for ctx_url in [
+        "https://omnisense.com/site_select.asp",
+        f"https://omnisense.com/dnld_rqst.asp?siteNbr={SITE_NBR}",
+    ]:
+        ctx_req = urllib.request.Request(ctx_url, headers={"User-Agent": USER_AGENT})
+        try:
+            ctx_resp = opener.open(ctx_req, timeout=60)
+            ctx_resp.read()  # consume response body
+            print(f"  Visited {ctx_url.split('/')[-1]}")
+        except urllib.error.HTTPError as e:
+            print(f"  Warning: {ctx_url.split('/')[-1]} returned HTTP {e.code}", file=sys.stderr)
+
     # ── Step 2: Request the download (try multiple date formats) ────────────
     csv_path = None
     last_html = ""
@@ -134,7 +154,10 @@ def main():
         download_req = urllib.request.Request(
             DOWNLOAD_URL,
             data=download_data,
-            headers={"User-Agent": USER_AGENT},
+            headers={
+                "User-Agent": USER_AGENT,
+                "Referer": f"https://omnisense.com/site_home.asp?siteNbr={SITE_NBR}",
+            },
         )
         try:
             resp = opener.open(download_req, timeout=120)
@@ -155,6 +178,8 @@ def main():
             print(f"  No data found with {fmt_label} format, trying next...")
         else:
             print(f"  Unexpected response with {fmt_label} format, trying next...")
+            # Print snippet for debugging
+            print(f"  Response snippet: {last_html[:300]}", file=sys.stderr)
 
     if not csv_path:
         if "No data found" in last_html:
