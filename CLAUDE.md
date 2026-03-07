@@ -38,5 +38,5 @@ Combines TinyTag Excel loggers with Omnisense CSV sensors and Open-Meteo externa
 3. **Builds**: After modifying `build.py` or `index.html`, remind the user to run `python build.py` to refresh the snapshot and dashboard.
 
 ## To update data
-- **Automated**: GitHub Action `update-openmeteo.yml` runs twice daily (04:00 & 16:00 UTC). Fetches both Open-Meteo and Omnisense data, then rebuilds with `--auto`.
+- **Automated**: GitHub Action `update-dashboard-data.yml` runs twice daily (04:00 & 16:00 UTC). Fetches both Open-Meteo and Omnisense data, then rebuilds with `--auto`.
 - **Manual**: Only needed for TinyTag `.xlsx` data. Add files to `data/house5/` or `data/dauda/`, then run `python build.py`.

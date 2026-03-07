@@ -131,7 +131,7 @@ Files tracked in the repo:
 - `UPDATE.md` — this file
 - `logo.png`
 - `.gitignore`
-- `.github/workflows/update-openmeteo.yml` — twice-daily automation
+- `.github/workflows/update-dashboard-data.yml` — twice-daily automation
 
 Private data that stays local (gitignored):
 - `data/house5/` — TinyTag .xlsx files
