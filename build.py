@@ -25,6 +25,7 @@ import pytz
 
 DATA_FOLDER = Path("data")
 OPENMETEO_DIR = DATA_FOLDER / "openmeteo"
+OMNISENSE_DIR = DATA_FOLDER / "omnisense"
 SNAPSHOT_PATH = DATA_FOLDER / "sensor_snapshot.json"
 
 # ── Configuration ──────────────────────────────────────────────────────────────
@@ -361,7 +362,9 @@ def load_dataset(key):
 
     # For House 5: also load Omnisense CSV sensors + Open-Meteo external temp
     if key == "house5":
-        omnisense_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
+        omnisense_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
+        if not omnisense_files:
+            omnisense_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
         if omnisense_files:
             print(f"  Loading Omnisense CSV: {omnisense_files[-1].name}")
             os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
@@ -2022,15 +2025,17 @@ function setupLegendTooltips() {
 
 # ── Sensor snapshot ─────────────────────────────────────────────────────────────
 OPENMETEO_IDS = {OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, OPENMETEO_LEGACY_ID}
+AUTO_FETCHED_IDS = OPENMETEO_IDS | OMNISENSE_T_H_SENSORS
 
 
 def save_sensor_snapshot(datasets_dfs):
-    """Save non-Open-Meteo data from all datasets to sensor_snapshot.json.
-    datasets_dfs: dict of {key: DataFrame} after timezone localisation."""
+    """Save non-auto-fetched data from all datasets to sensor_snapshot.json.
+    datasets_dfs: dict of {key: DataFrame} after timezone localisation.
+    Excludes Open-Meteo and Omnisense data (both are fetched automatically)."""
     snapshot = {}
     for key, df in datasets_dfs.items():
-        # Exclude all Open-Meteo loggers from the snapshot
-        sensor_df = df[~df["logger_id"].isin(OPENMETEO_IDS)]
+        # Exclude all auto-fetched loggers (Open-Meteo + Omnisense) from the snapshot
+        sensor_df = df[~df["logger_id"].isin(AUTO_FETCHED_IDS)]
         loggers = {}
         for logger_id, ldf in sensor_df.groupby("logger_id"):
             loggers[logger_id] = {
@@ -2045,7 +2050,7 @@ def save_sensor_snapshot(datasets_dfs):
 
 
 def load_sensor_snapshot():
-    """Load sensor snapshot and reconstruct DataFrames (without Open-Meteo data)."""
+    """Load sensor snapshot and reconstruct DataFrames (without Open-Meteo/Omnisense data)."""
     print(f"Loading sensor snapshot from {SNAPSHOT_PATH}...")
     raw = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
     datasets_dfs = {}
@@ -2076,13 +2081,14 @@ def load_sensor_snapshot():
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Build ARC temperature & humidity dashboard")
-    parser.add_argument("--openmeteo-only", action="store_true",
-                        help="Rebuild using sensor snapshot + fresh Open-Meteo data (no .xlsx/.csv sensor files needed)")
+    parser.add_argument("--auto", "--openmeteo-only", action="store_true",
+                        dest="auto",
+                        help="Rebuild using sensor snapshot + fresh Open-Meteo/Omnisense data (no .xlsx sensor files needed)")
     args = parser.parse_args()
 
     all_data = {}
 
-    if args.openmeteo_only:
+    if args.auto:
         # Load pre-processed sensor data from snapshot
         if not SNAPSHOT_PATH.exists():
             print(f"ERROR: {SNAPSHOT_PATH} not found. Run a full build first.", file=sys.stderr)
@@ -2105,11 +2111,39 @@ def main():
             ext_df = ext_df_raw
             print(f"  Open-Meteo: {len(ext_df):,} records")
 
+        # Load fresh Omnisense data
+        print("Loading fresh Omnisense data...")
+        omnisense_df = pd.DataFrame()
+        omnisense_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
+        if not omnisense_files:
+            omnisense_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
+        if omnisense_files:
+            print(f"  Using {omnisense_files[-1].name}")
+            os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
+            if not os_df.empty:
+                # Weather Station T&RH (320E02D1): only reliable from 2026-02-17 12:00 EAT onwards
+                cutoff = pd.Timestamp("2026-02-17 12:00:00")
+                os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
+                os_df["datetime"] = (
+                    pd.to_datetime(os_df["datetime"], errors="coerce")
+                    .dt.tz_localize(TIMEZONE, nonexistent="shift_forward", ambiguous="NaT")
+                )
+                os_df = os_df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
+                os_df["iso_year"] = os_df.index.isocalendar().year.astype(int)
+                os_df["iso_week"] = os_df.index.isocalendar().week.astype(int)
+                omnisense_df = os_df
+                print(f"  Omnisense: {len(omnisense_df):,} records")
+        else:
+            print("  No Omnisense CSV found.")
+
         for key, cfg in DATASETS.items():
             df = datasets_dfs.get(key, pd.DataFrame())
             # Only merge Open-Meteo into datasets that use it as external logger
             if cfg["external_logger"] in OPENMETEO_IDS and not ext_df.empty:
                 df = pd.concat([df, ext_df]).sort_index()
+            # Merge Omnisense into house5
+            if key == "house5" and not omnisense_df.empty:
+                df = pd.concat([df, omnisense_df]).sort_index()
             # Exclude loggers not belonging to this dataset
             exclude = cfg.get("exclude_loggers", set())
             if exclude:
@@ -2129,7 +2163,7 @@ def main():
             print("  Processing...")
             all_data[key] = build_dataset_json(key, df)
 
-        # Save sensor snapshot for future --openmeteo-only builds
+        # Save sensor snapshot for future --auto builds
         print("Saving sensor snapshot...")
         save_sensor_snapshot(datasets_dfs)
 

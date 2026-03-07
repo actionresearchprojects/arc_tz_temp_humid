@@ -1,8 +1,8 @@
-name: Update Open-Meteo data
+name: Update dashboard data
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # daily at 04:00 UTC (07:00 EAT)
+    - cron: '0 4,16 * * *'  # twice daily at 04:00 and 16:00 UTC
   workflow_dispatch:       # manual trigger from GitHub UI
 
 permissions:
@@ -26,13 +26,19 @@ jobs:
       - name: Fetch Open-Meteo data
         run: python fetch_openmeteo.py
 
-      - name: Rebuild dashboard (Open-Meteo only)
-        run: python build.py --openmeteo-only
+      - name: Fetch Omnisense data
+        env:
+          OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
+          OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
+        run: python fetch_omnisense.py
+
+      - name: Rebuild dashboard
+        run: python build.py --auto
 
       - name: Commit and push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@users.noreply.github.com"
-          git add data/openmeteo/ index.html
-          git diff --cached --quiet || git commit -m "auto-update Open-Meteo data $(date -u +%Y-%m-%d)"
+          git add data/openmeteo/ data/omnisense/ index.html
+          git diff --cached --quiet || git commit -m "auto-update data $(date -u +%Y-%m-%d)"
           git push
