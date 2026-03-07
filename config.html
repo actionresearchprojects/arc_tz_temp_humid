@@ -11,19 +11,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; f
 #header h1 { font-size: 15px; font-weight: 600; }
 #header a { font-size: 12px; color: #4a90d9; text-decoration: none; }
 #header a:hover { text-decoration: underline; }
-#main { max-width: 960px; margin: 24px auto; padding: 0 16px 40px; }
+#main { max-width: 1100px; margin: 24px auto; padding: 0 16px 40px; }
 .card { background: white; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
-.card-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.card-header { padding: 12px 16px; border-bottom: 1px solid #eee; }
 .card-header h2 { font-size: 13px; font-weight: 600; color: #444; }
 .card-body { padding: 16px; }
 #auth-section { background: #fffbe6; border-color: #f0c040; }
 #auth-section .card-header { background: #fffbe6; border-color: #f0c040; }
 label { font-size: 12px; color: #555; }
-input[type=text], input[type=password] { font-size: 12px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
+input[type=text], input[type=password] { font-size: 12px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; }
 input[type=text]:focus, input[type=password]:focus { outline: none; border-color: #4a90d9; }
 .field-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .field-row:last-child { margin-bottom: 0; }
-.hint { font-size: 11px; color: #888; }
+.field-row input[type=text], .field-row input[type=password] { width: 100%; }
+.hint { font-size: 11px; color: #888; line-height: 1.4; }
 button { font-size: 12px; padding: 5px 14px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: #f5f5f5; color: #333; }
 button:hover { background: #e8e8e8; }
 button.primary { background: #28a745; color: white; border-color: #28a745; font-weight: 500; }
@@ -32,24 +33,26 @@ button.primary:disabled { opacity: 0.55; cursor: default; }
 button.danger { background: white; color: #c0392b; border-color: #c0392b; }
 button.danger:hover { background: #fdf0ee; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { text-align: left; padding: 6px 8px; font-weight: 600; color: #666; border-bottom: 2px solid #eee; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; background: #fafafa; }
+th { text-align: left; padding: 6px 8px; font-weight: 600; color: #666; border-bottom: 2px solid #eee; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; background: #fafafa; white-space: nowrap; }
+th.center { text-align: center; }
 td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: #f7f9ff; }
-td input[type=text] { width: 100%; min-width: 140px; }
+td.center { text-align: center; }
+td input[type=text] { width: 100%; min-width: 130px; }
 td select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; }
-.source-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 500; }
-.source-TinyTag { background: #e8f4fd; color: #1a6ea8; }
+td input[type=checkbox] { cursor: pointer; width: 15px; height: 15px; }
+.source-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+.source-TinyTag  { background: #e8f4fd; color: #1a6ea8; }
 .source-Omnisense { background: #e8fdf0; color: #1a7a40; }
+.source-Open-Meteo { background: #f0eefd; color: #5a44a8; }
 .source-other { background: #f0f0f0; color: #666; }
-.cat-external { color: #999; font-style: italic; font-size: 11px; }
+.ext-note { color: #aaa; font-size: 11px; font-style: italic; }
 #status-bar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 8px 18px; border-radius: 20px; font-size: 12px; font-weight: 500; display: none; z-index: 999; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 #status-bar.success { background: #28a745; color: white; }
 #status-bar.error   { background: #dc3545; color: white; }
 #status-bar.info    { background: #444; color: white; }
-.section-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
 .unsaved-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f0a500; margin-right: 5px; vertical-align: middle; }
-#loading-msg { text-align: center; padding: 40px; color: #888; font-size: 13px; }
 .ds-section { margin-bottom: 28px; }
 .ds-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #333; }
 </style>
@@ -72,7 +75,7 @@ td select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-ra
         <input type="password" id="pat-input" placeholder="github_pat_…" autocomplete="off">
         <span class="hint">
           Needs <b>Contents: Read &amp; Write</b> on the <code>arc_tz_temp_humid</code> repo.
-          Token is held only in memory for this session — never stored.
+          Held in memory only — never stored.
           <a href="https://github.com/settings/tokens/new?scopes=repo&description=arc_tz_config" target="_blank">Generate token →</a>
         </span>
       </div>
@@ -88,12 +91,12 @@ td select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-ra
     <div id="datasets-container"></div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
       <button id="save-btn" class="primary" disabled>Save changes</button>
-      <button id="reset-btn" class="danger">Reset to defaults</button>
+      <button id="reset-btn" class="danger">Reset all to defaults</button>
       <span id="change-count" style="font-size:12px;color:#888"></span>
     </div>
   </div>
 
-  <div id="loading-msg" style="display:none">Loading…</div>
+  <div id="loading-msg" style="display:none;text-align:center;padding:40px;color:#888;">Loading…</div>
 
 </div>
 
@@ -101,32 +104,32 @@ td select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-ra
 
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
-const REPO_OWNER = 'actionresearchprojects';
-const REPO_NAME  = 'arc_tz_temp_humid';
-const CONFIG_PATH = 'data/config.json';
+const REPO_OWNER  = 'actionresearchprojects';
+const REPO_NAME   = 'arc_tz_temp_humid';
+const CONFIG_PATH  = 'data/config.json';
 const LOGGERS_PATH = 'data/loggers.json';
-const GITHUB_API = 'https://api.github.com';
+const GITHUB_API   = 'https://api.github.com';
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let manifest = null;       // data from loggers.json
-let savedConfig = null;    // current data/config.json content (parsed)
-let configSha = null;      // SHA of config.json on GitHub (for updates)
-let pendingChanges = {};   // { dsKey: { loggerId: { name?, category? } } }
+let manifest     = null;
+let savedConfig  = null;
+let configSha    = null;
+let pending      = {};   // { dsKey: { loggers: { id: { name?, section?, showInLine?, showInHistogram?, showInComfort? } } } }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function pat() { return document.getElementById('pat-input').value.trim(); }
+const pat = () => document.getElementById('pat-input').value.trim();
 
-function showStatus(msg, type = 'info', durationMs = 3000) {
+function showStatus(msg, type = 'info', ms = 3000) {
   const bar = document.getElementById('status-bar');
   bar.textContent = msg;
   bar.className = type;
   bar.style.display = 'block';
-  if (durationMs > 0) setTimeout(() => { bar.style.display = 'none'; }, durationMs);
+  if (ms > 0) setTimeout(() => { bar.style.display = 'none'; }, ms);
 }
 
 async function ghFetch(path, opts = {}) {
   const url = `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`;
-  const res = await fetch(url, {
+  return fetch(url, {
     ...opts,
     headers: {
       'Authorization': `token ${pat()}`,
@@ -135,7 +138,24 @@ async function ghFetch(path, opts = {}) {
       ...(opts.headers || {}),
     },
   });
-  return res;
+}
+
+function getOverride(dsKey, lid, field, defaultVal) {
+  return pending?.[dsKey]?.loggers?.[lid]?.[field] ?? defaultVal;
+}
+
+function setOverride(dsKey, lid, field, val, defaultVal) {
+  if (!pending[dsKey]) pending[dsKey] = { loggers: {} };
+  if (!pending[dsKey].loggers[lid]) pending[dsKey].loggers[lid] = {};
+  if (val === defaultVal || val === String(defaultVal)) {
+    delete pending[dsKey].loggers[lid][field];
+  } else {
+    pending[dsKey].loggers[lid][field] = val;
+  }
+  // Prune empty objects
+  if (Object.keys(pending[dsKey].loggers[lid]).length === 0) delete pending[dsKey].loggers[lid];
+  if (Object.keys(pending[dsKey].loggers || {}).length === 0) delete pending[dsKey];
+  updateChangeCount();
 }
 
 // ── Load ─────────────────────────────────────────────────────────────────────
@@ -147,12 +167,10 @@ document.getElementById('load-btn').addEventListener('click', async () => {
   document.getElementById('config-area').style.display = 'none';
 
   try {
-    // Fetch loggers manifest
     const manifestResp = await fetch(`${LOGGERS_PATH}?_=${Date.now()}`);
     if (!manifestResp.ok) throw new Error(`loggers.json not found (${manifestResp.status}). Run python build.py first.`);
     manifest = await manifestResp.json();
 
-    // Fetch current config.json via GitHub API (to get SHA)
     const cfgResp = await ghFetch(CONFIG_PATH);
     if (cfgResp.status === 401 || cfgResp.status === 403) throw new Error('GitHub auth failed — check your PAT.');
     if (cfgResp.ok) {
@@ -163,10 +181,10 @@ document.getElementById('load-btn').addEventListener('click', async () => {
       savedConfig = {};
       configSha = null;
     } else {
-      throw new Error(`Unexpected error fetching config.json (HTTP ${cfgResp.status})`);
+      throw new Error(`Error fetching config.json (HTTP ${cfgResp.status})`);
     }
 
-    pendingChanges = JSON.parse(JSON.stringify(savedConfig)); // deep copy
+    pending = JSON.parse(JSON.stringify(savedConfig));
     authStatus.textContent = '✓ Loaded';
     document.getElementById('loading-msg').style.display = 'none';
     document.getElementById('config-area').style.display = 'block';
@@ -174,7 +192,7 @@ document.getElementById('load-btn').addEventListener('click', async () => {
   } catch (e) {
     authStatus.textContent = '✗ Error';
     document.getElementById('loading-msg').style.display = 'none';
-    showStatus(e.message, 'error', 6000);
+    showStatus(e.message, 'error', 8000);
   }
 });
 
@@ -187,14 +205,13 @@ function buildUI() {
     const sec = document.createElement('div');
     sec.className = 'ds-section';
 
-    const title = document.createElement('div');
-    title.className = 'ds-title';
-    title.textContent = ds.label;
-    sec.appendChild(title);
+    const titleEl = document.createElement('div');
+    titleEl.className = 'ds-title';
+    titleEl.textContent = ds.label;
+    sec.appendChild(titleEl);
 
     const card = document.createElement('div');
     card.className = 'card';
-
     const table = document.createElement('table');
     const hasCat = ds.hasCategories;
 
@@ -204,75 +221,89 @@ function buildUI() {
       <th>Logger ID</th>
       <th>Source</th>
       <th>Display Name</th>
-      ${hasCat ? '<th>Category</th>' : ''}
+      ${hasCat ? '<th>Sidebar Section</th>' : ''}
+      <th class="center">Line Graph</th>
+      <th class="center">Histogram</th>
+      <th class="center">Adaptive Comfort</th>
     </tr>`;
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
     for (const logger of ds.loggers) {
       const tr = document.createElement('tr');
-      const isExt = logger.category === 'external';
+      const isExt = logger.section === 'external';
 
       // ID
       const tdId = document.createElement('td');
-      tdId.textContent = logger.id;
       tdId.style.cssText = 'font-family:monospace;font-size:11px;color:#666;white-space:nowrap';
+      tdId.textContent = logger.id;
       tr.appendChild(tdId);
 
       // Source badge
       const tdSrc = document.createElement('td');
       const badge = document.createElement('span');
-      badge.className = `source-badge source-${logger.source.replace(/\s.*/,'')}`;
+      const srcKey = logger.source.split(' ')[0];
+      badge.className = `source-badge source-${srcKey}`;
       badge.textContent = logger.source;
       tdSrc.appendChild(badge);
       tr.appendChild(tdSrc);
 
-      // Name input
+      // Name
       const tdName = document.createElement('td');
       if (isExt) {
         tdName.textContent = logger.name;
         tdName.style.color = '#999';
       } else {
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.value = getOverride(dsKey, logger.id, 'name', logger.name);
-        nameInput.dataset.dsKey = dsKey;
-        nameInput.dataset.loggerId = logger.id;
-        nameInput.dataset.field = 'name';
-        nameInput.dataset.defaultVal = logger.name;
-        nameInput.addEventListener('input', onFieldChange);
-        tdName.appendChild(nameInput);
+        const inp = document.createElement('input');
+        inp.type = 'text';
+        inp.value = getOverride(dsKey, logger.id, 'name', logger.name);
+        inp.addEventListener('input', e => setOverride(dsKey, logger.id, 'name', e.target.value, logger.name));
+        tdName.appendChild(inp);
       }
       tr.appendChild(tdName);
 
-      // Category dropdown (house5 only, non-external loggers)
+      // Section dropdown (hasCat only, non-external)
       if (hasCat) {
-        const tdCat = document.createElement('td');
+        const tdSect = document.createElement('td');
         if (isExt) {
-          tdCat.innerHTML = '<span class="cat-external">external (fixed)</span>';
+          tdSect.innerHTML = '<span class="ext-note">external (fixed)</span>';
         } else {
           const sel = document.createElement('select');
-          sel.dataset.dsKey = dsKey;
-          sel.dataset.loggerId = logger.id;
-          sel.dataset.field = 'category';
-          sel.dataset.defaultVal = logger.category;
-          const catOptions = [
-            {value: 'room',       label: 'Room'},
-            {value: 'structural', label: 'Structural'},
-            {value: 'other',      label: 'Other (hidden from comfort)'},
-          ];
-          const currentCat = getOverride(dsKey, logger.id, 'category', logger.category);
-          catOptions.forEach(o => {
+          const currentSection = getOverride(dsKey, logger.id, 'section', logger.section);
+          [['room', 'Room'], ['structural', 'Structural']].forEach(([v, l]) => {
             const opt = document.createElement('option');
-            opt.value = o.value;
-            opt.textContent = o.label;
-            if (o.value === currentCat) opt.selected = true;
+            opt.value = v; opt.textContent = l;
+            if (v === currentSection) opt.selected = true;
             sel.appendChild(opt);
           });
-          sel.addEventListener('change', onFieldChange);
-          tdCat.appendChild(sel);
+          sel.addEventListener('change', e => setOverride(dsKey, logger.id, 'section', e.target.value, logger.section));
+          tdSect.appendChild(sel);
         }
-        tr.appendChild(tdCat);
+        tr.appendChild(tdSect);
+      }
+
+      // Three visibility checkboxes
+      for (const [field, defaultVal] of [
+        ['showInLine', logger.showInLine],
+        ['showInHistogram', logger.showInHistogram],
+        ['showInComfort', logger.showInComfort],
+      ]) {
+        const td = document.createElement('td');
+        td.className = 'center';
+        if (isExt && field !== 'showInComfort') {
+          // External loggers: line/histogram always on, can't be changed
+          td.innerHTML = '<span class="ext-note">—</span>';
+        } else if (isExt && field === 'showInComfort') {
+          // External loggers never in comfort
+          td.innerHTML = '<span class="ext-note">—</span>';
+        } else {
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = getOverride(dsKey, logger.id, field, defaultVal);
+          cb.addEventListener('change', e => setOverride(dsKey, logger.id, field, e.target.checked, defaultVal));
+          td.appendChild(cb);
+        }
+        tr.appendChild(td);
       }
 
       tbody.appendChild(tr);
@@ -286,38 +317,10 @@ function buildUI() {
   updateChangeCount();
 }
 
-function getOverride(dsKey, loggerId, field, defaultVal) {
-  return pendingChanges?.[dsKey]?.loggers?.[loggerId]?.[field] ?? defaultVal;
-}
-
-function onFieldChange(e) {
-  const { dsKey, loggerId, field, defaultVal } = e.target.dataset;
-  const val = e.target.value;
-
-  if (!pendingChanges[dsKey]) pendingChanges[dsKey] = { loggers: {} };
-  if (!pendingChanges[dsKey].loggers) pendingChanges[dsKey].loggers = {};
-  if (!pendingChanges[dsKey].loggers[loggerId]) pendingChanges[dsKey].loggers[loggerId] = {};
-
-  if (val === defaultVal) {
-    // Matches default — remove override
-    delete pendingChanges[dsKey].loggers[loggerId][field];
-    if (Object.keys(pendingChanges[dsKey].loggers[loggerId]).length === 0)
-      delete pendingChanges[dsKey].loggers[loggerId];
-    if (Object.keys(pendingChanges[dsKey].loggers || {}).length === 0)
-      delete pendingChanges[dsKey];
-  } else {
-    pendingChanges[dsKey].loggers[loggerId][field] = val;
-  }
-
-  updateChangeCount();
-}
-
 function countChanges() {
   let n = 0;
-  for (const ds of Object.values(pendingChanges)) {
-    for (const overrides of Object.values(ds.loggers || {})) {
-      n += Object.keys(overrides).length;
-    }
+  for (const ds of Object.values(pending)) {
+    for (const ov of Object.values(ds.loggers || {})) n += Object.keys(ov).length;
   }
   return n;
 }
@@ -342,13 +345,9 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving…';
   showStatus('Saving…', 'info', 0);
-
   try {
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(pendingChanges, null, 2) + '\n')));
-    const body = {
-      message: 'Update logger config via config.html',
-      content,
-    };
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(pending, null, 2) + '\n')));
+    const body = { message: 'Update logger config via config.html', content };
     if (configSha) body.sha = configSha;
 
     const res = await ghFetch(CONFIG_PATH, { method: 'PUT', body: JSON.stringify(body) });
@@ -358,9 +357,8 @@ document.getElementById('save-btn').addEventListener('click', async () => {
     }
     const data = await res.json();
     configSha = data.content.sha;
-    savedConfig = JSON.parse(JSON.stringify(pendingChanges));
-
-    showStatus('Saved! Dashboard will reflect changes on next load.', 'success', 5000);
+    savedConfig = JSON.parse(JSON.stringify(pending));
+    showStatus('Saved! Dashboard reflects changes on next load.', 'success', 5000);
     updateChangeCount();
   } catch (e) {
     showStatus(`Save failed: ${e.message}`, 'error', 8000);
@@ -374,27 +372,25 @@ document.getElementById('save-btn').addEventListener('click', async () => {
 document.getElementById('reset-btn').addEventListener('click', async () => {
   if (!confirm('Reset ALL overrides to defaults? This will save an empty config to GitHub.')) return;
   if (!pat()) { showStatus('PAT required.', 'error'); return; }
-
-  const resetBtn = document.getElementById('reset-btn');
-  resetBtn.disabled = true;
+  const btn = document.getElementById('reset-btn');
+  btn.disabled = true;
   showStatus('Resetting…', 'info', 0);
   try {
-    const content = btoa('{}' + '\n');
+    const content = btoa('{}\n');
     const body = { message: 'Reset logger config to defaults', content };
     if (configSha) body.sha = configSha;
-
     const res = await ghFetch(CONFIG_PATH, { method: 'PUT', body: JSON.stringify(body) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     configSha = data.content.sha;
-    pendingChanges = {};
+    pending = {};
     savedConfig = {};
-    buildUI(); // rebuild with cleared overrides
+    buildUI();
     showStatus('Reset to defaults.', 'success', 4000);
   } catch (e) {
     showStatus(`Reset failed: ${e.message}`, 'error', 8000);
   } finally {
-    resetBtn.disabled = false;
+    btn.disabled = false;
   }
 });
 </script>

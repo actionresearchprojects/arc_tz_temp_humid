@@ -562,6 +562,8 @@ def build_dataset_json(key, df):
             "roomLoggers":  room_loggers,
             "structuralLoggers": structural_loggers,
             "comfortLoggers": comfort_loggers,
+            "lineLoggers":  unique_loggers,
+            "histogramLoggers": unique_loggers,
             "colors":       color_map,
             "availableYears": available_years,
             "availableMonths": [
@@ -870,20 +872,21 @@ function applyUserConfig(config) {
     for (const [lid, ov] of Object.entries(overrides)) {
       if (!meta.loggers.includes(lid)) continue;
       if (ov.name) meta.loggerNames[lid] = ov.name;
-      if (ov.category) {
-        // Remove from all category lists
+      if (ov.section) {
         meta.roomLoggers = (meta.roomLoggers || []).filter(id => id !== lid);
-        meta.structuralLoggers = (meta.structuralLoggers || []).filter(id => id !== lid);
+        if (ov.section === 'room') meta.roomLoggers.push(lid);
+      }
+      if (typeof ov.showInComfort === 'boolean') {
         meta.comfortLoggers = (meta.comfortLoggers || []).filter(id => id !== lid);
-        if (ov.category === 'room') {
-          meta.roomLoggers.push(lid);
-          if (!meta.comfortLoggers.includes(lid)) meta.comfortLoggers.push(lid);
-        } else if (ov.category === 'structural') {
-          if (!meta.structuralLoggers) meta.structuralLoggers = [];
-          meta.structuralLoggers.push(lid);
-          if (!meta.comfortLoggers.includes(lid)) meta.comfortLoggers.push(lid);
-        }
-        // 'other' or 'external' — removed above, not re-added
+        if (ov.showInComfort) meta.comfortLoggers.push(lid);
+      }
+      if (typeof ov.showInLine === 'boolean') {
+        meta.lineLoggers = (meta.lineLoggers || [...meta.loggers]).filter(id => id !== lid);
+        if (ov.showInLine) meta.lineLoggers.push(lid);
+      }
+      if (typeof ov.showInHistogram === 'boolean') {
+        meta.histogramLoggers = (meta.histogramLoggers || [...meta.loggers]).filter(id => id !== lid);
+        if (ov.showInHistogram) meta.histogramLoggers.push(lid);
       }
     }
   }
@@ -912,7 +915,7 @@ function loadDataset(key) {
   const m = dataset().meta;
 
   // Reset selections
-  state.selectedLoggers = new Set(m.loggers);
+  state.selectedLoggers = new Set(m.lineLoggers || m.loggers);
   state.selectedRoomLoggers = new Set(m.roomLoggers);
   state.timeMode = 'all';
   document.getElementById('time-mode').value = 'all';
@@ -959,10 +962,11 @@ function loadDataset(key) {
     loggerDiv.appendChild(btnRow);
     ids.forEach(addLoggerCheckbox);
   }
-  const extSet  = new Set(m.externalLoggers || []);
-  const roomSet = new Set(m.roomLoggers || []);
-  const midLoggers  = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id));
-  const roomLoggers = m.loggers.filter(id => !extSet.has(id) &&  roomSet.has(id));
+  const extSet   = new Set(m.externalLoggers || []);
+  const roomSet  = new Set(m.roomLoggers || []);
+  const lineSet  = new Set(m.lineLoggers || m.loggers);
+  const midLoggers  = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
+  const roomLoggers = m.loggers.filter(id => !extSet.has(id) &&  roomSet.has(id) && lineSet.has(id));
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
     addLoggerSection('External', m.externalLoggers);
@@ -1101,7 +1105,7 @@ function resetLineDefaults() {
     state.selectedLoggers = new Set();
     m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
   } else {
-    state.selectedLoggers = new Set(m.loggers);
+    state.selectedLoggers = new Set(m.lineLoggers || m.loggers);
   }
   document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
@@ -1665,9 +1669,11 @@ function renderLineGraph() {
   const traces = [], shapes = [], annotations = [];
   let dataMinMs = Infinity, dataMaxMs = -Infinity;
   let yMin = Infinity, yMax = -Infinity;
+  const lineSet = new Set(m.lineLoggers || m.loggers);
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
     const filtered = filterSeries(series, start, end);
@@ -1843,9 +1849,11 @@ function renderHistogram() {
   const traces = [];
   let globalMin = Infinity, globalMax = -Infinity;
   let actualStartMs = Infinity, actualEndMs = -Infinity;
+  const histSet = new Set(m.histogramLoggers || m.loggers);
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!histSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
     const filtered = filterSeries(series, start, end);
@@ -2279,29 +2287,30 @@ def load_sensor_snapshot():
 
 # ── Loggers manifest ───────────────────────────────────────────────────────────
 def generate_loggers_manifest(all_data):
-    """Generate data/loggers.json: default logger names/categories for config.html."""
+    """Generate data/loggers.json: default logger names/sections/visibility for config.html."""
     manifest = {}
     for key, ds in all_data.items():
         meta = ds["meta"]
-        ext_set    = set(meta.get("externalLoggers", []))
-        room_set   = set(meta.get("roomLoggers", []))
-        struct_set = set(meta.get("structuralLoggers", []))
-        has_categories = bool(room_set or struct_set)
+        ext_set     = set(meta.get("externalLoggers", []))
+        room_set    = set(meta.get("roomLoggers", []))
+        comfort_set = set(meta.get("comfortLoggers", []))
+        has_categories = bool(room_set or meta.get("structuralLoggers"))
         loggers = []
         for lid in meta["loggers"]:
             if lid in ext_set:
-                cat = "external"
+                section = "external"
             elif lid in room_set:
-                cat = "room"
-            elif lid in struct_set:
-                cat = "structural"
+                section = "room"
             else:
-                cat = "other"
+                section = "structural"  # above-ceiling AND below-roof both land here
             loggers.append({
-                "id":       lid,
-                "name":     meta["loggerNames"].get(lid, lid),
-                "source":   meta["loggerSources"].get(lid, "Unknown"),
-                "category": cat,
+                "id":             lid,
+                "name":           meta["loggerNames"].get(lid, lid),
+                "source":         meta["loggerSources"].get(lid, "Unknown"),
+                "section":        section,
+                "showInLine":     True,
+                "showInHistogram": True,
+                "showInComfort":  lid in comfort_set,
             })
         manifest[key] = {
             "label":         DATASETS[key]["label"],
