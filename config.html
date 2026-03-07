@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Config — ARC Tanzania</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; background: #f8f9fa; color: #333; }
+#header { background: white; border-bottom: 1px solid #ddd; padding: 8px 16px; display: flex; align-items: center; gap: 10px; }
+#header h1 { font-size: 15px; font-weight: 600; }
+#header a { font-size: 12px; color: #4a90d9; text-decoration: none; }
+#header a:hover { text-decoration: underline; }
+#main { max-width: 960px; margin: 24px auto; padding: 0 16px 40px; }
+.card { background: white; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 20px; }
+.card-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+.card-header h2 { font-size: 13px; font-weight: 600; color: #444; }
+.card-body { padding: 16px; }
+#auth-section { background: #fffbe6; border-color: #f0c040; }
+#auth-section .card-header { background: #fffbe6; border-color: #f0c040; }
+label { font-size: 12px; color: #555; }
+input[type=text], input[type=password] { font-size: 12px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; }
+input[type=text]:focus, input[type=password]:focus { outline: none; border-color: #4a90d9; }
+.field-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.field-row:last-child { margin-bottom: 0; }
+.hint { font-size: 11px; color: #888; }
+button { font-size: 12px; padding: 5px 14px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: #f5f5f5; color: #333; }
+button:hover { background: #e8e8e8; }
+button.primary { background: #28a745; color: white; border-color: #28a745; font-weight: 500; }
+button.primary:hover { background: #218838; }
+button.primary:disabled { opacity: 0.55; cursor: default; }
+button.danger { background: white; color: #c0392b; border-color: #c0392b; }
+button.danger:hover { background: #fdf0ee; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; padding: 6px 8px; font-weight: 600; color: #666; border-bottom: 2px solid #eee; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; background: #fafafa; }
+td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f7f9ff; }
+td input[type=text] { width: 100%; min-width: 140px; }
+td select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; }
+.source-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 500; }
+.source-TinyTag { background: #e8f4fd; color: #1a6ea8; }
+.source-Omnisense { background: #e8fdf0; color: #1a7a40; }
+.source-other { background: #f0f0f0; color: #666; }
+.cat-external { color: #999; font-style: italic; font-size: 11px; }
+#status-bar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 8px 18px; border-radius: 20px; font-size: 12px; font-weight: 500; display: none; z-index: 999; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+#status-bar.success { background: #28a745; color: white; }
+#status-bar.error   { background: #dc3545; color: white; }
+#status-bar.info    { background: #444; color: white; }
+.section-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.unsaved-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #f0a500; margin-right: 5px; vertical-align: middle; }
+#loading-msg { text-align: center; padding: 40px; color: #888; font-size: 13px; }
+.ds-section { margin-bottom: 28px; }
+.ds-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #333; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <a href="index.html">← Back to Dashboard</a>
+  <h1>Dashboard Config</h1>
+</div>
+
+<div id="main">
+
+  <!-- Auth card -->
+  <div class="card" id="auth-section">
+    <div class="card-header"><h2>GitHub Authentication</h2></div>
+    <div class="card-body">
+      <div class="field-row">
+        <label for="pat-input">Personal Access Token (PAT)</label>
+        <input type="password" id="pat-input" placeholder="github_pat_…" autocomplete="off">
+        <span class="hint">
+          Needs <b>Contents: Read &amp; Write</b> on the <code>arc_tz_temp_humid</code> repo.
+          Token is held only in memory for this session — never stored.
+          <a href="https://github.com/settings/tokens/new?scopes=repo&description=arc_tz_config" target="_blank">Generate token →</a>
+        </span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="load-btn" class="primary">Load config</button>
+        <span id="auth-status" style="font-size:12px;color:#888"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logger tables, populated after load -->
+  <div id="config-area" style="display:none">
+    <div id="datasets-container"></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+      <button id="save-btn" class="primary" disabled>Save changes</button>
+      <button id="reset-btn" class="danger">Reset to defaults</button>
+      <span id="change-count" style="font-size:12px;color:#888"></span>
+    </div>
+  </div>
+
+  <div id="loading-msg" style="display:none">Loading…</div>
+
+</div>
+
+<div id="status-bar"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const REPO_OWNER = 'actionresearchprojects';
+const REPO_NAME  = 'arc_tz_temp_humid';
+const CONFIG_PATH = 'data/config.json';
+const LOGGERS_PATH = 'data/loggers.json';
+const GITHUB_API = 'https://api.github.com';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let manifest = null;       // data from loggers.json
+let savedConfig = null;    // current data/config.json content (parsed)
+let configSha = null;      // SHA of config.json on GitHub (for updates)
+let pendingChanges = {};   // { dsKey: { loggerId: { name?, category? } } }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function pat() { return document.getElementById('pat-input').value.trim(); }
+
+function showStatus(msg, type = 'info', durationMs = 3000) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.className = type;
+  bar.style.display = 'block';
+  if (durationMs > 0) setTimeout(() => { bar.style.display = 'none'; }, durationMs);
+}
+
+async function ghFetch(path, opts = {}) {
+  const url = `${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`;
+  const res = await fetch(url, {
+    ...opts,
+    headers: {
+      'Authorization': `token ${pat()}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+  return res;
+}
+
+// ── Load ─────────────────────────────────────────────────────────────────────
+document.getElementById('load-btn').addEventListener('click', async () => {
+  if (!pat()) { showStatus('Enter a GitHub PAT first.', 'error'); return; }
+  const authStatus = document.getElementById('auth-status');
+  authStatus.textContent = 'Loading…';
+  document.getElementById('loading-msg').style.display = 'block';
+  document.getElementById('config-area').style.display = 'none';
+
+  try {
+    // Fetch loggers manifest
+    const manifestResp = await fetch(`${LOGGERS_PATH}?_=${Date.now()}`);
+    if (!manifestResp.ok) throw new Error(`loggers.json not found (${manifestResp.status}). Run python build.py first.`);
+    manifest = await manifestResp.json();
+
+    // Fetch current config.json via GitHub API (to get SHA)
+    const cfgResp = await ghFetch(CONFIG_PATH);
+    if (cfgResp.status === 401 || cfgResp.status === 403) throw new Error('GitHub auth failed — check your PAT.');
+    if (cfgResp.ok) {
+      const cfgData = await cfgResp.json();
+      configSha = cfgData.sha;
+      savedConfig = JSON.parse(atob(cfgData.content.replace(/\n/g, '')));
+    } else if (cfgResp.status === 404) {
+      savedConfig = {};
+      configSha = null;
+    } else {
+      throw new Error(`Unexpected error fetching config.json (HTTP ${cfgResp.status})`);
+    }
+
+    pendingChanges = JSON.parse(JSON.stringify(savedConfig)); // deep copy
+    authStatus.textContent = '✓ Loaded';
+    document.getElementById('loading-msg').style.display = 'none';
+    document.getElementById('config-area').style.display = 'block';
+    buildUI();
+  } catch (e) {
+    authStatus.textContent = '✗ Error';
+    document.getElementById('loading-msg').style.display = 'none';
+    showStatus(e.message, 'error', 6000);
+  }
+});
+
+// ── Build UI ─────────────────────────────────────────────────────────────────
+function buildUI() {
+  const container = document.getElementById('datasets-container');
+  container.innerHTML = '';
+
+  for (const [dsKey, ds] of Object.entries(manifest)) {
+    const sec = document.createElement('div');
+    sec.className = 'ds-section';
+
+    const title = document.createElement('div');
+    title.className = 'ds-title';
+    title.textContent = ds.label;
+    sec.appendChild(title);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const table = document.createElement('table');
+    const hasCat = ds.hasCategories;
+
+    // Header
+    const thead = document.createElement('thead');
+    thead.innerHTML = `<tr>
+      <th>Logger ID</th>
+      <th>Source</th>
+      <th>Display Name</th>
+      ${hasCat ? '<th>Category</th>' : ''}
+    </tr>`;
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const logger of ds.loggers) {
+      const tr = document.createElement('tr');
+      const isExt = logger.category === 'external';
+
+      // ID
+      const tdId = document.createElement('td');
+      tdId.textContent = logger.id;
+      tdId.style.cssText = 'font-family:monospace;font-size:11px;color:#666;white-space:nowrap';
+      tr.appendChild(tdId);
+
+      // Source badge
+      const tdSrc = document.createElement('td');
+      const badge = document.createElement('span');
+      badge.className = `source-badge source-${logger.source.replace(/\s.*/,'')}`;
+      badge.textContent = logger.source;
+      tdSrc.appendChild(badge);
+      tr.appendChild(tdSrc);
+
+      // Name input
+      const tdName = document.createElement('td');
+      if (isExt) {
+        tdName.textContent = logger.name;
+        tdName.style.color = '#999';
+      } else {
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = getOverride(dsKey, logger.id, 'name', logger.name);
+        nameInput.dataset.dsKey = dsKey;
+        nameInput.dataset.loggerId = logger.id;
+        nameInput.dataset.field = 'name';
+        nameInput.dataset.defaultVal = logger.name;
+        nameInput.addEventListener('input', onFieldChange);
+        tdName.appendChild(nameInput);
+      }
+      tr.appendChild(tdName);
+
+      // Category dropdown (house5 only, non-external loggers)
+      if (hasCat) {
+        const tdCat = document.createElement('td');
+        if (isExt) {
+          tdCat.innerHTML = '<span class="cat-external">external (fixed)</span>';
+        } else {
+          const sel = document.createElement('select');
+          sel.dataset.dsKey = dsKey;
+          sel.dataset.loggerId = logger.id;
+          sel.dataset.field = 'category';
+          sel.dataset.defaultVal = logger.category;
+          const catOptions = [
+            {value: 'room',       label: 'Room'},
+            {value: 'structural', label: 'Structural'},
+            {value: 'other',      label: 'Other (hidden from comfort)'},
+          ];
+          const currentCat = getOverride(dsKey, logger.id, 'category', logger.category);
+          catOptions.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.label;
+            if (o.value === currentCat) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          sel.addEventListener('change', onFieldChange);
+          tdCat.appendChild(sel);
+        }
+        tr.appendChild(tdCat);
+      }
+
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    card.appendChild(table);
+    sec.appendChild(card);
+    container.appendChild(sec);
+  }
+
+  updateChangeCount();
+}
+
+function getOverride(dsKey, loggerId, field, defaultVal) {
+  return pendingChanges?.[dsKey]?.loggers?.[loggerId]?.[field] ?? defaultVal;
+}
+
+function onFieldChange(e) {
+  const { dsKey, loggerId, field, defaultVal } = e.target.dataset;
+  const val = e.target.value;
+
+  if (!pendingChanges[dsKey]) pendingChanges[dsKey] = { loggers: {} };
+  if (!pendingChanges[dsKey].loggers) pendingChanges[dsKey].loggers = {};
+  if (!pendingChanges[dsKey].loggers[loggerId]) pendingChanges[dsKey].loggers[loggerId] = {};
+
+  if (val === defaultVal) {
+    // Matches default — remove override
+    delete pendingChanges[dsKey].loggers[loggerId][field];
+    if (Object.keys(pendingChanges[dsKey].loggers[loggerId]).length === 0)
+      delete pendingChanges[dsKey].loggers[loggerId];
+    if (Object.keys(pendingChanges[dsKey].loggers || {}).length === 0)
+      delete pendingChanges[dsKey];
+  } else {
+    pendingChanges[dsKey].loggers[loggerId][field] = val;
+  }
+
+  updateChangeCount();
+}
+
+function countChanges() {
+  let n = 0;
+  for (const ds of Object.values(pendingChanges)) {
+    for (const overrides of Object.values(ds.loggers || {})) {
+      n += Object.keys(overrides).length;
+    }
+  }
+  return n;
+}
+
+function updateChangeCount() {
+  const n = countChanges();
+  const el = document.getElementById('change-count');
+  const saveBtn = document.getElementById('save-btn');
+  if (n === 0) {
+    el.textContent = 'No unsaved changes';
+    saveBtn.disabled = true;
+  } else {
+    el.innerHTML = `<span class="unsaved-dot"></span>${n} unsaved change${n !== 1 ? 's' : ''}`;
+    saveBtn.disabled = false;
+  }
+}
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+document.getElementById('save-btn').addEventListener('click', async () => {
+  if (!pat()) { showStatus('PAT required.', 'error'); return; }
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  showStatus('Saving…', 'info', 0);
+
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(pendingChanges, null, 2) + '\n')));
+    const body = {
+      message: 'Update logger config via config.html',
+      content,
+    };
+    if (configSha) body.sha = configSha;
+
+    const res = await ghFetch(CONFIG_PATH, { method: 'PUT', body: JSON.stringify(body) });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    configSha = data.content.sha;
+    savedConfig = JSON.parse(JSON.stringify(pendingChanges));
+
+    showStatus('Saved! Dashboard will reflect changes on next load.', 'success', 5000);
+    updateChangeCount();
+  } catch (e) {
+    showStatus(`Save failed: ${e.message}`, 'error', 8000);
+  } finally {
+    saveBtn.textContent = 'Save changes';
+    updateChangeCount();
+  }
+});
+
+// ── Reset ─────────────────────────────────────────────────────────────────────
+document.getElementById('reset-btn').addEventListener('click', async () => {
+  if (!confirm('Reset ALL overrides to defaults? This will save an empty config to GitHub.')) return;
+  if (!pat()) { showStatus('PAT required.', 'error'); return; }
+
+  const resetBtn = document.getElementById('reset-btn');
+  resetBtn.disabled = true;
+  showStatus('Resetting…', 'info', 0);
+  try {
+    const content = btoa('{}' + '\n');
+    const body = { message: 'Reset logger config to defaults', content };
+    if (configSha) body.sha = configSha;
+
+    const res = await ghFetch(CONFIG_PATH, { method: 'PUT', body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    configSha = data.content.sha;
+    pendingChanges = {};
+    savedConfig = {};
+    buildUI(); // rebuild with cleared overrides
+    showStatus('Reset to defaults.', 'success', 4000);
+  } catch (e) {
+    showStatus(`Reset failed: ${e.message}`, 'error', 8000);
+  } finally {
+    resetBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

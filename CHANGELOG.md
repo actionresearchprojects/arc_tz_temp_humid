@@ -1,5 +1,20 @@
 ## Changelog
 
+### 2026-03-07 16:47:03 CST
+- **Config admin UI**: Added `config.html` — a GitHub Pages admin page for editing logger display names and categories without rebuilding.
+- `build.py` changes:
+  - `build_dataset_json`: Added `ext_sensor_set` derived from `cfg["external_sensors"]`. Changed extTemp computation from `if logger_id in comfort_logger_set` to `if logger_id not in ext_sensor_set`, so all non-external loggers get extTemp precomputed (enables any logger to be moved to adaptive comfort via config).
+  - Added `generate_loggers_manifest(all_data)`: builds a manifest of all loggers with their default names, sources, and categories (room/structural/other/external).
+  - `main()`: writes `data/loggers.json` after each build (full or `--auto`).
+- `index.html` template changes:
+  - `init()` made `async`. Calls `await loadUserConfig()` then `applyUserConfig(config)` before `loadDataset()`.
+  - `loadUserConfig()`: fetches `data/config.json` at runtime (no-cache). Returns null on any error (graceful degradation).
+  - `applyUserConfig(config)`: patches `ALL_DATA` meta in-place — overrides `loggerNames`, and rebuilds `roomLoggers`/`structuralLoggers`/`comfortLoggers` from category overrides.
+- `config.html` (new): standalone admin page. Reads `data/loggers.json` for defaults, reads/writes `data/config.json` via GitHub Contents API (PUT). Requires GitHub PAT with Contents: Read & Write. Shows logger tables per dataset with editable name inputs and category dropdowns (Room/Structural/Other). Save/Reset buttons commit to GitHub. Changes reflected on dashboard immediately on next page load.
+- `data/config.json` (new): initial empty `{}` — tracked in git.
+- `.gitignore`: added `!data/config.json` and `!data/loggers.json`.
+- `CLAUDE.md` and `UPDATE.md` updated to document new files.
+
 ### 2026-03-07 11:08:26 CST
 - **Omnisense automation** (Phase 2): Automated Omnisense sensor data fetching alongside Open-Meteo.
 - New `fetch_omnisense.py` (stdlib only): authenticates with Omnisense portal, downloads CSV for last 90 days (or `--full-history`), saves to `data/omnisense/`, rotates old files to `data/omnisense/legacy/`. Credentials via `OMNISENSE_USERNAME`/`OMNISENSE_PASSWORD` env vars.

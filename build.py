@@ -17,7 +17,9 @@ first to get the real time: ### YYYY-MM-DD HH:MM:SS CST
 
 import argparse
 import json
+import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -49,11 +51,16 @@ DATASETS = {
         "skip_rows": 350,
         "external_logger": OPENMETEO_HISTORICAL_ID,
         "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "320E02D1"],
-        "exclude_loggers": {"759498"},
-        "room_loggers": ["780981","759493","639148","759522","759521","759209",
-                         "759492","861004","861034","759489",
+        "exclude_loggers": set(),
+        "room_loggers": ["780981","639148","759522","759521","759209",
+                         "759492",
                          "327601CD","3276003D","3276028A","32760205",
                          "32760208","327601CB","32760371","3276012B"],
+        "structural_loggers": ["759493","861004","861034","759489","32760164"],
+        # Per-logger date filters: only keep data within [from, before) for that logger
+        "logger_date_filters": {
+            "759498": {"before": "2024-06-01"},  # moved to Schoolteacher's on 1 Jun; drop Jun 1 entirely
+        },
         # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
             OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID,       # Open-Meteo
@@ -76,6 +83,7 @@ DATASETS = {
             "327601CB",                                           # Bedroom 2 (Omnisense)
             # Bedroom 3
             "759209",                                             # Bedroom 3 (TinyTag)
+            "759498",                                             # Bedroom 3 below metal roof (TinyTag, data until Jun 2024)
             "861004",                                             # Bedroom 3 above ceiling, below insulation (TinyTag)
             "861034",                                             # Bedroom 3 above ceiling, above insulation (TinyTag)
             "32760371",                                           # Bedroom 3 (Omnisense)
@@ -97,6 +105,12 @@ DATASETS = {
         "external_sensors": ["861011"],
         "room_loggers": None,
         "sidebar_order": ["861011", "759498", "govee"],
+        # Per-logger date filters
+        "logger_date_filters": {
+            "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
+        },
+        # Per-dataset name overrides (759498 is "Bedroom 3 below metal roof" globally but "Bedroom 1" here)
+        "logger_name_overrides": {"759498": "Bedroom 1"},
     },
 }
 
@@ -111,7 +125,7 @@ LOGGER_NAMES = {
     "759492": "Bedroom 4",
     "861968": "Living Room (below metal roof)",
     "759493": "Living Room (above ceiling)",
-    "759498": "Bedroom 1",
+    "759498": "Bedroom 3 (below metal roof)",
     "861004": "Bedroom 3 (above ceiling, below insulation)",
     "861034": "Bedroom 3 (above ceiling, above insulation)",
     "759519": "Bedroom 4 (below metal roof)",
@@ -160,6 +174,23 @@ MONTH_NAMES = [
     "January","February","March","April","May","June",
     "July","August","September","October","November","December"
 ]
+
+# ── Fetch-time helpers ─────────────────────────────────────────────────────────
+def _ordinal(n):
+    return f"{n}{'th' if 11 <= n % 100 <= 13 else {1:'st',2:'nd',3:'rd'}.get(n % 10,'th')}"
+
+def parse_fetch_time(path):
+    """Extract UTC datetime from a filename like foo_YYYYMMDD_HHMM.csv."""
+    m = re.search(r'_(\d{8})_(\d{4})\.csv$', path.name)
+    if not m:
+        return None
+    return datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M")
+
+def format_fetch_time(dt):
+    """Format a UTC datetime as '7th March 2026 at 04:32 UTC'."""
+    if dt is None:
+        return None
+    return f"{_ordinal(dt.day)} {dt.strftime('%B %Y')} at {dt.strftime('%H:%M')} UTC"
 
 # ── Data loading ───────────────────────────────────────────────────────────────
 def load_logger_excel(path, skip_rows):
@@ -392,6 +423,16 @@ def load_dataset(key):
         .dt.tz_localize(TIMEZONE, nonexistent="shift_forward", ambiguous="NaT")
     )
     df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
+
+    # Apply per-logger date filters (e.g. for loggers moved between sites)
+    for logger_id, filt in cfg.get("logger_date_filters", {}).items():
+        if "before" in filt:
+            cutoff = pd.Timestamp(filt["before"]).tz_localize(TIMEZONE)
+            df = df[~((df["logger_id"] == logger_id) & (df.index >= cutoff))]
+        if "from" in filt:
+            cutoff = pd.Timestamp(filt["from"]).tz_localize(TIMEZONE)
+            df = df[~((df["logger_id"] == logger_id) & (df.index < cutoff))]
+
     iso = df.index.isocalendar()
     df["iso_year"] = iso.year.astype(int)
     df["iso_week"] = iso.week.astype(int)
@@ -421,6 +462,7 @@ def compute_exponential_running_mean(df, external_logger, alpha=0.8):
 def build_dataset_json(key, df):
     cfg = DATASETS[key]
     external_logger = cfg["external_logger"]
+    ext_sensor_set = set(cfg.get("external_sensors", [external_logger] if external_logger else []))
     unique_loggers = sorted(df["logger_id"].unique())
     sidebar_order = cfg.get("sidebar_order", [])
     if sidebar_order:
@@ -440,6 +482,16 @@ def build_dataset_json(key, df):
         order_map_rl = {l: i for i, l in enumerate(sidebar_order)}
         room_loggers = sorted(room_loggers, key=lambda l: order_map_rl.get(l, 9999))
 
+    # Structural loggers (above-ceiling etc) — also used in adaptive comfort
+    structural_cfg = cfg.get("structural_loggers", [])
+    structural_loggers = [l for l in structural_cfg if l in unique_loggers]
+    if sidebar_order:
+        structural_loggers = sorted(structural_loggers, key=lambda l: order_map_rl.get(l, 9999))
+
+    # comfort_loggers = room + structural (for adaptive comfort graph)
+    comfort_logger_set = set(room_loggers) | set(structural_loggers)
+    comfort_loggers = [l for l in unique_loggers if l in comfort_logger_set]
+
     color_map = {l: COLORS[i % len(COLORS)] for i, l in enumerate(unique_loggers)}
     # Give Open-Meteo Historical the light cyan, Forecast a blue-grey
     cyan = "#17becf"
@@ -452,7 +504,8 @@ def build_dataset_json(key, df):
                     color_map[k] = color_map.get(om_key, COLORS[0])
                     break
             color_map[om_key] = om_color
-    logger_names = {l: LOGGER_NAMES.get(l, l) for l in unique_loggers}
+    name_overrides = cfg.get("logger_name_overrides", {})
+    logger_names = {l: name_overrides.get(l, LOGGER_NAMES.get(l, l)) for l in unique_loggers}
     logger_sources = {l: LOGGER_SOURCES.get(l, "Unknown") for l in unique_loggers}
 
     # External data date range (for stale-data warning)
@@ -489,7 +542,7 @@ def build_dataset_json(key, df):
             "temperature": ldf["temperature"].round(2).tolist(),
             "humidity":    ldf["humidity"].round(2).tolist(),
         }
-        if logger_id in room_loggers and not running_mean.empty:
+        if logger_id not in ext_sensor_set and not running_mean.empty:
             merged = pd.merge_asof(
                 ldf[[]].reset_index().rename(columns={"datetime": "dt"}),
                 running_mean.reset_index().rename(columns={"datetime": "dt", "running_mean": "ext"}),
@@ -507,6 +560,8 @@ def build_dataset_json(key, df):
             "externalLoggers": [l for l in unique_loggers if l in set(cfg.get("external_sensors", [external_logger] if external_logger else []))],
             "forecastLoggers": [l for l in unique_loggers if l == OPENMETEO_FORECAST_ID],
             "roomLoggers":  room_loggers,
+            "structuralLoggers": structural_loggers,
+            "comfortLoggers": comfort_loggers,
             "colors":       color_map,
             "availableYears": available_years,
             "availableMonths": [
@@ -551,7 +606,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; f
 #logo { height: 32px; width: auto; flex-shrink: 0; }
 .bar-divider { border-left: 1px solid #ccc; height: 20px; flex-shrink: 0; margin: 0 2px; }
 #main { display: flex; flex: 1; overflow: hidden; position: relative; }
-#sidebar { width: 275px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
+#sidebar { width: 300px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
 #chart-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
 #time-bar { background: white; border-bottom: 1px solid #ddd; padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 #time-bar-top { display: flex; align-items: center; width: 100%; gap: 8px; }
@@ -586,6 +641,7 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .sel-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
 .sel-btn:hover { background: #e8e8e8; }
 .sub-section-title { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin: 6px 0 2px; }
+#room-logger-checkboxes .sub-section-title:first-of-type { margin-top: 0.1px; }
 #download-btn { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; background: #28a745; color: white; font-weight: 500; white-space: nowrap; }
 #download-btn:hover { background: #218838; }
 #download-btn:disabled { opacity: 0.6; cursor: default; }
@@ -602,7 +658,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 }
 @media (max-width: 680px) {
   #sidebar-toggle { display: block; }
-  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 275px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
+  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 300px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
   #sidebar.open { transform: translateX(0); }
   #sidebar-backdrop.open { display: block; }
   #header { padding: 5px 8px; gap: 6px; }
@@ -633,7 +689,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   <div id="sidebar">
     <div id="line-controls">
       <div class="section">
-        <div class="section-title">Loggers</div>
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset defaults</button></div>
         <div id="logger-checkboxes"></div>
       </div>
       <hr class="divider">
@@ -652,7 +708,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <div class="section" id="historic-section" style="display:none">
         <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> <b>Long-Term Mode</b></label>
         <div id="historic-series-checkboxes" style="display:none;margin-top:4px"></div>
-        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Generated using <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026</div>
+        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Long-term historic and projected future data generated from <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
       </div>
       <hr class="divider">
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
@@ -665,10 +721,20 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div class="section-title">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-density" checked> Density Heatmap <span class="info-i" id="density-info-icon">i</span></label>
         <div id="info-fixed-tip"></div>
+        <div style="margin-top:6px;margin-bottom:4px;">
+          <div style="font-size:11px;color:#666;margin-bottom:3px;">Comfort band</div>
+          <select id="comfort-model" style="width:100%;font-size:12px;">
+            <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
+            <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
+            <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
+            <option value="default">Default comfort model</option>
+            <option value="none">No comfort band</option>
+          </select>
+        </div>
       </div>
       <hr class="divider">
       <div class="section">
-        <div class="section-title">Room Loggers</div>
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Room Loggers<button class="sel-btn" id="reset-comfort-btn">Reset defaults</button></div>
         <div id="room-logger-checkboxes"></div>
       </div>
       <hr class="divider">
@@ -677,6 +743,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div class="room-grid" id="comfort-room-grid"></div>
       </div>
     </div>
+
+    <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;margin-top:auto;padding-top:8px;border-top:1px solid #eee"></div>
   </div>
 
   <div id="chart-area">
@@ -691,13 +759,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="line">Line Graph</option>
             <option value="histogram">Histogram</option>
             <option value="comfort">Adaptive Comfort</option>
-          </select>
-          <select id="comfort-model" class="hidden">
-            <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
-            <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
-            <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
-            <option value="default">Default comfort model</option>
-            <option value="none">No comfort band</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -745,6 +806,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <script>
 const ALL_DATA = __DATA__;
 const HISTORIC = __HISTORIC__;
+const FETCH_TIMES = __FETCH_TIMES__;
 const CLIMATE_COLORS = {
   'ERA5': '#333333',
   'SSP1-1.9': '#1a9850',
@@ -787,8 +849,60 @@ function loggerTooltip(id, m) {
   return src ? `${src} · ${id}` : id;
 }
 
+// ── User config (runtime overrides from data/config.json) ─────────────────────
+async function loadUserConfig() {
+  try {
+    const resp = await fetch('data/config.json', {cache: 'no-cache'});
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+function applyUserConfig(config) {
+  if (!config) return;
+  for (const [dsKey, dsCfg] of Object.entries(config)) {
+    const ds = ALL_DATA[dsKey];
+    if (!ds) continue;
+    const meta = ds.meta;
+    const overrides = dsCfg.loggers || {};
+    for (const [lid, ov] of Object.entries(overrides)) {
+      if (!meta.loggers.includes(lid)) continue;
+      if (ov.name) meta.loggerNames[lid] = ov.name;
+      if (ov.category) {
+        // Remove from all category lists
+        meta.roomLoggers = (meta.roomLoggers || []).filter(id => id !== lid);
+        meta.structuralLoggers = (meta.structuralLoggers || []).filter(id => id !== lid);
+        meta.comfortLoggers = (meta.comfortLoggers || []).filter(id => id !== lid);
+        if (ov.category === 'room') {
+          meta.roomLoggers.push(lid);
+          if (!meta.comfortLoggers.includes(lid)) meta.comfortLoggers.push(lid);
+        } else if (ov.category === 'structural') {
+          if (!meta.structuralLoggers) meta.structuralLoggers = [];
+          meta.structuralLoggers.push(lid);
+          if (!meta.comfortLoggers.includes(lid)) meta.comfortLoggers.push(lid);
+        }
+        // 'other' or 'external' — removed above, not re-added
+      }
+    }
+  }
+}
+
 // ── Initialise ────────────────────────────────────────────────────────────────
-function init() {
+async function init() {
+  // Load runtime user config (logger name/category overrides)
+  const userConfig = await loadUserConfig();
+  applyUserConfig(userConfig);
+
+  // Populate data freshness notes
+  const ftDiv = document.getElementById('fetch-time-notes');
+  if (ftDiv && (FETCH_TIMES.openmeteo || FETCH_TIMES.omnisense)) {
+    const lines = [];
+    if (FETCH_TIMES.openmeteo) lines.push(`Open-Meteo last updated: ${FETCH_TIMES.openmeteo}`);
+    if (FETCH_TIMES.omnisense) lines.push(`Omnisense last updated: ${FETCH_TIMES.omnisense}`);
+    ftDiv.innerHTML = lines.join('<br>');
+  }
   setupStaticListeners();
   loadDataset('house5');
 }
@@ -817,7 +931,8 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
+    const isExtTT = extSet.has(id) && m.loggerSources[id] === 'TinyTag';
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${isExtTT ? '<span style="color:#aaa"> (TinyTag)</span>' : ''}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
       updatePlot();
@@ -853,12 +968,7 @@ function loadDataset(key) {
     addLoggerSection('External', m.externalLoggers);
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
-  // Structural/below-metal section (loggers that aren't external and aren't room)
-  if (midLoggers.length > 0) {
-    addLoggerSection('Structural', midLoggers);
-    const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
-  }
-  // Room loggers section with optional TinyTag/Omnisense buttons
+  // Room loggers section with optional TinyTag/Omnisense buttons (above Structural)
   if (roomLoggers.length > 0) {
     const hasTT = roomLoggers.some(id => m.loggerSources[id] === 'TinyTag');
     const hasOS = roomLoggers.some(id => m.loggerSources[id] === 'Omnisense');
@@ -867,56 +977,67 @@ function loadDataset(key) {
       mkSelBtn('Omnisense',() => { roomLoggers.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
     ] : null;
     addLoggerSection('Room', roomLoggers, extraBtns);
-  } else if (midLoggers.length === 0) {
+  }
+  // Structural/below-metal section (loggers that aren't external and aren't room)
+  if (midLoggers.length > 0) {
+    if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
+    addLoggerSection('Structural', midLoggers);
+  }
+  if (roomLoggers.length === 0 && midLoggers.length === 0) {
     // Fallback: dataset has no room/structural split — show all non-external flat
     const allNonExt = m.loggers.filter(id => !extSet.has(id));
     if (allNonExt.length > 0) addLoggerSection('Loggers', allNonExt);
   }
 
-  // Rebuild adaptive comfort room logger checkboxes with All/None/TinyTag/Omnisense buttons
+  // Rebuild adaptive comfort logger checkboxes (mirrors addLoggerSection style)
   const roomDiv = document.getElementById('room-logger-checkboxes');
   roomDiv.innerHTML = '';
-  function addRoomCheckbox(id) {
+  function addComfortCheckbox(id) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${state.selectedRoomLoggers.has(id) ? 'checked' : ''}> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
       updatePlot();
     });
     roomDiv.appendChild(lbl);
   }
-  function mkRoomBtn(label, onClick) {
-    const b = document.createElement('button');
-    b.className = 'sel-btn'; b.textContent = label;
-    b.addEventListener('click', onClick); return b;
-  }
-  const rIds = m.roomLoggers;
-  const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
-  btnRow.appendChild(mkRoomBtn('All', () => {
-    rIds.forEach(id => { state.selectedRoomLoggers.add(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
-    updatePlot();
-  }));
-  btnRow.appendChild(mkRoomBtn('None', () => {
-    rIds.forEach(id => { state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
-    updatePlot();
-  }));
-  const hasRoomTT = rIds.some(id => m.loggerSources[id] === 'TinyTag');
-  const hasRoomOS = rIds.some(id => m.loggerSources[id] === 'Omnisense');
-  if (hasRoomTT && hasRoomOS) {
-    btnRow.appendChild(mkRoomBtn('TinyTag', () => {
-      rIds.forEach(id => { const is = m.loggerSources[id]==='TinyTag'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; });
+  function addComfortSection(title, ids, extraBtns) {
+    if (ids.length === 0) return;
+    const titleEl = document.createElement('div');
+    titleEl.className = 'sub-section-title';
+    titleEl.textContent = title;
+    roomDiv.appendChild(titleEl);
+    const bRow = document.createElement('div');
+    bRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
+    bRow.appendChild(mkSelBtn('All', () => {
+      ids.forEach(id => { state.selectedRoomLoggers.add(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
       updatePlot();
     }));
-    btnRow.appendChild(mkRoomBtn('Omnisense', () => {
-      rIds.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; });
+    bRow.appendChild(mkSelBtn('None', () => {
+      ids.forEach(id => { state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
       updatePlot();
     }));
+    if (extraBtns) extraBtns.forEach(b => bRow.appendChild(b));
+    roomDiv.appendChild(bRow);
+    ids.forEach(addComfortCheckbox);
   }
-  roomDiv.appendChild(btnRow);
-  rIds.forEach(addRoomCheckbox);
+  const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
+  const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
+  // Room sub-section
+  const cHasTT = comfortRoomIds.some(id => m.loggerSources[id] === 'TinyTag');
+  const cHasOS = comfortRoomIds.some(id => m.loggerSources[id] === 'Omnisense');
+  const cExtraBtns = (cHasTT && cHasOS) ? [
+    mkSelBtn('TinyTag',  () => { comfortRoomIds.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+    mkSelBtn('Omnisense',() => { comfortRoomIds.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+  ] : null;
+  addComfortSection('Room', comfortRoomIds, cExtraBtns);
+  // Structural sub-section
+  if (comfortStructIds.length > 0) {
+    if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
+    addComfortSection('Structural', comfortStructIds);
+  }
 
   // Show historic section if data available
   document.getElementById('historic-section').style.display = HISTORIC ? '' : 'none';
@@ -966,6 +1087,41 @@ function loadDataset(key) {
   updatePlot();
 }
 
+// ── Default-reset helpers ──────────────────────────────────────────────────────
+function resetTimeMode() {
+  state.timeMode = 'all';
+  document.getElementById('time-mode').value = 'all';
+  ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
+    document.getElementById(id).classList.add('hidden'));
+}
+
+function resetLineDefaults() {
+  const m = dataset().meta;
+  if (state.historicMode) {
+    state.selectedLoggers = new Set();
+    m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
+  } else {
+    state.selectedLoggers = new Set(m.loggers);
+  }
+  document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
+    cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
+  });
+  resetTimeMode();
+  updatePlot();
+}
+
+function resetComfortDefaults() {
+  const m = dataset().meta;
+  state.selectedRoomLoggers = new Set(m.roomLoggers);
+  document.getElementById('room-logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
+    cb.checked = state.selectedRoomLoggers.has(cb.dataset.loggerId);
+  });
+  state.comfortModel = 'rh_gt_60';
+  document.getElementById('comfort-model').value = 'rh_gt_60';
+  resetTimeMode();
+  updatePlot();
+}
+
 // ── Static event listeners (survive dataset changes) ──────────────────────────
 function toggleAllCheckboxes(containerId, stateSet, loggerList, selectAll) {
   const container = document.getElementById(containerId);
@@ -976,6 +1132,9 @@ function toggleAllCheckboxes(containerId, stateSet, loggerList, selectAll) {
 }
 
 function setupStaticListeners() {
+  document.getElementById('reset-line-btn').addEventListener('click', resetLineDefaults);
+  document.getElementById('reset-comfort-btn').addEventListener('click', resetComfortDefaults);
+
   document.getElementById('dataset-select').addEventListener('change', e => {
     loadDataset(e.target.value);
   });
@@ -987,11 +1146,11 @@ function setupStaticListeners() {
     const isHistogram = state.chartType === 'histogram';
     const isComfort = state.chartType === 'comfort';
     const m = dataset().meta;
-    const roomSet = new Set(m.roomLoggers || []);
-    // Sync selections between line/histogram ↔ adaptive comfort
+    const syncRoomSet = new Set(m.roomLoggers || []);
+    // Sync selections between line/histogram ↔ adaptive comfort (room loggers only; structural defaults off)
     if (prevType === 'comfort' && !isComfort) {
-      // Leaving comfort → push room logger selections into selectedLoggers
-      for (const id of roomSet) {
+      // Leaving comfort → push room logger comfort selections back into selectedLoggers
+      for (const id of syncRoomSet) {
         state.selectedRoomLoggers.has(id) ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
       }
       // Update line-controls checkboxes to match
@@ -999,8 +1158,8 @@ function setupStaticListeners() {
         cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
       });
     } else if (isComfort && prevType !== 'comfort') {
-      // Entering comfort → push line logger selections into selectedRoomLoggers
-      for (const id of roomSet) {
+      // Entering comfort → push line logger selections into selectedRoomLoggers (room loggers only)
+      for (const id of syncRoomSet) {
         state.selectedLoggers.has(id) ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
       }
       // Update comfort checkboxes to match
@@ -1010,7 +1169,6 @@ function setupStaticListeners() {
     }
     document.getElementById('line-controls').classList.toggle('hidden', isComfort);
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
-    document.getElementById('comfort-model').classList.toggle('hidden', !isComfort);
     if (isHistogram) {
       // Show options but hide season lines checkbox (not applicable to histogram)
       document.getElementById('line-options-section').style.display = '';
@@ -1268,7 +1426,7 @@ function setupStaticListeners() {
       else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
     } else if (state.chartType === 'comfort') {
       const selIds = [...state.selectedRoomLoggers];
-      const total = m.roomLoggers.length;
+      const total = (m.comfortLoggers || m.roomLoggers).length;
       if (selIds.length === 0) sensorStr = '_NoSensors';
       else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(m.loggerNames[id] || id)).join('+');
       else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
@@ -1646,12 +1804,45 @@ function renderLineGraph() {
   }, title: barTitle};
 }
 
+// ── Date-range annotation (visible in PNG exports) ────────────────────────────
+// Returns actual [minMs, maxMs] of timestamps within [startMs, endMs], or null if none.
+function actualDataRange(timestamps, startMs, endMs) {
+  let lo = -1, hi = -1;
+  for (let i = 0; i < timestamps.length; i++) { if (timestamps[i] >= startMs) { lo = i; break; } }
+  for (let i = timestamps.length - 1; i >= 0; i--) { if (timestamps[i] <= endMs) { hi = i; break; } }
+  if (lo < 0 || hi < lo) return null;
+  return [timestamps[lo], timestamps[hi]];
+}
+function fmtDateEAT(ms, isStart) {
+  // Shift to EAT (UTC+3) so UTC date/hour reflect local time
+  let d = new Date(ms + 3 * 3600 * 1000);
+  const hour = d.getUTCHours();
+  // If a start reading falls in the last hour of the day, attribute it to the next day
+  if (isStart && hour >= 23) d = new Date(d.getTime() + 24 * 3600 * 1000);
+  // If an end reading falls in the first hour of the day, attribute it to the previous day
+  if (!isStart && hour < 1) d = new Date(d.getTime() - 24 * 3600 * 1000);
+  return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
+}
+function dateRangeAnnotation(actualStartMs, actualEndMs, atTop) {
+  return {
+    xref: 'paper', yref: 'paper',
+    x: 1, y: atTop ? 1 : 0,
+    xanchor: 'right', yanchor: atTop ? 'top' : 'bottom',
+    text: `Data ranges from ${fmtDateEAT(actualStartMs, true)} to ${fmtDateEAT(actualEndMs, false)}`,
+    showarrow: false,
+    font: {size: 10, color: '#888'},
+    bgcolor: 'rgba(255,255,255,0.75)',
+    borderpad: 3,
+  };
+}
+
 // ── Histogram ────────────────────────────────────────────────────────────────
 function renderHistogram() {
   const {start, end} = getTimeRange();
   const m = dataset().meta;
   const traces = [];
   let globalMin = Infinity, globalMax = -Infinity;
+  let actualStartMs = Infinity, actualEndMs = -Infinity;
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
@@ -1659,6 +1850,8 @@ function renderHistogram() {
     if (!series) continue;
     const filtered = filterSeries(series, start, end);
     if (!filtered) continue;
+    const range = actualDataRange(series.timestamps, start, end);
+    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
 
     const color = m.colors[loggerId];
     const name = m.loggerNames[loggerId];
@@ -1678,7 +1871,7 @@ function renderHistogram() {
         histnorm: 'probability',
         name: name + meteoSuffix(loggerId) + omniSuffix(source) + suffix,
         xbins: {size: 1},
-        marker: {color, opacity: 0.6},
+        marker: {color, opacity: 0.85},
         legendgroup: loggerId,
         showlegend: firstMetric,
         meta: {loggerId},
@@ -1753,6 +1946,8 @@ function renderHistogram() {
       line:{color:'#e74c3c', width:1.5, dash:'dot'}});
   }
 
+  const histAnnotations = [...tickAnnotations,
+    ...(isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, true)] : [])];
   return {traces, layout: {
     autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?20:36, b:useStagger?(sm?80:85):(sm?60:70)},
     xaxis:{title:xTitle, showgrid:true, gridcolor:'#eee', tickangle:0,
@@ -1760,8 +1955,8 @@ function renderHistogram() {
       tickmode: tickvals.length ? 'array' : undefined,
       tickvals: tickvals.length ? tickvals : undefined,
       ticktext: tickvals.length ? ticktext : undefined},
-    yaxis:{title:'Percentage of total readings for given dataseries', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
-    barmode:'overlay', shapes, annotations: tickAnnotations,
+    yaxis:{title:'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
+    barmode:'stack', shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', font:{size:11}, itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
   }, title: (`${dsLabel} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
@@ -1773,12 +1968,15 @@ function renderAdaptiveComfort() {
   const m = dataset().meta;
   const traces = [], params = getComfortParams();
   const allExtTemps = [], allTemps = [];
-  for (const loggerId of m.roomLoggers) {
+  let actualStartMs = Infinity, actualEndMs = -Infinity;
+  for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
     const filtered = filterSeries(series, start, end);
     if (!filtered || !filtered.extTemp) continue;
+    const range = actualDataRange(series.timestamps, start, end);
+    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
     for (let i = 0; i < filtered.extTemp.length; i++) {
       if (filtered.extTemp[i] != null && filtered.temperature[i] != null) {
         allExtTemps.push(filtered.extTemp[i]);
@@ -1835,6 +2033,7 @@ function renderAdaptiveComfort() {
     xaxis:{title:'Running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
     yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
+    annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false)] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
   }, title: `${dsLabel} \u2013 Adaptive Comfort`};
 }
@@ -1848,7 +2047,7 @@ function updateComfortStats(start, end, params) {
   const m = dataset().meta;
   let totalIn = 0, totalAll = 0;
   const roomStats = [];
-  for (const loggerId of m.roomLoggers) {
+  for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
@@ -2078,6 +2277,40 @@ def load_sensor_snapshot():
     return datasets_dfs
 
 
+# ── Loggers manifest ───────────────────────────────────────────────────────────
+def generate_loggers_manifest(all_data):
+    """Generate data/loggers.json: default logger names/categories for config.html."""
+    manifest = {}
+    for key, ds in all_data.items():
+        meta = ds["meta"]
+        ext_set    = set(meta.get("externalLoggers", []))
+        room_set   = set(meta.get("roomLoggers", []))
+        struct_set = set(meta.get("structuralLoggers", []))
+        has_categories = bool(room_set or struct_set)
+        loggers = []
+        for lid in meta["loggers"]:
+            if lid in ext_set:
+                cat = "external"
+            elif lid in room_set:
+                cat = "room"
+            elif lid in struct_set:
+                cat = "structural"
+            else:
+                cat = "other"
+            loggers.append({
+                "id":       lid,
+                "name":     meta["loggerNames"].get(lid, lid),
+                "source":   meta["loggerSources"].get(lid, "Unknown"),
+                "category": cat,
+            })
+        manifest[key] = {
+            "label":         DATASETS[key]["label"],
+            "hasCategories": has_categories,
+            "loggers":       loggers,
+        }
+    return manifest
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Build ARC temperature & humidity dashboard")
@@ -2172,14 +2405,37 @@ def main():
     historic = load_copernicus_climate_data()
     historic_str = json.dumps(historic, separators=(',', ':')) if historic else 'null'
 
+    # Determine fetch timestamps from filenames
+    fetch_times = {}
+    om_hist_files = sorted(OPENMETEO_DIR.glob("historical_*.csv"))
+    om_fc_files = sorted(OPENMETEO_DIR.glob("forecast_*.csv"))
+    om_file = om_hist_files[-1] if om_hist_files else (om_fc_files[-1] if om_fc_files else None)
+    if om_file:
+        fetch_times["openmeteo"] = format_fetch_time(parse_fetch_time(om_file))
+    os_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
+    if not os_files:
+        os_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
+    if os_files:
+        fetch_times["omnisense"] = format_fetch_time(parse_fetch_time(os_files[-1]))
+
     print("Writing output...")
     json_str = json.dumps(all_data, separators=(',', ':'))
-    html = HTML_TEMPLATE.replace('__DATA__', json_str).replace('__HISTORIC__', historic_str)
+    fetch_times_str = json.dumps(fetch_times)
+    html = (HTML_TEMPLATE
+            .replace('__DATA__', json_str)
+            .replace('__HISTORIC__', historic_str)
+            .replace('__FETCH_TIMES__', fetch_times_str))
     OUTPUT_FILE.write_text(html, encoding='utf-8')
 
     size_kb = len(html.encode('utf-8')) / 1024
     print(f"Done → {OUTPUT_FILE.resolve()}")
     print(f"File size: {size_kb:.0f} KB ({size_kb/1024:.1f} MB)")
+
+    # Write loggers manifest for config.html
+    manifest = generate_loggers_manifest(all_data)
+    loggers_path = DATA_FOLDER / "loggers.json"
+    loggers_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"  Saved loggers manifest → {loggers_path}")
 
 
 if __name__ == '__main__':
