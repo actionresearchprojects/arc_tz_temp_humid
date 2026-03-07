@@ -69,15 +69,20 @@ def main():
         start_dt = now_eat - timedelta(days=DEFAULT_LOOKBACK_DAYS)
         start_date = start_dt.strftime("%Y-%m-%d")
 
-    # Format dates as mm/dd/yyyy for the form (server expects US format)
+    # Prepare both date formats to try
     start_parts = start_date.split("-")
     end_parts = today_str.split("-")
-    form_start = f"{start_parts[1]}/{start_parts[2]}/{start_parts[0]}"
-    form_end = f"{end_parts[1]}/{end_parts[2]}/{end_parts[0]}"
+    date_formats = [
+        # Try mm/dd/yyyy first (US format seen in HAR capture)
+        (f"{start_parts[1]}/{start_parts[2]}/{start_parts[0]}",
+         f"{end_parts[1]}/{end_parts[2]}/{end_parts[0]}",
+         "mm/dd/yyyy"),
+        # Fall back to yyyy-mm-dd (dateFormat=SE might expect ISO input)
+        (start_date, today_str, "yyyy-mm-dd"),
+    ]
 
     print(f"Omnisense fetch — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Date range: {start_date} → {today_str}")
-    print(f"  Form dates: {form_start} → {form_end}")
 
     # ── Build opener (shares state across requests for IP-based session) ──────
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
@@ -111,45 +116,56 @@ def main():
         sys.exit(1)
     print("  Login successful.")
 
-    # ── Step 2: Request the download ──────────────────────────────────────────
-    print("\n[2/3] Requesting data export...")
-    download_data = urllib.parse.urlencode({
-        "siteNbr": SITE_NBR,
-        "sensorId": "",
-        "gwayId": "",
-        "dateFormat": "SE",
-        "dnldFrDate": form_start,
-        "dnldToDate": form_end,
-        "averaging": "N",
-        "btnAct": "Submit",
-    }).encode()
-    download_req = urllib.request.Request(
-        DOWNLOAD_URL,
-        data=download_data,
-        headers={"User-Agent": USER_AGENT},
-    )
-    try:
-        resp = opener.open(download_req, timeout=120)
-    except urllib.error.HTTPError as e:
-        print(f"ERROR: Download request failed with HTTP {e.code}.", file=sys.stderr)
-        sys.exit(1)
+    # ── Step 2: Request the download (try multiple date formats) ────────────
+    csv_path = None
+    last_html = ""
+    for form_start, form_end, fmt_label in date_formats:
+        print(f"\n[2/3] Requesting data export ({fmt_label}: {form_start} → {form_end})...")
+        download_data = urllib.parse.urlencode({
+            "siteNbr": SITE_NBR,
+            "sensorId": "",
+            "gwayId": "",
+            "dateFormat": "SE",
+            "dnldFrDate": form_start,
+            "dnldToDate": form_end,
+            "averaging": "N",
+            "btnAct": "Submit",
+        }).encode()
+        download_req = urllib.request.Request(
+            DOWNLOAD_URL,
+            data=download_data,
+            headers={"User-Agent": USER_AGENT},
+        )
+        try:
+            resp = opener.open(download_req, timeout=120)
+        except urllib.error.HTTPError as e:
+            print(f"  HTTP {e.code} — trying next format...", file=sys.stderr)
+            continue
 
-    html = resp.read().decode("utf-8", errors="replace")
+        last_html = resp.read().decode("utf-8", errors="replace")
 
-    # Parse the CSV URL from response HTML
-    # Pattern: go('/fileshare/images/download_NNNNN.csv')
-    match = re.search(r"go\('(/fileshare/images/download_\d+\.csv)'\)", html)
-    if not match:
-        if "No data found" in html:
-            print("ERROR: No data found for the selected date range.", file=sys.stderr)
+        # Parse the CSV URL from response HTML
+        # Pattern: go('/fileshare/images/download_NNNNN.csv')
+        match = re.search(r"go\('(/fileshare/images/download_\d+\.csv)'\)", last_html)
+        if match:
+            csv_path = match.group(1)
+            print(f"  Download link found: {csv_path}")
+            break
+        elif "No data found" in last_html:
+            print(f"  No data found with {fmt_label} format, trying next...")
         else:
-            print("ERROR: Could not find download link in response.", file=sys.stderr)
-            print(html[:500], file=sys.stderr)
-        sys.exit(1)
+            print(f"  Unexpected response with {fmt_label} format, trying next...")
 
-    csv_path = match.group(1)
+    if not csv_path:
+        if "No data found" in last_html:
+            print("WARNING: No Omnisense data found for any date format tried. Skipping.", file=sys.stderr)
+        else:
+            print("WARNING: Could not find download link in response. Skipping.", file=sys.stderr)
+            print(last_html[:500], file=sys.stderr)
+        print("\nDone (no data downloaded).")
+        sys.exit(0)
+
     csv_url = f"https://omnisense.com{csv_path}"
-    print(f"  Download link found: {csv_path}")
 
     # ── Step 3: Download the CSV ──────────────────────────────────────────────
     print("\n[3/3] Downloading CSV...")
