@@ -6,6 +6,8 @@ data/*
 !data/omnisense/
 !data/sensor_snapshot.json
 !data/hist_proj/
+!data/config.json
+!data/loggers.json
 
 # Within openmeteo/, ignore legacy folder
 data/openmeteo/legacy/
