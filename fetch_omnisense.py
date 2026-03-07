@@ -49,12 +49,6 @@ def make_request(url, headers=None, data=None):
     return req
 
 
-def to_ddmmyyyy(iso_date):
-    """Convert yyyy-mm-dd to dd/mm/yyyy."""
-    y, m, d = iso_date.split("-")
-    return f"{d}/{m}/{y}"
-
-
 def rotate_legacy():
     """Move existing omnisense_*.csv in OUTPUT_DIR to LEGACY_DIR."""
     existing = sorted(OUTPUT_DIR.glob("omnisense_*.csv"))
@@ -93,13 +87,13 @@ def main():
         start_dt = now_eat - timedelta(days=DEFAULT_LOOKBACK_DAYS)
         start_date = start_dt.strftime("%Y-%m-%d")
 
-    # HAR confirms dd/mm/yyyy (06/02/2026 = Feb 6, captured on Mar 7)
-    form_start = to_ddmmyyyy(start_date)
-    form_end = to_ddmmyyyy(today_str)
+    # Date format: yyyy-mm-dd hh:mm:ss (third dropdown option on the form)
+    form_start = f"{start_date} 00:00:00"
+    form_end = f"{today_str} 23:59:59"
 
     print(f"Omnisense fetch — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Date range: {start_date} → {today_str}")
-    print(f"  Form dates (dd/mm/yyyy): {form_start} → {form_end}")
+    print(f"  Form dates: {form_start} → {form_end}")
 
     # ── Build opener ──────────────────────────────────────────────────────────
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
