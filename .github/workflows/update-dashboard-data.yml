@@ -21,7 +21,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install build dependencies
-        run: pip install pandas pytz
+        run: pip install pandas pytz requests
 
       - name: Fetch Open-Meteo data
         run: python fetch_openmeteo.py
