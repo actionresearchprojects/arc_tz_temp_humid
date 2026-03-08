@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-09 00:00:00 CST
+- **Fixed x-axis range snapping on line graph** — When a specific time range (day/week/month/year/between) is selected, the x-axis now always spans the full selected period even if data doesn't cover it. Only the "All time" mode continues to snap to the actual data bounds. Change is in `build.py` (JS template, `renderLineGraph()`): x-axis `range` now uses `[start, end]` from `getTimeRange()` for non-"all" modes, and `[dataMinMs, dataMaxMs]` only for "all" mode.
+
 ### 2026-03-08 23:30:00 CST
 - **Code cleanup & refactoring** — Major deduplication pass across the codebase:
   - **`tsRange()` shared helper** — Extracted binary search logic into a single reusable function; `filterSeries`, `detectSeriesGaps`, and `hasGapsInRange` all now use it.
