@@ -3,9 +3,18 @@
     "label": "House 5",
     "hasCategories": true,
     "externalLoggers": [
-      "External Historical (Open-Meteo)",
-      "861011",
-      "320E02D1"
+      {
+        "id": "External Historical (Open-Meteo)",
+        "label": "Historical Temperature (Open-Meteo)"
+      },
+      {
+        "id": "861011",
+        "label": "External Ambient (TinyTag)"
+      },
+      {
+        "id": "320E02D1",
+        "label": "Weather Station T&RH (Omnisense)"
+      }
     ],
     "loggers": [
       {
@@ -270,7 +279,10 @@
     "label": "Schoolteacher's House",
     "hasCategories": true,
     "externalLoggers": [
-      "861011"
+      {
+        "id": "861011",
+        "label": "External Ambient (TinyTag)"
+      }
     ],
     "loggers": [
       {
