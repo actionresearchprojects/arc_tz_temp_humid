@@ -2854,7 +2854,16 @@ def generate_loggers_manifest(all_data):
         has_categories = bool(room_set or meta.get("structuralLoggers"))
         
         # Valid candidates: any external logger EXCEPT forecast
-        candidates = [l for l in meta.get("externalLoggers", []) if l != OPENMETEO_FORECAST_ID]
+        candidates = []
+        for lid in meta.get("externalLoggers", []):
+            if lid == OPENMETEO_FORECAST_ID:
+                continue
+            lname = meta["loggerNames"].get(lid, lid)
+            lsrc = meta["loggerSources"].get(lid, "Unknown")
+            candidates.append({
+                "id": lid,
+                "label": f"{lname} ({lsrc})"
+            })
         
         loggers = []
         for lid in meta["loggers"]:

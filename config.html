@@ -341,12 +341,11 @@ function buildUI() {
         const defaultSrc = ds.externalLoggers[0];
         const currentSrc = getOverride(dsKey, logger.id, 'external_source', logger.external_source || defaultSrc);
         
-        extCandidates.forEach(cid => {
+        extCandidates.forEach(cand => {
           const opt = document.createElement('option');
-          opt.value = cid;
-          const lname = ds.loggers.find(l => l.id === cid)?.name || cid;
-          opt.textContent = lname;
-          if (cid === currentSrc) opt.selected = true;
+          opt.value = cand.id;
+          opt.textContent = cand.label;
+          if (cand.id === currentSrc) opt.selected = true;
           sel.appendChild(opt);
         });
         
