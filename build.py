@@ -491,35 +491,30 @@ def compute_exponential_running_mean(df, primary_logger, fallback_loggers, alpha
 
 
 # ── JSON builder ───────────────────────────────────────────────────────────────
-def build_dataset_json(key, df, external_override=None):
+def build_dataset_json(key, df, logger_overrides=None):
     cfg = DATASETS[key]
-    # Primary external source for adaptive comfort
-    external_logger = external_override or cfg["external_logger"]
-    
+    logger_overrides = logger_overrides or {}
+
+    # Default external source for the dataset
+    default_external_logger = cfg["external_logger"]
+
     # Fallback loggers are always the Open-Meteo set
     fallback_loggers = [l for l in cfg.get("external_sensors", []) if l in OPENMETEO_IDS]
-    if not fallback_loggers and external_logger in OPENMETEO_IDS:
-        fallback_loggers = [external_logger]
+    if not fallback_loggers and default_external_logger in OPENMETEO_IDS:
+        fallback_loggers = [default_external_logger]
 
-    ext_sensor_set = set(cfg.get("external_sensors", [external_logger] if external_logger else []))
+    ext_sensor_set = set(cfg.get("external_sensors", [default_external_logger] if default_external_logger else []))
     unique_loggers = sorted(df["logger_id"].unique())
     sidebar_order = cfg.get("sidebar_order", [])
     if sidebar_order:
         order_map = {l: i for i, l in enumerate(sidebar_order)}
         unique_loggers = sorted(unique_loggers, key=lambda l: order_map.get(l, 9999))
 
-    # Validate external logger exists in data
-    if external_logger not in unique_loggers:
-        # If override is invalid, fall back to default
-        external_logger = cfg["external_logger"]
-        if external_logger not in unique_loggers:
-            external_logger = None
-
     # Room loggers (ordered by sidebar_order if available)
     if cfg["room_loggers"] is not None:
         room_loggers = [l for l in cfg["room_loggers"] if l in unique_loggers]
     else:
-        room_loggers = [l for l in unique_loggers if l != external_logger]
+        room_loggers = [l for l in unique_loggers if l != default_external_logger]
     if sidebar_order:
         room_loggers = sorted(room_loggers, key=lambda l: order_map.get(l, 9999))
 
@@ -550,10 +545,9 @@ def build_dataset_json(key, df, external_override=None):
     logger_sources = {l: LOGGER_SOURCES.get(l, "Unknown") for l in unique_loggers}
 
     # External data date range (for stale-data warning)
-    # Use all Open-Meteo loggers combined (historical + forecast) so forecast coverage suppresses the warning
     om_ids = [l for l in unique_loggers if l in OPENMETEO_IDS]
     ext_data = df[df["logger_id"].isin(om_ids)] if om_ids else (
-        df[df["logger_id"] == external_logger] if external_logger else pd.DataFrame()
+        df[df["logger_id"] == default_external_logger] if default_external_logger else pd.DataFrame()
     )
     ext_date_range = None
     if not ext_data.empty:
@@ -562,10 +556,8 @@ def build_dataset_json(key, df, external_override=None):
             "max": int(ext_data.index.max().timestamp() * 1000),
         }
 
-    running_mean = (
-        compute_exponential_running_mean(df, external_logger, fallback_loggers)
-        if external_logger else pd.Series(dtype=float)
-    )
+    # Cache for running means to avoid redundant calculations
+    running_mean_cache = {}
 
     available_years  = sorted(int(y) for y in df.index.year.unique())
     available_months = sorted({(int(y), int(m)) for y, m in zip(df.index.year, df.index.month)})
@@ -583,13 +575,31 @@ def build_dataset_json(key, df, external_override=None):
             "temperature": ldf["temperature"].round(2).tolist(),
             "humidity":    ldf["humidity"].round(2).tolist(),
         }
-        if logger_id not in ext_sensor_set and not running_mean.empty:
-            merged = pd.merge_asof(
-                ldf[[]].reset_index().rename(columns={"datetime": "dt"}),
-                running_mean.reset_index().rename(columns={"datetime": "dt", "running_mean": "ext"}),
-                on="dt", direction="nearest",
-            )
-            entry["extTemp"] = merged["ext"].round(2).tolist()
+
+        # Adaptive comfort running mean for THIS logger
+        if logger_id not in ext_sensor_set:
+            source_id = logger_overrides.get(logger_id, {}).get("external_source", default_external_logger)
+            # Ensure the source exists in data and isn't forecast
+            if source_id not in unique_loggers or source_id == OPENMETEO_FORECAST_ID:
+                source_id = default_external_logger
+                if source_id == OPENMETEO_FORECAST_ID:
+                    # Fallback if default is also forecast (unlikely)
+                    source_id = OPENMETEO_HISTORICAL_ID if OPENMETEO_HISTORICAL_ID in unique_loggers else None
+
+            if source_id:
+                if source_id not in running_mean_cache:
+                    running_mean_cache[source_id] = compute_exponential_running_mean(df, source_id, fallback_loggers)
+
+                rm = running_mean_cache[source_id]
+                if not rm.empty:
+                    merged = pd.merge_asof(
+                        ldf[[]].reset_index().rename(columns={"datetime": "dt"}),
+                        rm.reset_index().rename(columns={"datetime": "dt", "running_mean": "ext"}),
+                        on="dt", direction="nearest",
+                    )
+                    entry["extTemp"] = merged["ext"].round(2).tolist()
+                    entry["extSource"] = source_id
+
         series[logger_id] = entry
 
     return {
@@ -597,7 +607,7 @@ def build_dataset_json(key, df, external_override=None):
             "loggers":      unique_loggers,
             "loggerNames":  logger_names,
             "loggerSources": logger_sources,
-            "externalLogger": external_logger,
+            "externalLogger": default_external_logger,
             "externalLoggers": [l for l in unique_loggers if l in ext_sensor_set],
             "forecastLoggers": [l for l in unique_loggers if l == OPENMETEO_FORECAST_ID],
             "roomLoggers":  room_loggers,
@@ -629,8 +639,8 @@ def build_dataset_json(key, df, external_override=None):
     }
 
 
-
 # ── HTML template ──────────────────────────────────────────────────────────────
+
 HTML_TEMPLATE = r"""<!DOCTYPE html>
 <!-- NOTE FOR CLAUDE: After making any changes to this file or build.py,
      add an entry to the Changelog in CLAUDE.md. The heading must include
@@ -928,8 +938,13 @@ function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMe
 
 function loggerTooltip(id, m) {
   const src = (m.loggerSources && m.loggerSources[id]) || '';
-  if (id === 'govee' || isOpenMeteo(id)) return src;
-  return src ? `${src} · ${id}` : id;
+  let tip = (id === 'govee' || isOpenMeteo(id)) ? src : (src ? `${src} · ${id}` : id);
+  const series = dataset().series[id];
+  if (series && series.extSource) {
+    const sName = m.loggerNames[series.extSource] || series.extSource;
+    tip += `\nAdaptive source: ${sName}`;
+  }
+  return tip;
 }
 
 // ── User config (runtime overrides from data/config.json) ─────────────────────
@@ -2832,10 +2847,15 @@ def generate_loggers_manifest(all_data):
     manifest = {}
     for key, ds in all_data.items():
         meta = ds["meta"]
+        series = ds["series"]
         ext_set     = set(meta.get("externalLoggers", []))
         room_set    = set(meta.get("roomLoggers", []))
         comfort_set = set(meta.get("comfortLoggers", []))
         has_categories = bool(room_set or meta.get("structuralLoggers"))
+        
+        # Valid candidates: any external logger EXCEPT forecast
+        candidates = [l for l in meta.get("externalLoggers", []) if l != OPENMETEO_FORECAST_ID]
+        
         loggers = []
         for lid in meta["loggers"]:
             if lid in ext_set:
@@ -2844,7 +2864,8 @@ def generate_loggers_manifest(all_data):
                 section = "room"
             else:
                 section = "structural"  # above-ceiling AND below-roof both land here
-            loggers.append({
+            
+            logger_entry = {
                 "id":             lid,
                 "name":           meta["loggerNames"].get(lid, lid),
                 "source":         meta["loggerSources"].get(lid, "Unknown"),
@@ -2852,11 +2873,20 @@ def generate_loggers_manifest(all_data):
                 "showInLine":     True,
                 "showInHistogram": True,
                 "showInComfort":  lid in comfort_set,
-            })
+            }
+            
+            # Add currently selected external source for this logger (if applicable)
+            if lid in series and "extSource" in series[lid]:
+                logger_entry["external_source"] = series[lid]["extSource"]
+            elif lid in comfort_set:
+                logger_entry["external_source"] = meta.get("externalLogger")
+
+            loggers.append(logger_entry)
+
         manifest[key] = {
             "label":           DATASETS[key]["label"],
             "hasCategories":   has_categories,
-            "externalLoggers": meta.get("externalLoggers", []),
+            "externalLoggers": candidates,
             "loggers":         loggers,
         }
     return manifest
@@ -2944,8 +2974,8 @@ def main():
                 df = df[~df["logger_id"].isin(exclude)]
             print(f"Processing {cfg['label']}...")
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
-            ext_override = user_config.get(key, {}).get("external_source")
-            all_data[key] = build_dataset_json(key, df, external_override=ext_override)
+            logger_overrides = user_config.get(key, {}).get("loggers", {})
+            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides)
     else:
         # Full build: load everything from source files
         datasets_dfs = {}
@@ -2956,12 +2986,13 @@ def main():
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
             print(f"  {df.index.min().date()} → {df.index.max().date()}")
             print("  Processing...")
-            ext_override = user_config.get(key, {}).get("external_source")
-            all_data[key] = build_dataset_json(key, df, external_override=ext_override)
+            logger_overrides = user_config.get(key, {}).get("loggers", {})
+            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides)
 
         # Save sensor snapshot for future --auto builds
         print("Saving sensor snapshot...")
         save_sensor_snapshot(datasets_dfs)
+
 
 
     print("Loading climate data...")
