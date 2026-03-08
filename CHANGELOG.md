@@ -1,5 +1,28 @@
 ## Changelog
 
+### 2026-03-08 22:45:00 CST
+- **Periodic Averages refinements**:
+  - Removed "Day of Week" and "Day of Month" period type options (kept Day granularity in Custom mode).
+  - Overall average now shows three separate section averages (External Avg, Room Avg, Structural Avg) with distinct colors (#1a1a1a, #333399, #663300) and thicker lines (width 3).
+  - Moved Period Settings to the top of the left sidebar (between Metrics and Options sections).
+  - Added info tooltip text for the periodic chart type.
+  - Checkbox label simplified to "Overall Average".
+  - Fixed periodic-options visibility toggling (style.display instead of classList.toggle).
+
+### 2026-03-08 21:51:17 CST
+- **New chart type: Periodic Averages** — Added a fourth chart type "Periodic Averages" accessible from the chart-type dropdown. Shows average values per periodic category (hour of day, month of year, or custom ranges). Key features:
+  - **Period Type selector** in sidebar with 3 options: Hour of Day (default), Month of Year, and Custom.
+  - **Custom period type** expands to show Granularity (Day/Week/Month) and range pickers. Day uses date pickers, Week uses date pickers with Monday-rounding, Month uses `<input type="month">`.
+  - **Section average lines** (dashed) for External, Room, and Structural groups. Controlled by "Overall Average" checkbox (default: on).
+  - **Data quality warnings** in sidebar when >50% of a series' categories are based on single data points. Orange at >80%, red at 100%.
+  - **EAT timezone handling** — all timestamp bucketing uses `eatDate(ms)` helper (UTC+3 shift) matching the existing `toEATString()` convention.
+  - Uses Plotly `type:'category'` x-axis for clean categorical display. Shares logger checkboxes and metric toggles with line/histogram graphs. Hides threshold/seasons/historic options when active.
+  - PNG export uses the relayout+capture path (same as histogram/comfort). Filename includes period type (e.g. `PeriodicAvg_HourOfDay`).
+  - Changes in `build.py` HTML_TEMPLATE: new CSS (`.periodic-warning`), sidebar HTML (`#periodic-options`), state vars (`periodType`, `showOverallAvg`, custom range vars), event listeners, `renderPeriodicAverages()`, `buildCustomCategories()`, `updatePeriodicWarnings()`, `emptyPeriodicResult()`, `eatDate()`, `roundToMonday()` helper functions.
+
+### 2026-03-08 18:30:00 CST
+- **Fixed x-axis ticks exceeding date range** — Line graph x-axis ticks no longer go beyond the selected date range (e.g. "Jan 2027" no longer appears when 2026 is selected). Root cause: Plotly's `nticks` auto-generates "nice" monthly tick positions in UTC space, and because the EAT-shifted range for year 2026 ends at "2027-01-01 02:59:59", Plotly included a Jan 2027 tick. Fix: replaced `nticks:20` with a new `makeXTicks(startMs, endMs)` helper that generates explicit `tickvals`/`ticktext` placed at noon EAT (09:00 UTC) on each tick boundary — guaranteeing all ticks fall strictly within `endMs`. Tick granularity adapts to range: yearly (>730d), monthly (>50d), daily with variable step (>1.5d), or hourly (≤1.5d).
+
 ### 2026-03-08 17:30:00 CST
 - **PNG export: ID codes in legend** — On PNG download for all chart types (Line, Histogram, Adaptive Comfort), each legend item now shows the sensor ID code in grey text (e.g. "Living Room · 780981"). Implemented via a new `injectLegendIDCodes(doc)` function in `build.py` that post-processes the exported SVG DOM: wraps the existing text content in a `<tspan>`, then appends a second grey `<tspan fill="#aaaaaa">` with ` · <id>` to each `.legendtext` element whose trace has a real sensor ID (Open-Meteo, govee, and `climate-*` series are skipped). Called in all three export paths after `Plotly.toImage()`. The live chart is unaffected. Run `python build.py` to apply.
 
