@@ -144,20 +144,35 @@ async function ghFetch(path, opts = {}) {
 }
 
 function getOverride(dsKey, lid, field, defaultVal) {
+  if (lid === '__dataset__') {
+    return pending?.[dsKey]?.[field] ?? defaultVal;
+  }
   return pending?.[dsKey]?.loggers?.[lid]?.[field] ?? defaultVal;
 }
 
 function setOverride(dsKey, lid, field, val, defaultVal) {
   if (!pending[dsKey]) pending[dsKey] = { loggers: {} };
-  if (!pending[dsKey].loggers[lid]) pending[dsKey].loggers[lid] = {};
-  if (val === defaultVal || val === String(defaultVal)) {
-    delete pending[dsKey].loggers[lid][field];
+  
+  if (lid === '__dataset__') {
+    if (val === defaultVal || val === String(defaultVal)) {
+      delete pending[dsKey][field];
+    } else {
+      pending[dsKey][field] = val;
+    }
   } else {
-    pending[dsKey].loggers[lid][field] = val;
+    if (!pending[dsKey].loggers[lid]) pending[dsKey].loggers[lid] = {};
+    if (val === defaultVal || val === String(defaultVal)) {
+      delete pending[dsKey].loggers[lid][field];
+    } else {
+      pending[dsKey].loggers[lid][field] = val;
+    }
+    // Prune empty logger objects
+    if (Object.keys(pending[dsKey].loggers[lid]).length === 0) delete pending[dsKey].loggers[lid];
   }
-  // Prune empty objects
-  if (Object.keys(pending[dsKey].loggers[lid]).length === 0) delete pending[dsKey].loggers[lid];
-  if (Object.keys(pending[dsKey].loggers || {}).length === 0) delete pending[dsKey];
+  
+  // Prune empty dataset objects
+  if (pending[dsKey].loggers && Object.keys(pending[dsKey].loggers).length === 0) delete pending[dsKey].loggers;
+  if (Object.keys(pending[dsKey]).length === 0) delete pending[dsKey];
   updateChangeCount();
 }
 
@@ -212,6 +227,46 @@ function buildUI() {
     titleEl.className = 'ds-title';
     titleEl.textContent = ds.label;
     sec.appendChild(titleEl);
+
+    // Dataset settings (External source for comfort)
+    const dsSettingsCard = document.createElement('div');
+    dsSettingsCard.className = 'card';
+    dsSettingsCard.style.padding = '12px 16px';
+    dsSettingsCard.style.marginBottom = '12px';
+    
+    const dsSettingsTitle = document.createElement('div');
+    dsSettingsTitle.style.cssText = 'font-weight:600;font-size:11px;color:#666;text-transform:uppercase;margin-bottom:8px';
+    dsSettingsTitle.textContent = 'Dataset-wide Settings';
+    dsSettingsCard.appendChild(dsSettingsTitle);
+    
+    const extRow = document.createElement('div');
+    extRow.style.cssText = 'display:flex;align-items:center;gap:12px;';
+    const extLabel = document.createElement('label');
+    extLabel.textContent = 'Adaptive Comfort External Source:';
+    extRow.appendChild(extLabel);
+    
+    const extSel = document.createElement('select');
+    const candidates = ds.externalLoggers || [];
+    const currentExt = getOverride(dsKey, '__dataset__', 'external_source', candidates[0]);
+    candidates.forEach(cid => {
+      const opt = document.createElement('option');
+      opt.value = cid;
+      const lname = ds.loggers.find(l => l.id === cid)?.name || cid;
+      opt.textContent = lname;
+      if (cid === currentExt) opt.selected = true;
+      extSel.appendChild(opt);
+    });
+    extSel.addEventListener('change', e => setOverride(dsKey, '__dataset__', 'external_source', e.target.value, candidates[0]));
+    extRow.appendChild(extSel);
+    
+    const extHint = document.createElement('span');
+    extHint.className = 'hint';
+    extHint.style.marginLeft = '8px';
+    extHint.textContent = 'Uses the selected source for the 7-day rolling mean. Falls back to Open-Meteo for any missing days.';
+    extRow.appendChild(extHint);
+    
+    dsSettingsCard.appendChild(extRow);
+    sec.appendChild(dsSettingsCard);
 
     const card = document.createElement('div');
     card.className = 'card';
@@ -323,6 +378,11 @@ function buildUI() {
 function countChanges() {
   let n = 0;
   for (const ds of Object.values(pending)) {
+    // Dataset-level settings
+    for (const [k, v] of Object.entries(ds)) {
+      if (k !== 'loggers') n++;
+    }
+    // Logger-level settings
     for (const ov of Object.values(ds.loggers || {})) n += Object.keys(ov).length;
   }
   return n;

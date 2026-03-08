@@ -2,6 +2,12 @@
   "house5": {
     "label": "House 5",
     "hasCategories": true,
+    "externalLoggers": [
+      "External Historical (Open-Meteo)",
+      "External Forecast (Open-Meteo)",
+      "861011",
+      "320E02D1"
+    ],
     "loggers": [
       {
         "id": "External Historical (Open-Meteo)",
@@ -242,6 +248,9 @@
   "dauda": {
     "label": "Schoolteacher's House",
     "hasCategories": true,
+    "externalLoggers": [
+      "861011"
+    ],
     "loggers": [
       {
         "id": "861011",
