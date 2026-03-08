@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2026-03-08 23:30:00 CST
+- **Code cleanup & refactoring** — Major deduplication pass across the codebase:
+  - **`tsRange()` shared helper** — Extracted binary search logic into a single reusable function; `filterSeries`, `detectSeriesGaps`, and `hasGapsInRange` all now use it.
+  - **`addCheckbox()` / `addSection()` / `mkSourceBtns()`** — Merged the separate `addLoggerCheckbox`/`addComfortCheckbox` and `addLoggerSection`/`addComfortSection` pairs into generic builders used by all views.
+  - **`buildGapDropdown()` / `renderStatsBoxes()`** — Extracted shared dropdown-building and room-box-rendering logic from both `updateHistogramStats` and `updateComfortStats`, eliminating ~70 lines of duplicated code.
+  - **`dsLabel()`** — Short helper replacing verbose `document.getElementById('dataset-select').options[...].text` calls.
+  - **Removed dead code** — `toggleAllCheckboxes` (unused function), `NON_ROOM_SENSORS` (unused Python set), `order_map_rl` (duplicate of `order_map`).
+  - **Watermark cleanup** — Removed unused `atTop` parameter and `logoTopPad`/`txtBaseline` constants from `injectSVGWatermark`.
+
 ### 2026-03-08 14:45:00 CST
 - **Comfort stats default green** — Changed `#comfort-stats` default from blue (`#f0f7ff`) to green (`#eef6ee`) to match histogram.
 - **"Reset to default"** — Changed button text from "Reset defaults" to "Reset to default" across all views.

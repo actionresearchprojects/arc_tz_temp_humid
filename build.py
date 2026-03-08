@@ -40,7 +40,7 @@ OMNISENSE_T_H_SENSORS = {
     "320E02D1", "327601CB", "32760371", "3276012B", "32760164",
     "3276003D", "327601CD", "32760205", "3276028A", "32760208",
 }
-NON_ROOM_SENSORS = {"320E02D1", "32760164"}  # outdoor / above-ceiling
+
 
 OPENMETEO_HISTORICAL_ID = "External Historical (Open-Meteo)"
 OPENMETEO_FORECAST_ID = "External Forecast (Open-Meteo)"
@@ -481,14 +481,13 @@ def build_dataset_json(key, df):
     else:
         room_loggers = [l for l in unique_loggers if l != external_logger]
     if sidebar_order:
-        order_map_rl = {l: i for i, l in enumerate(sidebar_order)}
-        room_loggers = sorted(room_loggers, key=lambda l: order_map_rl.get(l, 9999))
+        room_loggers = sorted(room_loggers, key=lambda l: order_map.get(l, 9999))
 
     # Structural loggers (above-ceiling etc) - also used in adaptive comfort
     structural_cfg = cfg.get("structural_loggers", [])
     structural_loggers = [l for l in structural_cfg if l in unique_loggers]
     if sidebar_order:
-        structural_loggers = sorted(structural_loggers, key=lambda l: order_map_rl.get(l, 9999))
+        structural_loggers = sorted(structural_loggers, key=lambda l: order_map.get(l, 9999))
 
     # comfort_loggers = room + structural (for adaptive comfort graph)
     comfort_logger_set = set(room_loggers) | set(structural_loggers)
@@ -559,7 +558,7 @@ def build_dataset_json(key, df):
             "loggerNames":  logger_names,
             "loggerSources": logger_sources,
             "externalLogger": external_logger,
-            "externalLoggers": [l for l in unique_loggers if l in set(cfg.get("external_sensors", [external_logger] if external_logger else []))],
+            "externalLoggers": [l for l in unique_loggers if l in ext_sensor_set],
             "forecastLoggers": [l for l in unique_loggers if l == OPENMETEO_FORECAST_ID],
             "roomLoggers":  room_loggers,
             "structuralLoggers": structural_loggers,
@@ -645,7 +644,7 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .room-name { font-size: 10px; color: #666; line-height: 1.2; }
 .room-pct { font-weight: 600; font-size: 12px; }
 .room-src { font-size: 9px; color: #888; line-height: 1.3; }
-#comfort-stats.has-gaps { background: #fff5e6; border-color: #e8a840; border: 1px solid #e8a840; }
+#comfort-stats.has-gaps { background: #fff5e6; border: 1px solid #e8a840; }
 #hist-stats-box.has-gaps { background: #fff5e6 !important; border-color: #e8a840 !important; }
 .room-item.has-gap { background: #f5d4a0; border-color: #d4a040; }
 .room-item.has-gap:hover { background: #f0c880; border-color: #c89030; }
@@ -833,7 +832,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
-    <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
+    <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
       <div style="font-size:12px;color:#555;font-family:'Ubuntu',sans-serif">Loading chart…</div>
       <div style="width:160px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
         <div id="chart-loading-bar" style="height:100%;width:0%;background:#4a90d9;border-radius:3px;transition:none;"></div>
@@ -971,129 +970,81 @@ function loadDataset(key) {
     b.className = 'sel-btn'; b.textContent = label;
     b.addEventListener('click', onClick); return b;
   }
-  function addLoggerCheckbox(id) {
+  // Generic checkbox + section builder for both line/histogram and comfort sidebars
+  function addCheckbox(container, stateSet, id, extraLabel) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    const isExtTT = extSet.has(id) && m.loggerSources[id] === 'TinyTag';
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${isExtTT ? '<span style="color:#aaa"> (TinyTag)</span>' : ''}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}`;
     lbl.querySelector('input').addEventListener('change', e => {
-      e.target.checked ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
+      e.target.checked ? stateSet.add(id) : stateSet.delete(id);
       updatePlot();
     });
-    loggerDiv.appendChild(lbl);
+    container.appendChild(lbl);
   }
-  function addLoggerSection(title, ids, extraBtns) {
+  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn) {
     if (ids.length === 0) return;
     const titleEl = document.createElement('div');
     titleEl.className = 'sub-section-title';
     titleEl.textContent = title;
-    loggerDiv.appendChild(titleEl);
+    container.appendChild(titleEl);
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
     btnRow.appendChild(mkSelBtn('All', () => {
-      ids.forEach(id => { state.selectedLoggers.add(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
+      ids.forEach(id => { stateSet.add(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
       updatePlot();
     }));
     btnRow.appendChild(mkSelBtn('None', () => {
-      ids.forEach(id => { state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
+      ids.forEach(id => { stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
       updatePlot();
     }));
     if (extraBtns) extraBtns.forEach(b => btnRow.appendChild(b));
-    loggerDiv.appendChild(btnRow);
-    ids.forEach(addLoggerCheckbox);
+    container.appendChild(btnRow);
+    ids.forEach(id => addCheckbox(container, stateSet, id, extraLabelFn ? extraLabelFn(id) : ''));
+  }
+  function mkSourceBtns(container, stateSet, ids) {
+    const hasTT = ids.some(id => m.loggerSources[id] === 'TinyTag');
+    const hasOS = ids.some(id => m.loggerSources[id] === 'Omnisense');
+    if (!hasTT || !hasOS) return null;
+    return [
+      mkSelBtn('TinyTag',  () => { ids.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+      mkSelBtn('Omnisense',() => { ids.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+    ];
   }
   const extSet   = new Set(m.externalLoggers || []);
   const roomSet  = new Set(m.roomLoggers || []);
   const lineSet  = new Set(m.lineLoggers || m.loggers);
   const midLoggers  = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
   const roomLoggers = m.loggers.filter(id => !extSet.has(id) &&  roomSet.has(id) && lineSet.has(id));
+  const extTTLabel = id => (extSet.has(id) && m.loggerSources[id] === 'TinyTag') ? '<span style="color:#aaa"> (TinyTag)</span>' : '';
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
-    addLoggerSection('External', m.externalLoggers);
+    addSection(loggerDiv, state.selectedLoggers, 'External', m.externalLoggers, null, extTTLabel);
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
-  // Room loggers section with optional TinyTag/Omnisense buttons
+  // Room loggers section
   if (roomLoggers.length > 0) {
-    const hasTT = roomLoggers.some(id => m.loggerSources[id] === 'TinyTag');
-    const hasOS = roomLoggers.some(id => m.loggerSources[id] === 'Omnisense');
-    const extraBtns = (hasTT && hasOS) ? [
-      mkSelBtn('TinyTag',  () => { roomLoggers.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-      mkSelBtn('Omnisense',() => { roomLoggers.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-    ] : null;
-    addLoggerSection('Room', roomLoggers, extraBtns);
+    addSection(loggerDiv, state.selectedLoggers, 'Room', roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers));
   }
-  // Structural/below-metal section (loggers that aren't external and aren't room)
+  // Structural section
   if (midLoggers.length > 0) {
     if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
-    const sTT = midLoggers.some(id => m.loggerSources[id] === 'TinyTag');
-    const sOS = midLoggers.some(id => m.loggerSources[id] === 'Omnisense');
-    const sExtraBtns = (sTT && sOS) ? [
-      mkSelBtn('TinyTag',  () => { midLoggers.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-      mkSelBtn('Omnisense',() => { midLoggers.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-    ] : null;
-    addLoggerSection('Structural', midLoggers, sExtraBtns);
+    addSection(loggerDiv, state.selectedLoggers, 'Structural', midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers));
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
-    // Fallback: dataset has no room/structural split - show all non-external flat
     const allNonExt = m.loggers.filter(id => !extSet.has(id));
-    if (allNonExt.length > 0) addLoggerSection('Loggers', allNonExt);
+    if (allNonExt.length > 0) addSection(loggerDiv, state.selectedLoggers, 'Loggers', allNonExt);
   }
 
-  // Rebuild adaptive comfort logger checkboxes (mirrors addLoggerSection style)
+  // Rebuild adaptive comfort logger checkboxes (reuses generic addSection/addCheckbox)
   const roomDiv = document.getElementById('room-logger-checkboxes');
   roomDiv.innerHTML = '';
-  function addComfortCheckbox(id) {
-    const lbl = document.createElement('label');
-    lbl.className = 'cb-label';
-    lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${state.selectedRoomLoggers.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
-    lbl.querySelector('input').addEventListener('change', e => {
-      e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
-      updatePlot();
-    });
-    roomDiv.appendChild(lbl);
-  }
-  function addComfortSection(title, ids, extraBtns) {
-    if (ids.length === 0) return;
-    const titleEl = document.createElement('div');
-    titleEl.className = 'sub-section-title';
-    titleEl.textContent = title;
-    roomDiv.appendChild(titleEl);
-    const bRow = document.createElement('div');
-    bRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
-    bRow.appendChild(mkSelBtn('All', () => {
-      ids.forEach(id => { state.selectedRoomLoggers.add(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
-      updatePlot();
-    }));
-    bRow.appendChild(mkSelBtn('None', () => {
-      ids.forEach(id => { state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
-      updatePlot();
-    }));
-    if (extraBtns) extraBtns.forEach(b => bRow.appendChild(b));
-    roomDiv.appendChild(bRow);
-    ids.forEach(addComfortCheckbox);
-  }
   const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
   const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-  // Room sub-section with optional TinyTag/Omnisense buttons
-  const cHasTT = comfortRoomIds.some(id => m.loggerSources[id] === 'TinyTag');
-  const cHasOS = comfortRoomIds.some(id => m.loggerSources[id] === 'Omnisense');
-  const cExtraBtns = (cHasTT && cHasOS) ? [
-    mkSelBtn('TinyTag',  () => { comfortRoomIds.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-    mkSelBtn('Omnisense',() => { comfortRoomIds.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-  ] : null;
-  addComfortSection('Room', comfortRoomIds, cExtraBtns);
-  // Structural sub-section
+  addSection(roomDiv, state.selectedRoomLoggers, 'Room', comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds));
   if (comfortStructIds.length > 0) {
     if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
-    const csHasTT = comfortStructIds.some(id => m.loggerSources[id] === 'TinyTag');
-    const csHasOS = comfortStructIds.some(id => m.loggerSources[id] === 'Omnisense');
-    const csExtraBtns = (csHasTT && csHasOS) ? [
-      mkSelBtn('TinyTag',  () => { comfortStructIds.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-      mkSelBtn('Omnisense',() => { comfortStructIds.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-    ] : null;
-    addComfortSection('Structural', comfortStructIds, csExtraBtns);
+    addSection(roomDiv, state.selectedRoomLoggers, 'Structural', comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds));
   }
 
   // Show historic section if data available
@@ -1193,41 +1144,18 @@ function resetComfortDefaults() {
 }
 
 // ── Static event listeners (survive dataset changes) ──────────────────────────
-function toggleAllCheckboxes(containerId, stateSet, loggerList, selectAll) {
-  const container = document.getElementById(containerId);
-  container.querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = selectAll; });
-  stateSet.clear();
-  if (selectAll) loggerList.forEach(id => stateSet.add(id));
-  updatePlot();
-}
-
 // ── PNG watermark (SVG DOM injection) ─────────────────────────────────────────
-// atTop=false → bottom-right, full opacity (line graph & histogram)
-// atTop=true  → top-right, 80% opacity (adaptive comfort)
-function injectSVGWatermark(doc, svgW, svgH, atTop, opacity) {
+function injectSVGWatermark(doc, svgW, svgH, opacity) {
   if (!LOGO_B64) return;
   const ns = 'http://www.w3.org/2000/svg';
   const root = doc.querySelector('.infolayer') || doc.documentElement;
-  const logoH = 40;                              // ← logo height (px in SVG coords)
-  const logoW = Math.round(logoH * LOGO_ASPECT);
-  const textSize = 9;                            // ← watermark font size (px)
-  const lineH = 14;                              // ← line spacing between the two text lines (px)
-  const leftMargin = 12;                         // ← gap from left edge for logo (px)
-  const rightMargin = 12;                        // ← gap from right edge for text (px)
-  const bottomEdge = 10;                         // ← gap from bottom edge for text (px)
-  const topEdge = 12;                             // ← gap from top edge for logo (px)
-  const logoTopPad = 0;                          // ← transparent px at TOP of logo.png (adjust to match your logo)
+  const logoH = 40, logoW = Math.round(logoH * LOGO_ASPECT);
+  const textSize = 9, lineH = 14;
+  const leftMargin = 12, rightMargin = 12, bottomEdge = 10, topEdge = 12;
   const line1 = 'Graph generated by ARC (architecture.resilience.community).';
   const line2 = 'Find out more about what we do at actionresearchprojects.net.';
-
-  // Logo: always top-left
-  const logoX = leftMargin;
-  const logoY = topEdge - logoTopPad;
-
-  // Text: always bottom-right
-  const txt2Y = svgH - bottomEdge;
-  const txt1Y = txt2Y - lineH;
-  const txtBaseline = 'auto';
+  const logoX = leftMargin, logoY = topEdge;
+  const txt2Y = svgH - bottomEdge, txt1Y = txt2Y - lineH;
 
   const imgEl = doc.createElementNS(ns, 'image');
   imgEl.setAttribute('href', LOGO_B64);
@@ -1243,7 +1171,7 @@ function injectSVGWatermark(doc, svgW, svgH, atTop, opacity) {
     el.setAttribute('x', String(svgW - rightMargin));
     el.setAttribute('y', String(y));
     el.setAttribute('text-anchor', 'end');
-    el.setAttribute('dominant-baseline', txtBaseline);
+    el.setAttribute('dominant-baseline', 'auto');
     el.setAttribute('font-family', 'Ubuntu, sans-serif');
     el.setAttribute('font-size', String(textSize));
     el.setAttribute('fill', '#555');
@@ -1633,7 +1561,7 @@ function setupStaticListeners() {
       Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGTitle(doc, W);
-        injectSVGWatermark(doc, W, H, false, 1.0);
+        injectSVGWatermark(doc, W, H, 1.0);
         unlockLegendScroll(doc.documentElement);
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
@@ -1660,7 +1588,7 @@ function setupStaticListeners() {
       }).then(svgDataUrl => {
         doRestore();
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
-        injectSVGWatermark(doc, W, H, isComfort, isComfort ? 0.8 : 1.0);
+        injectSVGWatermark(doc, W, H, isComfort ? 0.8 : 1.0);
         if (!isComfort) unlockLegendScroll(doc.documentElement);
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
@@ -1723,16 +1651,22 @@ function getTimeRange() {
   }
 }
 
-function filterSeries(series, startMs, endMs) {
-  const ts = series.timestamps;
-  if (!ts || ts.length === 0) return null;
+// Binary search for indices of timestamps within [startMs, endMs]. Returns null if none.
+function tsRange(ts, startMs, endMs) {
   let lo = 0, hi = ts.length - 1;
   while (lo < hi) { const mid = (lo+hi)>>1; ts[mid] < startMs ? lo = mid+1 : hi = mid; }
   const s = lo;
   lo = 0; hi = ts.length - 1;
   while (lo < hi) { const mid = (lo+hi+1)>>1; ts[mid] > endMs ? hi = mid-1 : lo = mid; }
-  const e = lo;
-  if (s > e || ts[s] > endMs || ts[e] < startMs) return null;
+  return (s > lo || ts[s] > endMs || ts[lo] < startMs) ? null : {s, e: lo};
+}
+
+function filterSeries(series, startMs, endMs) {
+  const ts = series.timestamps;
+  if (!ts || ts.length === 0) return null;
+  const r = tsRange(ts, startMs, endMs);
+  if (!r) return null;
+  const {s, e} = r;
   return {
     timestamps:  ts.slice(s, e+1),
     temperature: series.temperature.slice(s, e+1),
@@ -1789,6 +1723,7 @@ function omniSuffix(source) {
 function meteoSuffix(id) {
   return isOpenMeteo(id) ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
 }
+function dsLabel() { const s = document.getElementById('dataset-select'); return s.options[s.selectedIndex].text; }
 // Converts a UTC epoch ms value to an EAT local time string (YYYY-MM-DD HH:MM:SS).
 // Plotly treats bare date strings as calendar-absolute (no browser-timezone conversion),
 // so this ensures timestamps always display in EAT regardless of the viewer's browser timezone.
@@ -1823,7 +1758,7 @@ function renderLineGraph() {
 
     const color = m.colors[loggerId];
     const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
-    const name = m.loggerNames[loggerId] + (isExtTT ? ' (TinyTag)' : '');
+    const name = m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
     const source = m.loggerSources[loggerId] || '';
     const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
     const freqLabel = state.historicMode
@@ -1930,12 +1865,12 @@ function renderLineGraph() {
   const yTitle  = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
   const ySuffix = hasTemp && hasHum ? '' : hasTemp ? '\u00b0C' : '%RH';
   const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
-  const dsLabel = document.getElementById('dataset-select').options[document.getElementById('dataset-select').selectedIndex].text;
+  const dsl = dsLabel();
   const sm = window.innerWidth < 680;
 
   const plotTitle = state.historicMode
     ? 'Dar es Salaam \u2013 Historic and Projected Temperatures'
-    : `${dsLabel} \u2013 ${chartTitle}`;
+    : `${dsl} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
@@ -1999,8 +1934,9 @@ function renderHistogram() {
     if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
 
     const color = m.colors[loggerId];
-    const name = m.loggerNames[loggerId];
     const source = m.loggerSources[loggerId] || '';
+    const isExtTT = (m.externalLoggers || []).includes(loggerId) && source === 'TinyTag';
+    const name = m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
     let firstMetric = true;
 
     for (const metric of ['temperature', 'humidity']) {
@@ -2009,18 +1945,17 @@ function renderHistogram() {
       if (values.length === 0) continue;
       for (const v of values) { if (v < globalMin) globalMin = v; if (v > globalMax) globalMax = v; }
       const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
-      const suffix = (state.selectedMetrics.size > 1) ? ` (${unit})` : '';
       traces.push({
         x: values,
         type: 'histogram',
         histnorm: 'probability',
-        name: name + meteoSuffix(loggerId) + omniSuffix(source) + suffix,
+        name: name + meteoSuffix(loggerId) + omniSuffix(source),
         xbins: {size: 1},
         marker: {color, opacity: 0.85},
         legendgroup: loggerId,
         showlegend: firstMetric,
         meta: {loggerId},
-        hovertemplate: `${name}<br>%{x}${unit}: %{y:.1%} of readings<extra></extra>`,
+        hovertemplate: `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
       });
       firstMetric = false;
     }
@@ -2043,7 +1978,7 @@ function renderHistogram() {
         marker: {color, opacity: 0.75, line: {width: 1.5, color}},
         legendgroup: 'climate-' + s.id,
         meta: {loggerId: 'climate-' + s.id},
-        hovertemplate: `${s.label}<br>%{x}\u00b0C: %{y:.1%} of years<extra></extra>`,
+        hovertemplate: `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
       });
     });
   }
@@ -2053,7 +1988,7 @@ function renderHistogram() {
   const xTitle  = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
   const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity Distribution'
     : hasTemp ? 'Temperature Distribution' : 'Humidity Distribution';
-  const dsLabel = document.getElementById('dataset-select').options[document.getElementById('dataset-select').selectedIndex].text;
+  const dsl = dsLabel();
   const sm = window.innerWidth < 680;
 
   // Tick labels: stagger only when the x range exceeds 60 units (otherwise labels fit without stagger)
@@ -2106,7 +2041,79 @@ function renderHistogram() {
     barmode:'stack', shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: (`${dsLabel} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
+  }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
+}
+
+// ── Shared stats helpers (used by both histogram and comfort stats) ───────────
+function buildGapDropdown(ddId, wrapId, seriesInfo, allAvailableInfo, start, end, context) {
+  const periods = findCompletePeriods(seriesInfo, start, end, allAvailableInfo);
+  const hasAny = periods.primary.length > 0 || periods.secondary.length > 0 || periods.sourceGroups.length > 0;
+  if (!hasAny) return;
+  const dd = document.getElementById(ddId);
+  dd.innerHTML = '';
+  const ph = document.createElement('option');
+  ph.value = ''; ph.textContent = 'Jump to a complete period\u2026'; ph.disabled = true; ph.selected = true;
+  dd.appendChild(ph);
+  if (periods.primary.length > 0) {
+    const g1 = document.createElement('optgroup');
+    g1.label = 'Complete for all selected loggers';
+    periods.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g1.appendChild(o); });
+    dd.appendChild(g1);
+  }
+  if (periods.secondary.length > 0) {
+    const g2 = document.createElement('optgroup');
+    const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+    g2.label = `Other complete ${gl} (all loggers)`;
+    periods.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g2.appendChild(o); });
+    dd.appendChild(g2);
+  }
+  for (const sg of periods.sourceGroups) {
+    if (sg.primary.length > 0) {
+      const g = document.createElement('optgroup');
+      g.label = `Complete for ${sg.source} loggers (${sg.count})`;
+      sg.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
+      dd.appendChild(g);
+    }
+    if (sg.secondary.length > 0) {
+      const g = document.createElement('optgroup');
+      const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+      g.label = `Other ${gl} \u2013 ${sg.source} only`;
+      sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
+      dd.appendChild(g);
+    }
+  }
+  dd.onchange = function() { if (!this.value) return; navigateToPeriod(JSON.parse(this.value), context); };
+  document.getElementById(wrapId).classList.remove('hidden');
+}
+
+function renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end) {
+  const m = dataset().meta;
+  roomStats.forEach(({id, name, pct, hasGap}) => {
+    const div = document.createElement('div');
+    div.className = 'room-item' + (hasGap ? ' has-gap' : '');
+    const src = (m.loggerSources && m.loggerSources[id]) || '';
+    const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
+    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '\u2014';
+    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>`;
+    const hoverHTML = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' \u00b7 ' + idStr : ''}</div>`;
+    div.innerHTML = normalHTML;
+    if (hasGap) {
+      div.addEventListener('mouseenter', () => {
+        gapTip.innerHTML = gapTooltipHTML(gapInfoMap[id], start, end);
+        gapTip.style.display = 'block';
+        const rect = div.getBoundingClientRect();
+        let left = rect.right + 8;
+        if (left + 280 > window.innerWidth) left = rect.left - 288;
+        gapTip.style.left = Math.max(4, left) + 'px';
+        gapTip.style.top = Math.max(4, rect.top) + 'px';
+      });
+      div.addEventListener('mouseleave', () => { gapTip.style.display = 'none'; });
+    } else {
+      div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
+      div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
+    }
+    grid.appendChild(div);
+  });
 }
 
 // ── Histogram stats ──────────────────────────────────────────────────────────
@@ -2167,75 +2174,10 @@ function updateHistogramStats(start, end) {
     warnDiv.classList.remove('hidden');
     warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
-    // Build allAvailableInfo from ALL non-external histogram loggers for source-group fallback
     const allAvailableInfo = m.loggers.filter(id => !extSet.has(id) && histSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
-    const periods = findCompletePeriods(seriesInfo, start, end, allAvailableInfo);
-    const hasAny = periods.primary.length > 0 || periods.secondary.length > 0 || periods.sourceGroups.length > 0;
-    if (hasAny) {
-      const dd = document.getElementById('hist-gap-dropdown');
-      dd.innerHTML = '';
-      const ph = document.createElement('option');
-      ph.value = ''; ph.textContent = 'Jump to a complete period\u2026'; ph.disabled = true; ph.selected = true;
-      dd.appendChild(ph);
-      if (periods.primary.length > 0) {
-        const g1 = document.createElement('optgroup');
-        g1.label = 'Complete for all selected loggers';
-        periods.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g1.appendChild(o); });
-        dd.appendChild(g1);
-      }
-      if (periods.secondary.length > 0) {
-        const g2 = document.createElement('optgroup');
-        const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
-        g2.label = `Other complete ${gl} (all loggers)`;
-        periods.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g2.appendChild(o); });
-        dd.appendChild(g2);
-      }
-      for (const sg of periods.sourceGroups) {
-        if (sg.primary.length > 0) {
-          const g = document.createElement('optgroup');
-          g.label = `Complete for ${sg.source} loggers (${sg.count})`;
-          sg.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
-          dd.appendChild(g);
-        }
-        if (sg.secondary.length > 0) {
-          const g = document.createElement('optgroup');
-          const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
-          g.label = `Other ${gl} \u2013 ${sg.source} only`;
-          sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
-          dd.appendChild(g);
-        }
-      }
-      dd.onchange = function() { if (!this.value) return; navigateToPeriod(JSON.parse(this.value), 'histogram'); };
-      dropWrap.classList.remove('hidden');
-    }
+    buildGapDropdown('hist-gap-dropdown', 'hist-gap-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'histogram');
   }
-  // Render boxes
-  roomStats.forEach(({id, name, pct, hasGap}) => {
-    const div = document.createElement('div');
-    div.className = 'room-item' + (hasGap ? ' has-gap' : '');
-    const src = (m.loggerSources && m.loggerSources[id]) || '';
-    const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
-    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '\u2014';
-    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>`;
-    const hoverHTML = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' \u00b7 ' + idStr : ''}</div>`;
-    div.innerHTML = normalHTML;
-    if (hasGap) {
-      div.addEventListener('mouseenter', () => {
-        gapTip.innerHTML = gapTooltipHTML(gapInfoMap[id], start, end);
-        gapTip.style.display = 'block';
-        const rect = div.getBoundingClientRect();
-        let left = rect.right + 8;
-        if (left + 280 > window.innerWidth) left = rect.left - 288;
-        gapTip.style.left = Math.max(4, left) + 'px';
-        gapTip.style.top = Math.max(4, rect.top) + 'px';
-      });
-      div.addEventListener('mouseleave', () => { gapTip.style.display = 'none'; });
-    } else {
-      div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
-      div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
-    }
-    grid.appendChild(div);
-  });
+  renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end);
 }
 
 // ── Adaptive comfort ──────────────────────────────────────────────────────────
@@ -2269,7 +2211,7 @@ function renderAdaptiveComfort() {
     // Legend-only trace with larger, visible marker
     traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
       name:cName, marker:{color:m.colors[loggerId], size:10, opacity:0.8, symbol:'square', line:{width:0}},
-      legendgroup:loggerId, showlegend:true, hoverinfo:'skip'});
+      legendgroup:loggerId, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
   }
 
   if (params && allExtTemps.length > 0) {
@@ -2307,7 +2249,7 @@ function renderAdaptiveComfort() {
 
   updateComfortStats(start, end, params);
   const sm = window.innerWidth < 680;
-  const dsLabel = document.getElementById('dataset-select').options[document.getElementById('dataset-select').selectedIndex].text;
+  const dsl = dsLabel();
 
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
@@ -2316,7 +2258,7 @@ function renderAdaptiveComfort() {
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false)] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: `${dsLabel} \u2013 Adaptive Comfort`};
+  }, title: `${dsl} \u2013 Adaptive Comfort`};
 }
 
 // ── Data completeness detection ───────────────────────────────────────────────
@@ -2324,20 +2266,11 @@ const GAP_DETECT_MS = 24 * 3600 * 1000;
 
 function detectSeriesGaps(ts, startMs, endMs) {
   const gaps = [];
-  if (!ts || ts.length === 0) {
-    gaps.push({startMs, endMs, days: Math.max(1, Math.round((endMs - startMs) / 86400000))});
-    return gaps;
-  }
-  let lo = 0, hi = ts.length - 1;
-  while (lo < hi) { const mid = (lo+hi)>>1; ts[mid] < startMs ? lo = mid+1 : hi = mid; }
-  const s = lo;
-  lo = 0; hi = ts.length - 1;
-  while (lo < hi) { const mid = (lo+hi+1)>>1; ts[mid] > endMs ? hi = mid-1 : lo = mid; }
-  const e = lo;
-  if (s > e || ts[s] > endMs || ts[e] < startMs) {
-    gaps.push({startMs, endMs, days: Math.max(1, Math.round((endMs - startMs) / 86400000))});
-    return gaps;
-  }
+  const wholeRange = {startMs, endMs, days: Math.max(1, Math.round((endMs - startMs) / 86400000))};
+  if (!ts || ts.length === 0) { gaps.push(wholeRange); return gaps; }
+  const r = tsRange(ts, startMs, endMs);
+  if (!r) { gaps.push(wholeRange); return gaps; }
+  const {s, e} = r;
   if (ts[s] - startMs >= GAP_DETECT_MS)
     gaps.push({startMs, endMs: ts[s], days: Math.max(1, Math.round((ts[s] - startMs) / 86400000))});
   for (let i = s + 1; i <= e; i++) {
@@ -2352,13 +2285,9 @@ function detectSeriesGaps(ts, startMs, endMs) {
 
 function hasGapsInRange(ts, startMs, endMs) {
   if (!ts || ts.length === 0) return true;
-  let lo = 0, hi = ts.length - 1;
-  while (lo < hi) { const mid = (lo+hi)>>1; ts[mid] < startMs ? lo = mid+1 : hi = mid; }
-  const s = lo;
-  lo = 0; hi = ts.length - 1;
-  while (lo < hi) { const mid = (lo+hi+1)>>1; ts[mid] > endMs ? hi = mid-1 : lo = mid; }
-  const e = lo;
-  if (s > e || ts[s] > endMs || ts[e] < startMs) return true;
+  const r = tsRange(ts, startMs, endMs);
+  if (!r) return true;
+  const {s, e} = r;
   if (ts[s] - startMs >= GAP_DETECT_MS) return true;
   for (let i = s + 1; i <= e; i++) { if (ts[i] - ts[i-1] >= GAP_DETECT_MS) return true; }
   return endMs - ts[e] >= GAP_DETECT_MS;
@@ -2510,6 +2439,8 @@ function findCompletePeriods(seriesInfo, rangeStart, rangeEnd, allAvailableInfo)
 }
 
 function navigateToPeriod(p, context) {
+  document.getElementById('gap-tip').style.display = 'none';
+  document.getElementById('hist-gap-tip').style.display = 'none';
   ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
     document.getElementById(id).classList.add('hidden'));
   if (p.gran === 'year') {
@@ -2549,8 +2480,8 @@ function navigateToPeriod(p, context) {
       });
     } else if (context === 'comfort') {
       const roomDiv = document.getElementById('room-logger-checkboxes');
-      const roomIds = m.roomLoggers || [];
-      roomIds.forEach(id => {
+      const comfortIds = m.comfortLoggers || m.roomLoggers || [];
+      comfortIds.forEach(id => {
         const match = m.loggerSources[id] === p.sourceType;
         if (match) state.selectedRoomLoggers.add(id); else state.selectedRoomLoggers.delete(id);
         const cb = roomDiv.querySelector(`input[data-logger-id="${id}"]`);
@@ -2618,76 +2549,11 @@ function updateComfortStats(start, end, params) {
     warnDiv.classList.remove('hidden');
     warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
-    // Build allAvailableInfo from ALL comfort loggers for source-group fallback
     const allComfortLoggers = m.comfortLoggers || m.roomLoggers || [];
     const allAvailableInfo = allComfortLoggers.filter(id => dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
-    const periods = findCompletePeriods(seriesInfo, start, end, allAvailableInfo);
-    const hasAny = periods.primary.length > 0 || periods.secondary.length > 0 || periods.sourceGroups.length > 0;
-    if (hasAny) {
-      const dd = document.getElementById('gap-dropdown');
-      dd.innerHTML = '';
-      const ph = document.createElement('option');
-      ph.value = ''; ph.textContent = 'Jump to a complete period\u2026'; ph.disabled = true; ph.selected = true;
-      dd.appendChild(ph);
-      if (periods.primary.length > 0) {
-        const g1 = document.createElement('optgroup');
-        g1.label = 'Complete for all selected loggers';
-        periods.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g1.appendChild(o); });
-        dd.appendChild(g1);
-      }
-      if (periods.secondary.length > 0) {
-        const g2 = document.createElement('optgroup');
-        const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
-        g2.label = `Other complete ${gl} (all loggers)`;
-        periods.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g2.appendChild(o); });
-        dd.appendChild(g2);
-      }
-      for (const sg of periods.sourceGroups) {
-        if (sg.primary.length > 0) {
-          const g = document.createElement('optgroup');
-          g.label = `Complete for ${sg.source} loggers (${sg.count})`;
-          sg.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
-          dd.appendChild(g);
-        }
-        if (sg.secondary.length > 0) {
-          const g = document.createElement('optgroup');
-          const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
-          g.label = `Other ${gl} \u2013 ${sg.source} only`;
-          sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
-          dd.appendChild(g);
-        }
-      }
-      dd.onchange = function() { if (!this.value) return; navigateToPeriod(JSON.parse(this.value), 'comfort'); };
-      dropWrap.classList.remove('hidden');
-    }
+    buildGapDropdown('gap-dropdown', 'gap-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'comfort');
   }
-  // Render room boxes
-  roomStats.forEach(({id, name, pct, hasGap}) => {
-    const div = document.createElement('div');
-    div.className = 'room-item' + (hasGap ? ' has-gap' : '');
-    const src = (m.loggerSources && m.loggerSources[id]) || '';
-    const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
-    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '\u2014';
-    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>`;
-    const hoverHTML = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' \u00b7 ' + idStr : ''}</div>`;
-    div.innerHTML = normalHTML;
-    if (hasGap) {
-      div.addEventListener('mouseenter', () => {
-        gapTip.innerHTML = gapTooltipHTML(gapInfoMap[id], start, end);
-        gapTip.style.display = 'block';
-        const rect = div.getBoundingClientRect();
-        let left = rect.right + 8;
-        if (left + 280 > window.innerWidth) left = rect.left - 288;
-        gapTip.style.left = Math.max(4, left) + 'px';
-        gapTip.style.top = Math.max(4, rect.top) + 'px';
-      });
-      div.addEventListener('mouseleave', () => { gapTip.style.display = 'none'; });
-    } else {
-      div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
-      div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
-    }
-    grid.appendChild(div);
-  });
+  renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end);
 }
 
 // ── Legend style helper - scales font/gap based on number of visible items ─────
