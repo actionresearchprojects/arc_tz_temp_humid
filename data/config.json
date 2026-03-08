@@ -1,6 +1,9 @@
 {
   "house5": {
     "loggers": {
+      "639148": {
+        "external_source": "861011"
+      },
       "759489": {
         "showInComfort": false
       },
@@ -20,6 +23,9 @@
         "external_source": "320E02D1"
       },
       "3276028A": {
+        "external_source": "320E02D1"
+      },
+      "3276003D": {
         "external_source": "320E02D1"
       }
     }
