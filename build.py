@@ -442,28 +442,65 @@ def load_dataset(key):
 
 
 # ── Running mean ───────────────────────────────────────────────────────────────
-def compute_exponential_running_mean(df, external_logger, alpha=0.8):
-    """EN 15251 exponential running mean of daily external temperatures."""
-    ext = df[df["logger_id"] == external_logger][["temperature"]].copy()
-    if ext.empty:
+def compute_exponential_running_mean(df, primary_logger, fallback_loggers, alpha=0.8):
+    """EN 15251 exponential running mean of daily external temperatures.
+    Uses primary_logger for daily means, falling back to fallback_loggers for missing days."""
+    
+    # Get primary daily means
+    prim_df = df[df["logger_id"] == primary_logger]
+    if prim_df.empty:
+        prim_daily = pd.Series(dtype=float)
+    else:
+        # Select numeric column before mean to avoid TypeError with logger_id strings
+        prim_daily = prim_df["temperature"].resample("D").mean().dropna()
+
+    # Get fallback daily means (merge all fallbacks first)
+    fb_df = df[df["logger_id"].isin(fallback_loggers)]
+    if fb_df.empty:
+        fb_daily = pd.Series(dtype=float)
+    else:
+        fb_daily = fb_df["temperature"].resample("D").mean().dropna()
+
+    if prim_daily.empty and fb_daily.empty:
         return pd.Series(dtype=float)
 
-    daily = ext.resample("D").mean()["temperature"].dropna()
-    if len(daily) == 0:
+    # Combine: use primary if available, else fallback
+    # Join on index to ensure we have all possible days
+    if prim_daily.empty:
+        combined = fb_daily
+    elif fb_daily.empty:
+        combined = prim_daily
+    else:
+        all_days = prim_daily.index.union(fb_daily.index)
+        combined = pd.Series(index=all_days, dtype=float)
+        # Fill with fallback first, then overwrite with primary where available
+        combined.update(fb_daily)
+        combined.update(prim_daily)
+    
+    combined = combined.dropna()
+
+    if len(combined) == 0:
         return pd.Series(dtype=float)
 
-    trm = [daily.iloc[0]]
-    for i in range(1, len(daily)):
-        trm.append((1 - alpha) * daily.iloc[i - 1] + alpha * trm[-1])
+    trm = [combined.iloc[0]]
+    for i in range(1, len(combined)):
+        trm.append((1 - alpha) * combined.iloc[i - 1] + alpha * trm[-1])
 
-    trm_series = pd.Series(trm, index=daily.index, name="running_mean")
+    trm_series = pd.Series(trm, index=combined.index, name="running_mean")
     return trm_series.resample("h").ffill()
 
 
 # ── JSON builder ───────────────────────────────────────────────────────────────
-def build_dataset_json(key, df):
+def build_dataset_json(key, df, external_override=None):
     cfg = DATASETS[key]
-    external_logger = cfg["external_logger"]
+    # Primary external source for adaptive comfort
+    external_logger = external_override or cfg["external_logger"]
+    
+    # Fallback loggers are always the Open-Meteo set
+    fallback_loggers = [l for l in cfg.get("external_sensors", []) if l in OPENMETEO_IDS]
+    if not fallback_loggers and external_logger in OPENMETEO_IDS:
+        fallback_loggers = [external_logger]
+
     ext_sensor_set = set(cfg.get("external_sensors", [external_logger] if external_logger else []))
     unique_loggers = sorted(df["logger_id"].unique())
     sidebar_order = cfg.get("sidebar_order", [])
@@ -473,7 +510,10 @@ def build_dataset_json(key, df):
 
     # Validate external logger exists in data
     if external_logger not in unique_loggers:
-        external_logger = None
+        # If override is invalid, fall back to default
+        external_logger = cfg["external_logger"]
+        if external_logger not in unique_loggers:
+            external_logger = None
 
     # Room loggers (ordered by sidebar_order if available)
     if cfg["room_loggers"] is not None:
@@ -523,7 +563,7 @@ def build_dataset_json(key, df):
         }
 
     running_mean = (
-        compute_exponential_running_mean(df, external_logger)
+        compute_exponential_running_mean(df, external_logger, fallback_loggers)
         if external_logger else pd.Series(dtype=float)
     )
 
@@ -587,6 +627,7 @@ def build_dataset_json(key, df):
         },
         "series": series,
     }
+
 
 
 # ── HTML template ──────────────────────────────────────────────────────────────
@@ -2813,9 +2854,10 @@ def generate_loggers_manifest(all_data):
                 "showInComfort":  lid in comfort_set,
             })
         manifest[key] = {
-            "label":         DATASETS[key]["label"],
-            "hasCategories": has_categories,
-            "loggers":       loggers,
+            "label":           DATASETS[key]["label"],
+            "hasCategories":   has_categories,
+            "externalLoggers": meta.get("externalLoggers", []),
+            "loggers":         loggers,
         }
     return manifest
 
@@ -2827,6 +2869,15 @@ def main():
                         dest="auto",
                         help="Rebuild using sensor snapshot + fresh Open-Meteo/Omnisense data (no .xlsx sensor files needed)")
     args = parser.parse_args()
+
+    # Load runtime user overrides from config.json (if it exists)
+    user_config = {}
+    config_path = DATA_FOLDER / "config.json"
+    if config_path.exists():
+        try:
+            user_config = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"  Warning: could not load config.json: {e}")
 
     all_data = {}
 
@@ -2893,7 +2944,8 @@ def main():
                 df = df[~df["logger_id"].isin(exclude)]
             print(f"Processing {cfg['label']}...")
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
-            all_data[key] = build_dataset_json(key, df)
+            ext_override = user_config.get(key, {}).get("external_source")
+            all_data[key] = build_dataset_json(key, df, external_override=ext_override)
     else:
         # Full build: load everything from source files
         datasets_dfs = {}
@@ -2904,11 +2956,13 @@ def main():
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
             print(f"  {df.index.min().date()} → {df.index.max().date()}")
             print("  Processing...")
-            all_data[key] = build_dataset_json(key, df)
+            ext_override = user_config.get(key, {}).get("external_source")
+            all_data[key] = build_dataset_json(key, df, external_override=ext_override)
 
         # Save sensor snapshot for future --auto builds
         print("Saving sensor snapshot...")
         save_sensor_snapshot(datasets_dfs)
+
 
     print("Loading climate data...")
     historic = load_copernicus_climate_data()
