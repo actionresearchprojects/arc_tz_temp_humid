@@ -1599,6 +1599,30 @@ function setupStaticListeners() {
       g.appendChild(makeTxt('#222', null, 0));
       (infolayer || doc.documentElement).appendChild(g);
     }
+    // Shared: append grey ID codes next to legend items in an exported SVG doc
+    function injectLegendIDCodes(doc) {
+      const chartEl = document.getElementById('chart');
+      const plotData = (chartEl && chartEl.data) ? chartEl.data : [];
+      const legendTraces = plotData.filter(t => t.showlegend !== false);
+      const ns = 'http://www.w3.org/2000/svg';
+      doc.querySelectorAll('.legendtext').forEach((textEl, idx) => {
+        const trace = legendTraces[idx];
+        if (!trace || !trace.meta || !trace.meta.loggerId) return;
+        const lid = trace.meta.loggerId;
+        if (isOpenMeteo(lid) || lid === 'govee' || lid.startsWith('climate-')) return;
+        // Convert existing plain-text content into a tspan so we can append alongside it
+        const existing = textEl.textContent;
+        while (textEl.firstChild) textEl.removeChild(textEl.firstChild);
+        const t1 = doc.createElementNS(ns, 'tspan');
+        t1.textContent = existing;
+        textEl.appendChild(t1);
+        const t2 = doc.createElementNS(ns, 'tspan');
+        t2.setAttribute('fill', '#aaaaaa');
+        t2.setAttribute('font-size', '0.85em');
+        t2.textContent = ' \u00B7 ' + lid;
+        textEl.appendChild(t2);
+      });
+    }
     // Shared: finish canvas → PNG download
     function canvasToPNG(canvas) {
       canvas.toBlob(blob => {
@@ -1618,6 +1642,7 @@ function setupStaticListeners() {
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGTitle(doc, W);
         injectSVGWatermark(doc, W, H, 1.0);
+        injectLegendIDCodes(doc);
         unlockLegendScroll(doc.documentElement);
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
@@ -1645,7 +1670,13 @@ function setupStaticListeners() {
         doRestore();
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGWatermark(doc, W, H, isComfort ? 0.8 : 1.0);
-        if (!isComfort) unlockLegendScroll(doc.documentElement);
+        if (!isComfort) {
+          injectLegendIDCodes(doc);
+          unlockLegendScroll(doc.documentElement);
+        } else {
+          injectLegendIDCodes(doc);
+          expandHorizontalLegendSpacing(doc.documentElement, 80);
+        }
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
     }
@@ -2618,6 +2649,20 @@ function legendStyle(n) {
   return {font:{size: Math.round(11 - 3*t)}, tracegroupgap: Math.round(10*(1-t))};
 }
 
+// ── After Plotly renders, re-apply legend font based on actual DOM item count ───
+// Re-runs unlockLegendScroll after the relayout resolves, since Plotly re-renders
+// the legend SVG (restoring scroll clips) whenever legend properties change.
+function applyLegendStyleFromDOM(root) {
+  if (!root) return;
+  const legend = root.querySelector ? root.querySelector('.legend') : null;
+  if (!legend) return;
+  const n = legend.querySelectorAll('.traces').length;
+  if (!n) return;
+  const {font, tracegroupgap} = legendStyle(n);
+  Plotly.relayout(root.id, {'legend.font.size': font.size, 'legend.tracegroupgap': tracegroupgap})
+    .then(() => unlockLegendScroll(root));
+}
+
 // ── Remove Plotly legend scroll clip and compact vertical spacing ───────────────
 // Plotly renders every legend item in the SVG DOM but hides overflow ones with a
 // clip-path. We remove it and repack items tighter so they all fit.
@@ -2642,6 +2687,30 @@ function unlockLegendScroll(root) {
   if (dy <= 8) return; // already tight enough
   const newDy = Math.max(8, dy - 2); // reduce by 2px per item
   items.forEach((item, i) => item.setAttribute('transform', `translate(${x0}, ${y0 + i * newDy})`));
+}
+
+// Increase horizontal spacing between legend items for horizontal legends (PNG export)
+function expandHorizontalLegendSpacing(root, extraGap) {
+  if (!root) return;
+  const legend = root.querySelector ? root.querySelector('.legend') : null;
+  if (!legend) return;
+  legend.querySelectorAll('[clip-path]').forEach(el => el.removeAttribute('clip-path'));
+  const items = Array.from(legend.querySelectorAll('g.traces'));
+  if (items.length < 2) return;
+  const getTransform = el => {
+    const t = el.getAttribute('transform') || '';
+    const m = t.match(/translate\(([^,]+)[,\s]+([^)]+)/);
+    return m ? {x: parseFloat(m[1]), y: parseFloat(m[2])} : {x: 0, y: 0};
+  };
+  const first = getTransform(items[0]);
+  const second = getTransform(items[1]);
+  const dx = second.x - first.x;
+  const dy = second.y - first.y;
+  if (dx <= 0) return;
+  const newDx = dx + extraGap;
+  items.forEach((item, i) => {
+    item.setAttribute('transform', `translate(${first.x + i * newDx}, ${first.y})`);
+  });
 }
 
 // ── Main update ───────────────────────────────────────────────────────────────
@@ -2683,7 +2752,11 @@ function _doRender() {
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   document.getElementById('chart').on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
   requestAnimationFrame(setupLegendTooltips);
-  requestAnimationFrame(() => unlockLegendScroll(document.getElementById('chart')));
+  requestAnimationFrame(() => {
+    const chartEl = document.getElementById('chart');
+    unlockLegendScroll(chartEl);
+    applyLegendStyleFromDOM(chartEl);
+  });
   hideLoadingBar();
 
   const warn = document.getElementById('ext-data-warning');
