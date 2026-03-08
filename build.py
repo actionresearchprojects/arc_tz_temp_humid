@@ -706,6 +706,9 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .gap-tip .gap-entry { margin-bottom: 2px; }
 .gap-tip .gap-more { color: #ccc; font-style: italic; margin-top: 2px; }
 .gap-tip .gap-total { border-top: 1px solid #555; margin-top: 4px; padding-top: 4px; color: #f0c060; font-weight: 600; font-size: 10px; }
+.periodic-warning { font-size: 11px; line-height: 1.4; padding: 4px 6px; margin-bottom: 4px; border-radius: 4px; background: #f0f0f0; color: #666; }
+.periodic-warning.orange { background: #fff5e6; color: #8a6d20; border: 1px solid #e8a840; }
+.periodic-warning.red { background: #fde8e8; color: #a03030; border: 1px solid #e06060; }
 .hidden { display: none !important; }
 .sel-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
 .sel-btn:hover { background: #e8e8e8; }
@@ -768,6 +771,35 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label" id="humidity-label"><input type="checkbox" id="cb-humidity" checked> Humidity</label>
       </div>
       <hr class="divider">
+      <div class="section" id="periodic-options" style="display:none">
+        <div class="section-title">Period Settings</div>
+        <label class="cb-label" style="margin-bottom:6px;">
+          Period Type
+          <select id="period-type" style="margin-left:6px;font-size:12px;">
+            <option value="hour_of_day">Hour of Day</option>
+            <option value="month_of_year">Month of Year</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <div id="custom-period-controls" style="display:none;margin-top:6px;">
+          <label class="cb-label" style="margin-bottom:4px;">
+            Granularity
+            <select id="custom-granularity" style="margin-left:6px;font-size:12px;">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
+          </label>
+          <div style="font-size:11px;margin-top:4px;">
+            <div style="margin-bottom:3px;">Day range: <input id="custom-day-start" type="date" style="font-size:11px;"> – <input id="custom-day-end" type="date" style="font-size:11px;"></div>
+            <div style="margin-bottom:3px;">Week range: <input id="custom-week-start" type="week" style="font-size:11px;"> – <input id="custom-week-end" type="week" style="font-size:11px;"></div>
+            <div>Month range: <input id="custom-month-start" type="month" style="font-size:11px;"> – <input id="custom-month-end" type="month" style="font-size:11px;"></div>
+          </div>
+        </div>
+        <label class="cb-label" style="margin-top:6px;"><input type="checkbox" id="cb-overall-avg" checked> Overall Average</label>
+        <div id="periodic-warnings" style="margin-top:6px;"></div>
+      </div>
+      <hr class="divider" id="periodic-divider" style="display:none">
       <div class="section" id="line-options-section">
         <div class="section-title">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32°C Threshold</label>
@@ -849,6 +881,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="line">Line Graph</option>
             <option value="comfort">Adaptive Comfort</option>
             <option value="histogram">Histogram</option>
+            <option value="periodic">Periodic Averages</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -923,6 +956,15 @@ const state = {
   selectedHistoricSeries: new Set(),
   comfortModel: 'rh_gt_60',
   comfortPctMode: 'below_upper',
+  periodType: 'hour_of_day',
+  showOverallAvg: true,
+  customGranularity: 'month',
+  customDayStart: null,
+  customDayEnd: null,
+  customWeekStart: null,
+  customWeekEnd: null,
+  customMonthStart: null,
+  customMonthEnd: null,
   betweenStart: null,
   betweenEnd: null,
   selectedYear: null,
@@ -1125,6 +1167,22 @@ function loadDataset(key) {
   state.betweenStart = m.dateRange.min;
   state.betweenEnd = m.dateRange.max;
 
+  // Initialize custom period range defaults
+  const fmtMonth = ms => new Date(ms).toISOString().slice(0, 7);
+  state.customDayStart = fmt(m.dateRange.min);
+  state.customDayEnd = fmt(m.dateRange.max);
+  state.customWeekStart = fmt(m.dateRange.min);
+  state.customWeekEnd = fmt(m.dateRange.max);
+  state.customMonthStart = fmtMonth(m.dateRange.min);
+  state.customMonthEnd = fmtMonth(m.dateRange.max);
+  document.getElementById('custom-day-start').value = state.customDayStart;
+  document.getElementById('custom-day-end').value = state.customDayEnd;
+  document.getElementById('custom-week-start').value = state.customWeekStart;
+  document.getElementById('custom-week-end').value = state.customWeekEnd;
+  document.getElementById('custom-month-start').value = state.customMonthStart;
+  document.getElementById('custom-month-end').value = state.customMonthEnd;
+  document.getElementById('periodic-warnings').innerHTML = '';
+
   if (m.availableYears.length) {
     state.selectedYear = m.availableYears[m.availableYears.length - 1];
     ysel.value = state.selectedYear;
@@ -1267,6 +1325,7 @@ function setupStaticListeners() {
     const isLine = state.chartType === 'line';
     const isHistogram = state.chartType === 'histogram';
     const isComfort = state.chartType === 'comfort';
+    const isPeriodic = state.chartType === 'periodic';
     const m = dataset().meta;
     const syncRoomSet = new Set(m.roomLoggers || []);
     // Sync selections between line/histogram ↔ adaptive comfort (room loggers only; structural defaults off)
@@ -1292,7 +1351,15 @@ function setupStaticListeners() {
     document.getElementById('line-controls').classList.toggle('hidden', isComfort);
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
     document.getElementById('histogram-stats').classList.toggle('hidden', !isHistogram);
-    if (isHistogram) {
+    document.getElementById('periodic-options').style.display = isPeriodic ? '' : 'none';
+    document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
+    if (isPeriodic) {
+      document.getElementById('line-options-section').style.display = 'none';
+      document.getElementById('line-options-divider').style.display = 'none';
+      if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
+      document.getElementById('humidity-label').style.display = '';
+      document.getElementById('cb-seasons').parentElement.style.display = 'none';
+    } else if (isHistogram) {
       // Show options but hide season lines checkbox (not applicable to histogram)
       document.getElementById('line-options-section').style.display = '';
       document.getElementById('line-options-divider').style.display = '';
@@ -1383,6 +1450,35 @@ function setupStaticListeners() {
   document.getElementById('cb-density').addEventListener('change', e => {
     state.showDensity = e.target.checked; updatePlot();
   });
+
+  // Periodic averages controls
+  document.getElementById('period-type').addEventListener('change', e => {
+    state.periodType = e.target.value;
+    document.getElementById('custom-period-controls').classList.toggle('hidden', state.periodType !== 'custom');
+    if (state.periodType === 'custom') updateCustomRangeVisibility();
+    updatePlot();
+  });
+  document.getElementById('cb-overall-avg').addEventListener('change', e => {
+    state.showOverallAvg = e.target.checked; updatePlot();
+  });
+  document.getElementById('custom-granularity').addEventListener('change', e => {
+    state.customGranularity = e.target.value;
+    updateCustomRangeVisibility();
+    updatePlot();
+  });
+  function updateCustomRangeVisibility() {
+    const g = state.customGranularity;
+    document.getElementById('custom-range-day').classList.toggle('hidden', g !== 'day');
+    document.getElementById('custom-range-week').classList.toggle('hidden', g !== 'week');
+    document.getElementById('custom-range-month').classList.toggle('hidden', g !== 'month');
+  }
+  document.getElementById('custom-day-start').addEventListener('change', e => { state.customDayStart = e.target.value; updatePlot(); });
+  document.getElementById('custom-day-end').addEventListener('change', e => { state.customDayEnd = e.target.value; updatePlot(); });
+  document.getElementById('custom-week-start').addEventListener('change', e => { state.customWeekStart = e.target.value; updatePlot(); });
+  document.getElementById('custom-week-end').addEventListener('change', e => { state.customWeekEnd = e.target.value; updatePlot(); });
+  document.getElementById('custom-month-start').addEventListener('change', e => { state.customMonthStart = e.target.value; updatePlot(); });
+  document.getElementById('custom-month-end').addEventListener('change', e => { state.customMonthEnd = e.target.value; updatePlot(); });
+
   function rebuildYearDropdown() {
     const ysel = document.getElementById('year-select');
     const prev = ysel.value;
@@ -1519,7 +1615,7 @@ function setupStaticListeners() {
 
     const dsSel = document.getElementById('dataset-select');
     const ds = dsSel.options[dsSel.selectedIndex].text;
-    const chart = state.chartType === 'line' ? 'Line' : state.chartType === 'histogram' ? 'Histogram' : 'AdaptiveComfort';
+    const chart = state.chartType === 'line' ? 'Line' : state.chartType === 'histogram' ? 'Histogram' : state.chartType === 'periodic' ? 'PeriodicAvg' : 'AdaptiveComfort';
     let rangeStr = 'AllTime';
     const m = dataset().meta;
     const fmtDate = ms => new Date(ms).toISOString().slice(0,10);
@@ -1535,8 +1631,12 @@ function setupStaticListeners() {
       const modelSel = document.getElementById('comfort-model');
       modelStr = '_' + modelSel.options[modelSel.selectedIndex].text.replace(/\(Vellei et al\.\)/gi,'').replace(/[^a-zA-Z0-9%<>≤]/g,'').slice(0,20);
     }
+    if (state.chartType === 'periodic') {
+      const ptLabels = {hour_of_day:'HourOfDay', month_of_year:'MonthOfYear', custom:'Custom'};
+      modelStr = '_' + (ptLabels[state.periodType] || 'Period');
+    }
     let metricStr = '';
-    if (state.chartType === 'line' || state.chartType === 'histogram') {
+    if (state.chartType === 'line' || state.chartType === 'histogram' || state.chartType === 'periodic') {
       const metrics = [];
       if (state.selectedMetrics.has('temperature')) metrics.push('T');
       if (state.selectedMetrics.has('humidity')) metrics.push('RH');
@@ -1545,7 +1645,7 @@ function setupStaticListeners() {
     const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/,'');
     // Sensor selection: name 1–2 selected sensors, count if a partial subset, omit if all selected
     let sensorStr = '';
-    if (state.chartType === 'line' || state.chartType === 'histogram') {
+    if (state.chartType === 'line' || state.chartType === 'histogram' || state.chartType === 'periodic') {
       const selIds = [...state.selectedLoggers];
       const total = m.loggers.length;
       if (selIds.length === 0) sensorStr = '_NoSensors';
@@ -1599,7 +1699,9 @@ function setupStaticListeners() {
       g.appendChild(makeTxt('#222', null, 0));
       (infolayer || doc.documentElement).appendChild(g);
     }
-    // Shared: append grey ID codes next to legend items in an exported SVG doc
+    // Shared: append grey ID codes next to legend items in an exported SVG doc.
+    // If the ID is already embedded in the text (from a prior restyle), it splits
+    // at that point rather than duplicating it.
     function injectLegendIDCodes(doc) {
       const chartEl = document.getElementById('chart');
       const plotData = (chartEl && chartEl.data) ? chartEl.data : [];
@@ -1610,16 +1712,18 @@ function setupStaticListeners() {
         if (!trace || !trace.meta || !trace.meta.loggerId) return;
         const lid = trace.meta.loggerId;
         if (isOpenMeteo(lid) || lid === 'govee' || lid.startsWith('climate-')) return;
-        // Convert existing plain-text content into a tspan so we can append alongside it
-        const existing = textEl.textContent;
+        const suffix = ' \u00B7 ' + lid;
+        const rawText = textEl.textContent;
+        const splitAt = rawText.indexOf(suffix);
+        const baseName = splitAt >= 0 ? rawText.slice(0, splitAt) : rawText;
         while (textEl.firstChild) textEl.removeChild(textEl.firstChild);
         const t1 = doc.createElementNS(ns, 'tspan');
-        t1.textContent = existing;
+        t1.textContent = baseName;
         textEl.appendChild(t1);
         const t2 = doc.createElementNS(ns, 'tspan');
         t2.setAttribute('fill', '#aaaaaa');
         t2.setAttribute('font-size', '0.85em');
-        t2.textContent = ' \u00B7 ' + lid;
+        t2.textContent = suffix;
         textEl.appendChild(t2);
       });
     }
@@ -1660,23 +1764,40 @@ function setupStaticListeners() {
           images: origImages, annotations: origAnnotations,
         });
       }
-      Plotly.relayout('chart', {
+      // For comfort chart: temporarily embed IDs into trace names so Plotly
+      // computes proper horizontal legend spacing before we capture the SVG.
+      const liveData = chartEl.data || [];
+      const comfortIdxs = [], comfortOrigNames = [], comfortNewNames = [];
+      if (isComfort) {
+        liveData.forEach((trace, i) => {
+          if (trace.showlegend && trace.meta && trace.meta.loggerId) {
+            const lid = trace.meta.loggerId;
+            if (!isOpenMeteo(lid) && lid !== 'govee' && !lid.startsWith('climate-')) {
+              comfortIdxs.push(i);
+              comfortOrigNames.push(trace.name);
+              comfortNewNames.push(trace.name + ' \u00B7 ' + lid);
+            }
+          }
+        });
+      }
+      (isComfort && comfortIdxs.length > 0
+        ? Plotly.restyle('chart', {name: comfortNewNames}, comfortIdxs)
+        : Promise.resolve()
+      ).then(() => Plotly.relayout('chart', {
         'title.text': `<b>${_currentTitle}</b>`,
         'title.font.size': sm ? 12 : 14,
         'margin.t': pngTopMargin,
-      }).then(() => {
+      })).then(() => {
         return Plotly.toImage('chart', {format: 'svg', width: W, height: H});
       }).then(svgDataUrl => {
         doRestore();
+        if (isComfort && comfortIdxs.length > 0) {
+          Plotly.restyle('chart', {name: comfortOrigNames}, comfortIdxs);
+        }
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGWatermark(doc, W, H, isComfort ? 0.8 : 1.0);
-        if (!isComfort) {
-          injectLegendIDCodes(doc);
-          unlockLegendScroll(doc.documentElement);
-        } else {
-          injectLegendIDCodes(doc);
-          expandHorizontalLegendSpacing(doc.documentElement, 80);
-        }
+        injectLegendIDCodes(doc);
+        if (!isComfort) unlockLegendScroll(doc.documentElement);
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
     }
@@ -2381,7 +2502,11 @@ function hasGapsInRange(ts, startMs, endMs) {
 }
 
 function formatGapRange(startMs, endMs) {
-  const s = new Date(startMs + 3*3600000), e = new Date(endMs + 3*3600000);
+  let s = new Date(startMs + 3*3600000), e = new Date(endMs + 3*3600000);
+  // Mirror fmtDateEAT rounding: last reading before gap at ≥23:00 → gap starts next day;
+  // first reading after gap at <01:00 → gap ends previous day.
+  if (s.getUTCHours() >= 23) s = new Date(s.getTime() + 24*3600000);
+  if (e.getUTCHours() < 1)   e = new Date(e.getTime() - 24*3600000);
   const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   if (s.getUTCFullYear() === e.getUTCFullYear() && s.getUTCMonth() === e.getUTCMonth())
     return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}\u2013${e.getUTCDate()}, ${s.getUTCFullYear()}`;
@@ -2702,15 +2827,321 @@ function expandHorizontalLegendSpacing(root, extraGap) {
     const m = t.match(/translate\(([^,]+)[,\s]+([^)]+)/);
     return m ? {x: parseFloat(m[1]), y: parseFloat(m[2])} : {x: 0, y: 0};
   };
-  const first = getTransform(items[0]);
-  const second = getTransform(items[1]);
-  const dx = second.x - first.x;
-  const dy = second.y - first.y;
-  if (dx <= 0) return;
-  const newDx = dx + extraGap;
+  const positions = items.map(getTransform);
+  if (positions[1].x - positions[0].x <= 0) return; // vertical legend, don't adjust
+  // Group items by row (same y-coordinate), then shift each row's items independently
+  const rowMap = new Map();
   items.forEach((item, i) => {
-    item.setAttribute('transform', `translate(${first.x + i * newDx}, ${first.y})`);
+    const rowKey = Math.round(positions[i].y);
+    if (!rowMap.has(rowKey)) rowMap.set(rowKey, []);
+    rowMap.get(rowKey).push(i);
   });
+  rowMap.forEach(indices => {
+    indices.sort((a, b) => positions[a].x - positions[b].x);
+    let cumulative = 0;
+    indices.forEach((idx, j) => {
+      if (j > 0) cumulative += extraGap;
+      items[idx].setAttribute('transform', `translate(${positions[idx].x + cumulative}, ${positions[idx].y})`);
+    });
+  });
+}
+
+// ── Periodic Averages ─────────────────────────────────────────────────────────
+function eatDate(ms) { return new Date(ms + 3 * 3600 * 1000); }
+
+function roundToMonday(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const dow = d.getUTCDay();
+  const offset = dow === 0 ? 6 : dow - 1;
+  return new Date(d.getTime() - offset * 86400000).toISOString().slice(0, 10);
+}
+
+function buildCustomCategories() {
+  const gran = state.customGranularity;
+  const categories = [], labels = [];
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  if (gran === 'day') {
+    if (!state.customDayStart || !state.customDayEnd) return null;
+    let d = new Date(state.customDayStart + 'T00:00:00Z');
+    const endD = new Date(state.customDayEnd + 'T00:00:00Z');
+    if (d > endD) return null;
+    const dayMap = {};
+    let idx = 0;
+    while (d <= endD) {
+      const key = d.toISOString().slice(0, 10);
+      categories.push(idx); labels.push(key);
+      dayMap[key] = idx++;
+      d = new Date(d.getTime() + 86400000);
+    }
+    return { categories, labels, getIdx(ms) {
+      const key = eatDate(ms).toISOString().slice(0, 10);
+      const r = dayMap[key]; return r !== undefined ? r : -1;
+    }};
+  }
+
+  if (gran === 'week') {
+    const ws = roundToMonday(state.customWeekStart);
+    const we = roundToMonday(state.customWeekEnd);
+    if (!ws || !we) return null;
+    let d = new Date(ws + 'T00:00:00Z');
+    const endD = new Date(we + 'T00:00:00Z');
+    if (d > endD) return null;
+    const weekMap = {};
+    let idx = 0;
+    while (d <= endD) {
+      const key = d.toISOString().slice(0, 10);
+      categories.push(idx);
+      labels.push('Wk of ' + MN[d.getUTCMonth()] + ' ' + d.getUTCDate());
+      weekMap[key] = idx++;
+      d = new Date(d.getTime() + 7 * 86400000);
+    }
+    return { categories, labels, getIdx(ms) {
+      const eat = eatDate(ms);
+      const dow = eat.getUTCDay();
+      const off = dow === 0 ? 6 : dow - 1;
+      const key = new Date(eat.getTime() - off * 86400000).toISOString().slice(0, 10);
+      const r = weekMap[key]; return r !== undefined ? r : -1;
+    }};
+  }
+
+  if (gran === 'month') {
+    if (!state.customMonthStart || !state.customMonthEnd) return null;
+    const [sy, sm] = state.customMonthStart.split('-').map(Number);
+    const [ey, em] = state.customMonthEnd.split('-').map(Number);
+    if (isNaN(sy) || isNaN(sm) || isNaN(ey) || isNaN(em)) return null;
+    if (sy > ey || (sy === ey && sm > em)) return null;
+    const monthMap = {};
+    let idx = 0, y = sy, mo = sm;
+    while (y < ey || (y === ey && mo <= em)) {
+      const key = y + '-' + String(mo).padStart(2, '0');
+      categories.push(idx);
+      labels.push(MN[mo - 1] + ' ' + y);
+      monthMap[key] = idx++;
+      mo++; if (mo > 12) { mo = 1; y++; }
+    }
+    return { categories, labels, getIdx(ms) {
+      const eat = eatDate(ms);
+      const key = eat.getUTCFullYear() + '-' + String(eat.getUTCMonth() + 1).padStart(2, '0');
+      const r = monthMap[key]; return r !== undefined ? r : -1;
+    }};
+  }
+  return null;
+}
+
+function updatePeriodicWarnings(warningInfos) {
+  const container = document.getElementById('periodic-warnings');
+  container.innerHTML = '';
+  if (warningInfos.length === 0) return;
+  warningInfos.forEach(w => {
+    const div = document.createElement('div');
+    div.className = 'periodic-warning';
+    if (w.pct >= 100) div.classList.add('red');
+    else if (w.pct > 80) div.classList.add('orange');
+    div.innerHTML = '<b>' + w.name + '</b> (' + w.metric + '): ' + w.pct.toFixed(0) + '% of categories based on single readings';
+    container.appendChild(div);
+  });
+}
+
+function emptyPeriodicResult() {
+  const sm = window.innerWidth < 680;
+  return {
+    traces: [],
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
+      xaxis: {showgrid: false, zeroline: false, showticklabels: false},
+      yaxis: {showgrid: false, zeroline: false, showticklabels: false},
+      annotations: [{text: 'No data in selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+    },
+    title: dsLabel() + ' \u2013 Periodic Averages',
+  };
+}
+
+function renderPeriodicAverages() {
+  const {start, end} = getTimeRange();
+  const m = dataset().meta;
+  const traces = [];
+  const lineSet = new Set(m.lineLoggers || m.loggers);
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let nCats, categoryLabels, getCategoryIdx;
+  switch (state.periodType) {
+    case 'hour_of_day':
+      nCats = 24;
+      categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
+      getCategoryIdx = ms => eatDate(ms).getUTCHours();
+      break;
+    case 'month_of_year':
+      nCats = 12;
+      categoryLabels = MN;
+      getCategoryIdx = ms => eatDate(ms).getUTCMonth();
+      break;
+    case 'custom': {
+      const custom = buildCustomCategories();
+      if (!custom || custom.categories.length === 0) {
+        updatePeriodicWarnings([]);
+        return emptyPeriodicResult();
+      }
+      nCats = custom.categories.length;
+      categoryLabels = custom.labels;
+      getCategoryIdx = custom.getIdx;
+      break;
+    }
+    default:
+      nCats = 24;
+      categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
+      getCategoryIdx = ms => eatDate(ms).getUTCHours();
+  }
+
+  if (nCats === 0) { updatePeriodicWarnings([]); return emptyPeriodicResult(); }
+
+  // Section accumulators (typed arrays for performance)
+  const sections = {
+    external: {tempSum: new Float64Array(nCats), tempN: new Int32Array(nCats), humSum: new Float64Array(nCats), humN: new Int32Array(nCats)},
+    room:     {tempSum: new Float64Array(nCats), tempN: new Int32Array(nCats), humSum: new Float64Array(nCats), humN: new Int32Array(nCats)},
+    structural:{tempSum: new Float64Array(nCats), tempN: new Int32Array(nCats), humSum: new Float64Array(nCats), humN: new Int32Array(nCats)},
+  };
+  const warningInfos = [];
+  let hasAnyData = false;
+  const extSet = new Set(m.externalLoggers || []);
+  const roomSet = new Set(m.roomLoggers || []);
+  const structSet = new Set(m.structuralLoggers || []);
+
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!lineSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    const filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+
+    const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
+    const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
+    const sec = extSet.has(loggerId) ? sections.external : roomSet.has(loggerId) ? sections.room : sections.structural;
+
+    for (let i = 0; i < filtered.timestamps.length; i++) {
+      const ci = getCategoryIdx(filtered.timestamps[i]);
+      if (ci < 0 || ci >= nCats) continue;
+      const t = filtered.temperature[i], h = filtered.humidity[i];
+      if (t != null) { tempSum[ci] += t; tempN[ci]++; sec.tempSum[ci] += t; sec.tempN[ci]++; }
+      if (h != null) { humSum[ci] += h; humN[ci]++; sec.humSum[ci] += h; sec.humN[ci]++; }
+    }
+
+    const color = m.colors[loggerId];
+    const source = m.loggerSources[loggerId] || '';
+    const isExtTT = extSet.has(loggerId) && source === 'TinyTag';
+    const logName = m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+    const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
+    let firstMetric = true;
+
+    for (const metric of ['temperature', 'humidity']) {
+      if (!state.selectedMetrics.has(metric)) continue;
+      const sums = metric === 'temperature' ? tempSum : humSum;
+      const counts = metric === 'temperature' ? tempN : humN;
+      const x = [], y = [];
+      let singlePointCats = 0, catsWithData = 0;
+
+      for (let ci = 0; ci < nCats; ci++) {
+        x.push(categoryLabels[ci]);
+        if (counts[ci] > 0) {
+          y.push(+(sums[ci] / counts[ci]).toFixed(2));
+          catsWithData++; hasAnyData = true;
+          if (counts[ci] === 1) singlePointCats++;
+        } else {
+          y.push(null);
+        }
+      }
+      if (catsWithData === 0) { firstMetric = false; continue; }
+
+      const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
+      const metricName = metric === 'temperature' ? 'Avg temp' : 'Avg humidity';
+      traces.push({
+        x, y, type: 'scatter', mode: 'lines+markers',
+        name: logName + meteoSuffix(loggerId) + omniSuffix(source),
+        line: {color, width: 2}, marker: {size: 5},
+        connectgaps: false, legendgroup: loggerId, showlegend: firstMetric,
+        meta: {loggerId},
+        hovertemplate: m.loggerNames[loggerId] + '<br>%{x}<br>' + metricName + ': %{y:.1f}' + unit + '<br>Source: ' + source + idLabel + '<extra></extra>',
+      });
+      firstMetric = false;
+
+      // Data quality warning: >50% of categories with single-point averages
+      const singlePct = nCats > 0 ? singlePointCats / nCats * 100 : 0;
+      if (singlePct > 50) {
+        warningInfos.push({loggerId, name: m.loggerNames[loggerId], metric, pct: singlePct});
+      }
+    }
+  }
+
+  // Section average lines (External, Room, Structural)
+  if (state.showOverallAvg && hasAnyData) {
+    const sectionDefs = [
+      {key: 'external', name: 'External Avg', color: '#1a1a1a'},
+      {key: 'room', name: 'Room Avg', color: '#333399'},
+      {key: 'structural', name: 'Structural Avg', color: '#663300'},
+    ];
+    for (const sd of sectionDefs) {
+      const s = sections[sd.key];
+      for (const metric of ['temperature', 'humidity']) {
+        if (!state.selectedMetrics.has(metric)) continue;
+        const sums = metric === 'temperature' ? s.tempSum : s.humSum;
+        const counts = metric === 'temperature' ? s.tempN : s.humN;
+        const x = [], y = [];
+        let anyVal = false;
+        for (let ci = 0; ci < nCats; ci++) {
+          x.push(categoryLabels[ci]);
+          if (counts[ci] > 0) { y.push(+(sums[ci] / counts[ci]).toFixed(2)); anyVal = true; }
+          else y.push(null);
+        }
+        if (!anyVal) continue;
+        const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
+        const label = state.selectedMetrics.size > 1
+          ? sd.name + ' (' + (metric === 'temperature' ? 'temp' : 'humidity') + ')'
+          : sd.name;
+        traces.push({
+          x, y, type: 'scatter', mode: 'lines',
+          name: label, line: {color: sd.color, width: 3, dash: 'dash'},
+          connectgaps: false, showlegend: true,
+          hovertemplate: label + '<br>%{x}<br>%{y:.1f}' + unit + '<extra></extra>',
+        });
+      }
+    }
+  }
+
+  updatePeriodicWarnings(warningInfos);
+  if (!hasAnyData) return emptyPeriodicResult();
+
+  const hasTemp = state.selectedMetrics.has('temperature');
+  const hasHum = state.selectedMetrics.has('humidity');
+  const yTitle = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
+  const ySuffix = hasTemp && hasHum ? '' : hasTemp ? '\u00b0C' : '%RH';
+  const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
+  const periodLabelsMap = {
+    hour_of_day: 'Hour of Day', month_of_year: 'Month of Year', custom: 'Custom Period',
+  };
+  const periodLabel = periodLabelsMap[state.periodType] || 'Period';
+  const dsl = dsLabel();
+  const sm = window.innerWidth < 680;
+  const xTitle = state.periodType === 'hour_of_day'
+    ? 'Hour of Day <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>'
+    : periodLabel;
+
+  return {
+    traces,
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
+      xaxis: {title: xTitle, type: 'category', showgrid: true, gridcolor: '#eee', tickangle: nCats > 15 ? -45 : 0, automargin: true},
+      yaxis: {title: yTitle, ticksuffix: ySuffix, showgrid: true, gridcolor: '#eee'},
+      legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', ...legendStyle(state.selectedLoggers.size), itemclick: false, itemdoubleclick: false},
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+      hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
+    },
+    title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodLabel + ' Averages').replace(/&amp;/g, '&'),
+  };
 }
 
 // ── Main update ───────────────────────────────────────────────────────────────
@@ -2745,6 +3176,7 @@ function hideLoadingBar() {
 function _doRender() {
   const {traces, layout, title} = state.chartType === 'line' ? renderLineGraph()
     : state.chartType === 'histogram' ? renderHistogram()
+    : state.chartType === 'periodic' ? renderPeriodicAverages()
     : renderAdaptiveComfort();
   _currentTitle = title || '';
   _currentLayout = layout;
@@ -2810,7 +3242,8 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const texts = {
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are stacked \u2014 hover to see individual logger values.',
-    comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.'
+    comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
+    periodic: 'Averages readings into periodic buckets (e.g. hour of day, month of year). Useful for spotting diurnal or seasonal patterns across selected loggers. Orange/red warnings flag categories where most averages are based on very few readings.'
   };
   icon.addEventListener('mouseenter', () => {
     tip.textContent = texts[state.chartType] || '';
