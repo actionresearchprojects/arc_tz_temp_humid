@@ -1,1 +1,21 @@
-{}
+{
+  "house5": {
+    "loggers": {
+      "759489": {
+        "showInComfort": false
+      },
+      "759493": {
+        "showInComfort": false
+      },
+      "861004": {
+        "showInComfort": false
+      },
+      "861034": {
+        "showInComfort": false
+      },
+      "32760164": {
+        "showInComfort": false
+      }
+    }
+  }
+}
