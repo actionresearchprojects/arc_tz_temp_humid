@@ -601,10 +601,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ecovillage Temperature &amp; Humidity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; background: #f8f9fa; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 #header { background: white; border-bottom: 1px solid #ddd; padding: 6px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; min-height: 40px; }
 #header h1 { font-size: 14px; font-weight: 600; color: #222; margin-right: 2px; white-space: nowrap; }
 #logo { height: 32px; width: auto; flex-shrink: 0; }
@@ -620,20 +623,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; f
 #chart { flex: 1; min-height: 0; }
 .section-title { font-weight: 600; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .section { display: flex; flex-direction: column; gap: 2px; }
+select, button, input { font-family: inherit; }
 select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; max-width: 100%; }
 select:focus { outline: none; border-color: #4a90d9; }
 .cb-label { display: flex; align-items: center; gap: 5px; padding: 1px 0; cursor: pointer; line-height: 1.4; font-size: 12px; }
 .cb-label:hover { color: #1f77b4; }
 [data-tooltip] { position: relative; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
-.info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, serif; }
+.info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, 'Times New Roman', serif; }
 .info-i:hover { background: #666; }
-#info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:Georgia,serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:280px; z-index:9999; pointer-events:none; white-space:normal; }
+#info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:280px; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .control-row label { font-size: 12px; color: #666; white-space: nowrap; }
 input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; max-width: 130px; }
-#comfort-stats { background: #f0f7ff; border: 1px solid #b8d4f0; border-radius: 6px; padding: 8px; }
+#comfort-stats { background: #eef6ee; border: 1px solid #b8d4b8; border-radius: 6px; padding: 8px; }
 #comfort-overall { font-weight: 600; font-size: 12px; margin-bottom: 6px; }
 .room-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
 .room-item { background: white; border: 1px solid #ddd; border-radius: 4px; padding: 4px 6px; cursor: default; transition: background 0.15s; }
@@ -641,6 +645,17 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .room-name { font-size: 10px; color: #666; line-height: 1.2; }
 .room-pct { font-weight: 600; font-size: 12px; }
 .room-src { font-size: 9px; color: #888; line-height: 1.3; }
+#comfort-stats.has-gaps { background: #fff5e6; border-color: #e8a840; border: 1px solid #e8a840; }
+#hist-stats-box.has-gaps { background: #fff5e6 !important; border-color: #e8a840 !important; }
+.room-item.has-gap { background: #f5d4a0; border-color: #d4a040; }
+.room-item.has-gap:hover { background: #f0c880; border-color: #c89030; }
+#gap-warning { font-size: 11px; color: #8a6d20; line-height: 1.4; margin-bottom: 6px; }
+#gap-dropdown-wrap { margin-bottom: 6px; }
+#gap-dropdown { font-size: 11px; width: 100%; padding: 3px 5px; border: 1px solid #d4a040; border-radius: 4px; background: #fffaf0; cursor: pointer; color: #6a5020; }
+.gap-tip { display: none; position: fixed; background: #333; color: white; font-size: 11px; padding: 8px 10px; border-radius: 5px; line-height: 1.5; max-width: 280px; z-index: 9999; pointer-events: none; white-space: normal; }
+.gap-tip .gap-entry { margin-bottom: 2px; }
+.gap-tip .gap-more { color: #ccc; font-style: italic; margin-top: 2px; }
+.gap-tip .gap-total { border-top: 1px solid #555; margin-top: 4px; padding-top: 4px; color: #f0c060; font-weight: 600; font-size: 10px; }
 .hidden { display: none !important; }
 .sel-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
 .sel-btn:hover { background: #e8e8e8; }
@@ -693,7 +708,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   <div id="sidebar">
     <div id="line-controls">
       <div class="section">
-        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset defaults</button></div>
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset to default</button></div>
         <div id="logger-checkboxes"></div>
       </div>
       <hr class="divider">
@@ -715,6 +730,16 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Long-term historic and projected future data generated from <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
       </div>
       <hr class="divider">
+      <div id="histogram-stats" class="hidden">
+        <div id="hist-stats-box" style="background:#eef6ee;border:1px solid #b8d4b8;border-radius:6px;padding:8px;">
+          <div id="hist-overall" style="font-weight:600;font-size:12px;margin-bottom:6px;">-</div>
+          <div id="hist-gap-warning" class="hidden" style="font-size:11px;color:#8a6d20;line-height:1.4;margin-bottom:6px;"></div>
+          <div id="hist-gap-dropdown-wrap" class="hidden" style="margin-bottom:6px;"><select id="hist-gap-dropdown" style="font-size:11px;width:100%;padding:3px 5px;border:1px solid #d4a040;border-radius:4px;background:#fffaf0;cursor:pointer;color:#6a5020;"></select></div>
+          <div class="room-grid" id="hist-room-grid"></div>
+        </div>
+        <div class="gap-tip" id="hist-gap-tip"></div>
+        <hr class="divider">
+      </div>
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
         Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Historical series drives the adaptive comfort running mean; forecast shows the next 16 days.
       </div>
@@ -738,14 +763,17 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider">
       <div class="section">
-        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Room Loggers<button class="sel-btn" id="reset-comfort-btn">Reset defaults</button></div>
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Room Loggers<button class="sel-btn" id="reset-comfort-btn">Reset to default</button></div>
         <div id="room-logger-checkboxes"></div>
       </div>
       <hr class="divider">
       <div id="comfort-stats">
         <div id="comfort-overall">-</div>
+        <div id="gap-warning" class="hidden"></div>
+        <div id="gap-dropdown-wrap" class="hidden"><select id="gap-dropdown"></select></div>
         <div class="room-grid" id="comfort-room-grid"></div>
       </div>
+      <div class="gap-tip" id="gap-tip"></div>
       <div style="margin-top:8px;margin-bottom:4px;">
         <div style="font-size:11px;color:#666;margin-bottom:3px;">Percentage calculation</div>
         <select id="comfort-pct-mode" style="width:100%;font-size:12px;">
@@ -769,8 +797,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           </select>
           <select id="chart-type">
             <option value="line">Line Graph</option>
-            <option value="histogram">Histogram</option>
             <option value="comfort">Adaptive Comfort</option>
+            <option value="histogram">Histogram</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -806,7 +834,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     </div>
     <div id="chart"></div>
     <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
-      <div style="font-size:12px;color:#555;font-family:sans-serif">Loading chart…</div>
+      <div style="font-size:12px;color:#555;font-family:'Ubuntu',sans-serif">Loading chart…</div>
       <div style="width:160px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
         <div id="chart-loading-bar" style="height:100%;width:0%;background:#4a90d9;border-radius:3px;transition:none;"></div>
       </div>
@@ -948,7 +976,7 @@ function loadDataset(key) {
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
     const isExtTT = extSet.has(id) && m.loggerSources[id] === 'TinyTag';
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${isExtTT ? '<span style="color:#aaa"> (TinyTag)</span>' : ''}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" checked> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${isExtTT ? '<span style="color:#aaa"> (TinyTag)</span>' : ''}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id);
       updatePlot();
@@ -985,7 +1013,7 @@ function loadDataset(key) {
     addLoggerSection('External', m.externalLoggers);
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
-  // Room loggers section with optional TinyTag/Omnisense buttons (above Structural)
+  // Room loggers section with optional TinyTag/Omnisense buttons
   if (roomLoggers.length > 0) {
     const hasTT = roomLoggers.some(id => m.loggerSources[id] === 'TinyTag');
     const hasOS = roomLoggers.some(id => m.loggerSources[id] === 'Omnisense');
@@ -998,7 +1026,13 @@ function loadDataset(key) {
   // Structural/below-metal section (loggers that aren't external and aren't room)
   if (midLoggers.length > 0) {
     if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
-    addLoggerSection('Structural', midLoggers);
+    const sTT = midLoggers.some(id => m.loggerSources[id] === 'TinyTag');
+    const sOS = midLoggers.some(id => m.loggerSources[id] === 'Omnisense');
+    const sExtraBtns = (sTT && sOS) ? [
+      mkSelBtn('TinyTag',  () => { midLoggers.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+      mkSelBtn('Omnisense',() => { midLoggers.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedLoggers.add(id) : state.selectedLoggers.delete(id); loggerDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+    ] : null;
+    addLoggerSection('Structural', midLoggers, sExtraBtns);
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
     // Fallback: dataset has no room/structural split - show all non-external flat
@@ -1013,7 +1047,7 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${state.selectedRoomLoggers.has(id) ? 'checked' : ''}> <span style="color:${m.colors[id]};font-weight:600">■</span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${state.selectedRoomLoggers.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id);
       updatePlot();
@@ -1042,7 +1076,7 @@ function loadDataset(key) {
   }
   const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
   const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-  // Room sub-section
+  // Room sub-section with optional TinyTag/Omnisense buttons
   const cHasTT = comfortRoomIds.some(id => m.loggerSources[id] === 'TinyTag');
   const cHasOS = comfortRoomIds.some(id => m.loggerSources[id] === 'Omnisense');
   const cExtraBtns = (cHasTT && cHasOS) ? [
@@ -1053,7 +1087,13 @@ function loadDataset(key) {
   // Structural sub-section
   if (comfortStructIds.length > 0) {
     if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
-    addComfortSection('Structural', comfortStructIds);
+    const csHasTT = comfortStructIds.some(id => m.loggerSources[id] === 'TinyTag');
+    const csHasOS = comfortStructIds.some(id => m.loggerSources[id] === 'Omnisense');
+    const csExtraBtns = (csHasTT && csHasOS) ? [
+      mkSelBtn('TinyTag',  () => { comfortStructIds.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+      mkSelBtn('Omnisense',() => { comfortStructIds.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? state.selectedRoomLoggers.add(id) : state.selectedRoomLoggers.delete(id); roomDiv.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+    ] : null;
+    addComfortSection('Structural', comfortStructIds, csExtraBtns);
   }
 
   // Show historic section if data available
@@ -1097,9 +1137,20 @@ function loadDataset(key) {
     dsel.value = state.selectedDay;
   }
 
-  // Reset comfort stats
+  // Reset comfort stats and gap indicators
   document.getElementById('comfort-overall').textContent = '-';
   document.getElementById('comfort-room-grid').innerHTML = '';
+  document.getElementById('comfort-stats').classList.remove('has-gaps');
+  document.getElementById('gap-warning').classList.add('hidden');
+  document.getElementById('gap-dropdown-wrap').classList.add('hidden');
+  document.getElementById('gap-tip').style.display = 'none';
+  // Reset histogram stats
+  document.getElementById('hist-overall').textContent = '-';
+  document.getElementById('hist-room-grid').innerHTML = '';
+  document.getElementById('hist-stats-box').classList.remove('has-gaps');
+  document.getElementById('hist-gap-warning').classList.add('hidden');
+  document.getElementById('hist-gap-dropdown-wrap').classList.add('hidden');
+  document.getElementById('hist-gap-tip').style.display = 'none';
 
   updatePlot();
 }
@@ -1193,7 +1244,7 @@ function injectSVGWatermark(doc, svgW, svgH, atTop, opacity) {
     el.setAttribute('y', String(y));
     el.setAttribute('text-anchor', 'end');
     el.setAttribute('dominant-baseline', txtBaseline);
-    el.setAttribute('font-family', 'Georgia, serif');
+    el.setAttribute('font-family', 'Ubuntu, sans-serif');
     el.setAttribute('font-size', String(textSize));
     el.setAttribute('fill', '#555');
     el.setAttribute('opacity', String(opacity));
@@ -1256,6 +1307,7 @@ function setupStaticListeners() {
     }
     document.getElementById('line-controls').classList.toggle('hidden', isComfort);
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
+    document.getElementById('histogram-stats').classList.toggle('hidden', !isHistogram);
     if (isHistogram) {
       // Show options but hide season lines checkbox (not applicable to histogram)
       document.getElementById('line-options-section').style.display = '';
@@ -1372,7 +1424,7 @@ function setupStaticListeners() {
       const color = CLIMATE_COLORS[s.id] || '#999';
       const lbl = document.createElement('label');
       lbl.className = 'cb-label';
-      lbl.innerHTML = `<input type="checkbox" data-series-id="${s.id}" checked> <span style="color:${color};font-weight:600">■</span> ${s.label}`;
+      lbl.innerHTML = `<input type="checkbox" data-series-id="${s.id}" checked> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};vertical-align:middle"></span> ${s.label}`;
       lbl.querySelector('input').addEventListener('change', ev => {
         ev.target.checked ? state.selectedHistoricSeries.add(s.id) : state.selectedHistoricSeries.delete(s.id);
         updatePlot();
@@ -1550,7 +1602,7 @@ function setupStaticListeners() {
         t.setAttribute('y', String(marginT / 2));
         t.setAttribute('text-anchor', 'middle');
         t.setAttribute('dominant-baseline', 'middle');
-        t.setAttribute('font-family', '"Open Sans", verdana, arial, sans-serif');
+        t.setAttribute('font-family', 'Ubuntu, sans-serif');
         t.setAttribute('font-size', String(fontSize));
         t.setAttribute('font-weight', 'bold');
         t.setAttribute('fill', fill);
@@ -1752,6 +1804,7 @@ function renderLineGraph() {
   let dataMinMs = Infinity, dataMaxMs = -Infinity;
   let yMin = Infinity, yMax = -Infinity;
   const lineSet = new Set(m.lineLoggers || m.loggers);
+  const extSet = new Set(m.externalLoggers || []);
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
@@ -1768,7 +1821,9 @@ function renderLineGraph() {
       if (last > dataMaxMs) dataMaxMs = last;
     }
 
-    const color = m.colors[loggerId], name = m.loggerNames[loggerId];
+    const color = m.colors[loggerId];
+    const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
+    const name = m.loggerNames[loggerId] + (isExtTT ? ' (TinyTag)' : '');
     const source = m.loggerSources[loggerId] || '';
     const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
     const freqLabel = state.historicMode
@@ -1883,12 +1938,12 @@ function renderLineGraph() {
     : `${dsLabel} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
+    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
     xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range:[toEATString(dataMinMs), toEATString(dataMaxMs)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
-    plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest',
+    plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: barTitle};
 }
 
@@ -2036,10 +2091,12 @@ function renderHistogram() {
       line:{color:'#e74c3c', width:1.5, dash:'dot'}});
   }
 
+  updateHistogramStats(start, end);
+
   const histAnnotations = [...tickAnnotations,
     ...(isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, true)] : [])];
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?20:36, b:useStagger?(sm?80:85):(sm?60:70)},
+    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?20:36, b:useStagger?(sm?80:85):(sm?60:70)},
     xaxis:{title:xTitle, showgrid:true, gridcolor:'#eee', tickangle:0,
       tickfont: TICK_FONT,
       tickmode: tickvals.length ? 'array' : undefined,
@@ -2048,8 +2105,137 @@ function renderHistogram() {
     yaxis:{title:'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
     barmode:'stack', shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
-    plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
+    plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: (`${dsLabel} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
+}
+
+// ── Histogram stats ──────────────────────────────────────────────────────────
+function updateHistogramStats(start, end) {
+  const histStatsPanel = document.getElementById('histogram-stats');
+  if (!document.getElementById('cb-temperature').checked) {
+    histStatsPanel.classList.add('hidden');
+    return;
+  }
+  histStatsPanel.classList.remove('hidden');
+  const overall = document.getElementById('hist-overall');
+  const grid = document.getElementById('hist-room-grid');
+  const statsBox = document.getElementById('hist-stats-box');
+  const warnDiv = document.getElementById('hist-gap-warning');
+  const dropWrap = document.getElementById('hist-gap-dropdown-wrap');
+  const gapTip = document.getElementById('hist-gap-tip');
+  grid.innerHTML = '';
+  warnDiv.classList.add('hidden');
+  dropWrap.classList.add('hidden');
+  statsBox.classList.remove('has-gaps');
+  const m = dataset().meta;
+  const extSet = new Set(m.externalLoggers || []);
+  const histSet = new Set(m.histogramLoggers || m.loggers);
+  let totalBelow = 0, totalAll = 0;
+  const roomStats = [];
+  const gapInfoMap = {};
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!histSet.has(loggerId)) continue;
+    if (extSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    // Gap detection
+    const gaps = detectSeriesGaps(series.timestamps, start, end);
+    gapInfoMap[loggerId] = gaps;
+    const filtered = filterSeries(series, start, end);
+    let pct = null;
+    if (filtered) {
+      let below = 0, count = 0;
+      for (let i = 0; i < filtered.temperature.length; i++) {
+        const t = filtered.temperature[i];
+        if (t == null) continue;
+        if (t < 32) below++;
+        count++;
+      }
+      pct = count > 0 ? below/count*100 : 0;
+      totalBelow += below; totalAll += count;
+    }
+    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
+  }
+  if (roomStats.length === 0) { histStatsPanel.classList.add('hidden'); return; }
+  const overallPct = totalAll > 0 ? (totalBelow/totalAll*100).toFixed(1) : '-';
+  overall.textContent = `Overall: ${overallPct}% of temperature readings below 32\u00b0C`;
+  // Gap warning and dropdown
+  const gapCount = roomStats.filter(r => r.hasGap).length;
+  if (gapCount > 0) {
+    statsBox.classList.add('has-gaps');
+    warnDiv.classList.remove('hidden');
+    warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
+    const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
+    // Build allAvailableInfo from ALL non-external histogram loggers for source-group fallback
+    const allAvailableInfo = m.loggers.filter(id => !extSet.has(id) && histSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
+    const periods = findCompletePeriods(seriesInfo, start, end, allAvailableInfo);
+    const hasAny = periods.primary.length > 0 || periods.secondary.length > 0 || periods.sourceGroups.length > 0;
+    if (hasAny) {
+      const dd = document.getElementById('hist-gap-dropdown');
+      dd.innerHTML = '';
+      const ph = document.createElement('option');
+      ph.value = ''; ph.textContent = 'Jump to a complete period\u2026'; ph.disabled = true; ph.selected = true;
+      dd.appendChild(ph);
+      if (periods.primary.length > 0) {
+        const g1 = document.createElement('optgroup');
+        g1.label = 'Complete for all selected loggers';
+        periods.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g1.appendChild(o); });
+        dd.appendChild(g1);
+      }
+      if (periods.secondary.length > 0) {
+        const g2 = document.createElement('optgroup');
+        const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+        g2.label = `Other complete ${gl} (all loggers)`;
+        periods.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g2.appendChild(o); });
+        dd.appendChild(g2);
+      }
+      for (const sg of periods.sourceGroups) {
+        if (sg.primary.length > 0) {
+          const g = document.createElement('optgroup');
+          g.label = `Complete for ${sg.source} loggers (${sg.count})`;
+          sg.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
+          dd.appendChild(g);
+        }
+        if (sg.secondary.length > 0) {
+          const g = document.createElement('optgroup');
+          const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+          g.label = `Other ${gl} \u2013 ${sg.source} only`;
+          sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
+          dd.appendChild(g);
+        }
+      }
+      dd.onchange = function() { if (!this.value) return; navigateToPeriod(JSON.parse(this.value), 'histogram'); };
+      dropWrap.classList.remove('hidden');
+    }
+  }
+  // Render boxes
+  roomStats.forEach(({id, name, pct, hasGap}) => {
+    const div = document.createElement('div');
+    div.className = 'room-item' + (hasGap ? ' has-gap' : '');
+    const src = (m.loggerSources && m.loggerSources[id]) || '';
+    const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
+    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '\u2014';
+    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>`;
+    const hoverHTML = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' \u00b7 ' + idStr : ''}</div>`;
+    div.innerHTML = normalHTML;
+    if (hasGap) {
+      div.addEventListener('mouseenter', () => {
+        gapTip.innerHTML = gapTooltipHTML(gapInfoMap[id], start, end);
+        gapTip.style.display = 'block';
+        const rect = div.getBoundingClientRect();
+        let left = rect.right + 8;
+        if (left + 280 > window.innerWidth) left = rect.left - 288;
+        gapTip.style.left = Math.max(4, left) + 'px';
+        gapTip.style.top = Math.max(4, rect.top) + 'px';
+      });
+      div.addEventListener('mouseleave', () => { gapTip.style.display = 'none'; });
+    } else {
+      div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
+      div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
+    }
+    grid.appendChild(div);
+  });
 }
 
 // ── Adaptive comfort ──────────────────────────────────────────────────────────
@@ -2075,10 +2261,15 @@ function renderAdaptiveComfort() {
     }
     const cSource = m.loggerSources[loggerId] || '';
     const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
+    const cName = m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-      name:m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource), marker:{color:m.colors[loggerId], size:4, opacity:0.2},
-      legendgroup:loggerId, meta:{loggerId},
+      name:cName, marker:{color:m.colors[loggerId], size:4, opacity:0.2},
+      legendgroup:loggerId, showlegend:false, meta:{loggerId},
       hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Source: ${cSource}${cIdLabel}<extra></extra>`});
+    // Legend-only trace with larger, visible marker
+    traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
+      name:cName, marker:{color:m.colors[loggerId], size:10, opacity:0.8, symbol:'square', line:{width:0}},
+      legendgroup:loggerId, showlegend:true, hoverinfo:'skip'});
   }
 
   if (params && allExtTemps.length > 0) {
@@ -2119,60 +2310,382 @@ function renderAdaptiveComfort() {
   const dsLabel = document.getElementById('dataset-select').options[document.getElementById('dataset-select').selectedIndex].text;
 
   return {traces, layout: {
-    autosize:true, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
+    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
     xaxis:{title:'Running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
     yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false)] : [],
-    plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest',
+    plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: `${dsLabel} \u2013 Adaptive Comfort`};
+}
+
+// ── Data completeness detection ───────────────────────────────────────────────
+const GAP_DETECT_MS = 24 * 3600 * 1000;
+
+function detectSeriesGaps(ts, startMs, endMs) {
+  const gaps = [];
+  if (!ts || ts.length === 0) {
+    gaps.push({startMs, endMs, days: Math.max(1, Math.round((endMs - startMs) / 86400000))});
+    return gaps;
+  }
+  let lo = 0, hi = ts.length - 1;
+  while (lo < hi) { const mid = (lo+hi)>>1; ts[mid] < startMs ? lo = mid+1 : hi = mid; }
+  const s = lo;
+  lo = 0; hi = ts.length - 1;
+  while (lo < hi) { const mid = (lo+hi+1)>>1; ts[mid] > endMs ? hi = mid-1 : lo = mid; }
+  const e = lo;
+  if (s > e || ts[s] > endMs || ts[e] < startMs) {
+    gaps.push({startMs, endMs, days: Math.max(1, Math.round((endMs - startMs) / 86400000))});
+    return gaps;
+  }
+  if (ts[s] - startMs >= GAP_DETECT_MS)
+    gaps.push({startMs, endMs: ts[s], days: Math.max(1, Math.round((ts[s] - startMs) / 86400000))});
+  for (let i = s + 1; i <= e; i++) {
+    const diff = ts[i] - ts[i-1];
+    if (diff >= GAP_DETECT_MS)
+      gaps.push({startMs: ts[i-1], endMs: ts[i], days: Math.max(1, Math.round(diff / 86400000))});
+  }
+  if (endMs - ts[e] >= GAP_DETECT_MS)
+    gaps.push({startMs: ts[e], endMs, days: Math.max(1, Math.round((endMs - ts[e]) / 86400000))});
+  return gaps;
+}
+
+function hasGapsInRange(ts, startMs, endMs) {
+  if (!ts || ts.length === 0) return true;
+  let lo = 0, hi = ts.length - 1;
+  while (lo < hi) { const mid = (lo+hi)>>1; ts[mid] < startMs ? lo = mid+1 : hi = mid; }
+  const s = lo;
+  lo = 0; hi = ts.length - 1;
+  while (lo < hi) { const mid = (lo+hi+1)>>1; ts[mid] > endMs ? hi = mid-1 : lo = mid; }
+  const e = lo;
+  if (s > e || ts[s] > endMs || ts[e] < startMs) return true;
+  if (ts[s] - startMs >= GAP_DETECT_MS) return true;
+  for (let i = s + 1; i <= e; i++) { if (ts[i] - ts[i-1] >= GAP_DETECT_MS) return true; }
+  return endMs - ts[e] >= GAP_DETECT_MS;
+}
+
+function formatGapRange(startMs, endMs) {
+  const s = new Date(startMs + 3*3600000), e = new Date(endMs + 3*3600000);
+  const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if (s.getUTCFullYear() === e.getUTCFullYear() && s.getUTCMonth() === e.getUTCMonth())
+    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}\u2013${e.getUTCDate()}, ${s.getUTCFullYear()}`;
+  if (s.getUTCFullYear() === e.getUTCFullYear())
+    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()} \u2013 ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${s.getUTCFullYear()}`;
+  return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}, ${s.getUTCFullYear()} \u2013 ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
+}
+
+function gapTooltipHTML(gaps, rangeStartMs, rangeEndMs) {
+  const sorted = gaps.slice().sort((a, b) => b.days - a.days);
+  const top = sorted.slice(0, 5);
+  const totalDays = sorted.reduce((s, g) => s + g.days, 0);
+  const rangeDays = Math.max(1, (rangeEndMs - rangeStartMs) / 86400000);
+  const pct = (totalDays / rangeDays * 100).toFixed(0);
+  let html = '';
+  for (const g of top)
+    html += `<div class="gap-entry">${formatGapRange(g.startMs, g.endMs)} (${g.days} day${g.days !== 1 ? 's' : ''})</div>`;
+  if (sorted.length > 5)
+    html += `<div class="gap-more">and ${sorted.length - 5} more gap${sorted.length - 5 !== 1 ? 's' : ''}\u2026</div>`;
+  html += `<div class="gap-total">${totalDays} day${totalDays !== 1 ? 's' : ''} missing total (${pct}%)</div>`;
+  return html;
+}
+
+function periodRangeMs(gran, info) {
+  if (gran === 'year') return {s: Date.UTC(info.y, 0, 1), e: Date.UTC(info.y, 11, 31, 23, 59, 59, 999)};
+  if (gran === 'month') return {s: Date.UTC(info.y, info.m-1, 1), e: Date.UTC(info.y, info.m, 0, 23, 59, 59, 999)};
+  if (gran === 'week') {
+    const jan4 = new Date(Date.UTC(info.y, 0, 4));
+    const dow = jan4.getUTCDay() || 7;
+    const ws = jan4.getTime() - (dow-1)*86400000 + (info.w-1)*7*86400000;
+    return {s: ws, e: ws + 7*86400000 - 1};
+  }
+  if (gran === 'day') return {s: info.ts, e: info.ts + 86400000 - 1};
+  return null;
+}
+
+function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
+  // Returns array of complete period objects at the coarsest granularity found
+  const m = dataset().meta;
+  const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  function allOK(s, e) {
+    for (const ts of tsArrays) { if (hasGapsInRange(ts, s, e)) return false; }
+    return true;
+  }
+  const results = [];
+  let found = false;
+  const sY = new Date(rangeStart).getUTCFullYear(), eY = new Date(rangeEnd).getUTCFullYear();
+  for (let y = sY; y <= eY; y++) {
+    const r = periodRangeMs('year', {y});
+    const ol = Math.min(r.e, rangeEnd) - Math.max(r.s, rangeStart);
+    if (ol <= 0 || ol / (r.e - r.s) < 0.75) continue;
+    if (allOK(r.s, r.e)) { results.push({label: String(y), gran: 'year', y, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
+  }
+  if (!found) {
+    for (let y = sY; y <= eY; y++) {
+      const ms = y === sY ? new Date(rangeStart).getUTCMonth() : 0;
+      const me = y === eY ? new Date(rangeEnd).getUTCMonth() : 11;
+      for (let mo = ms; mo <= me; mo++) {
+        const r = periodRangeMs('month', {y, m: mo+1});
+        const ol = Math.min(r.e, rangeEnd) - Math.max(r.s, rangeStart);
+        if (ol <= 0 || ol / (r.e - r.s) < 0.75) continue;
+        if (allOK(r.s, r.e)) { results.push({label: `${MN[mo]} ${y}`, gran: 'month', y, m: mo+1, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
+      }
+    }
+  }
+  if (!found) {
+    for (const aw of (m.availableWeeks || [])) {
+      const r = periodRangeMs('week', {y: aw.year, w: aw.week});
+      if (r.s > rangeEnd || r.e < rangeStart) continue;
+      const ol = Math.min(r.e, rangeEnd) - Math.max(r.s, rangeStart);
+      if (ol / (r.e - r.s) < 0.75) continue;
+      if (allOK(r.s, r.e)) { results.push({label: `Week ${aw.week}, ${aw.year}`, gran: 'week', y: aw.year, w: aw.week, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
+    }
+  }
+  if (!found && (rangeEnd - rangeStart) / 86400000 <= 366) {
+    for (const ad of (m.availableDays || [])) {
+      if (ad.ts < rangeStart || ad.ts + 86400000 - 1 > rangeEnd) continue;
+      const r = periodRangeMs('day', {ts: ad.ts});
+      if (allOK(r.s, r.e)) { results.push({label: ad.label, gran: 'day', ts: ad.ts, fi: true}); found = true; }
+    }
+  }
+  results.sort((a, b) => (b.fi ? 1 : 0) - (a.fi ? 1 : 0));
+  return results;
+}
+
+function _searchSecondary(tsArrays) {
+  // Find complete periods of the same granularity as the user's selection, across the full data range
+  const m = dataset().meta;
+  function allOK(s, e) {
+    for (const ts of tsArrays) { if (hasGapsInRange(ts, s, e)) return false; }
+    return true;
+  }
+  const results = [];
+  if (state.timeMode === 'year') {
+    for (const y of (m.availableYears || [])) {
+      if (y === state.selectedYear) continue;
+      const r = periodRangeMs('year', {y});
+      if (allOK(r.s, r.e)) results.push({label: String(y), gran: 'year', y});
+    }
+  } else if (state.timeMode === 'month' && state.selectedMonth) {
+    for (const am of (m.availableMonths || [])) {
+      if (am.year === state.selectedMonth.year && am.month === state.selectedMonth.month) continue;
+      const r = periodRangeMs('month', {y: am.year, m: am.month});
+      if (allOK(r.s, r.e)) results.push({label: am.label, gran: 'month', y: am.year, m: am.month});
+    }
+  } else if (state.timeMode === 'week' && state.selectedWeek) {
+    for (const aw of (m.availableWeeks || [])) {
+      if (aw.year === state.selectedWeek.year && aw.week === state.selectedWeek.week) continue;
+      const r = periodRangeMs('week', {y: aw.year, w: aw.week});
+      if (allOK(r.s, r.e)) results.push({label: aw.label, gran: 'week', y: aw.year, w: aw.week});
+    }
+  }
+  return results;
+}
+
+function findCompletePeriods(seriesInfo, rangeStart, rangeEnd, allAvailableInfo) {
+  // seriesInfo: [{ts, source}, ...] for each enabled series
+  // allAvailableInfo: [{ts, source}, ...] for ALL available loggers (used for source-group fallback)
+  const allTs = seriesInfo.map(si => si.ts);
+  const primary = _searchCompletePeriods(allTs, rangeStart, rangeEnd);
+  const secondary = primary.length > 0 ? _searchSecondary(allTs) : [];
+  // Source-group fallback: when no all-complete periods exist, search per source type across ALL available loggers
+  const sourceGroups = [];
+  if (primary.length === 0) {
+    const fallbackInfo = allAvailableInfo || seriesInfo;
+    const bySource = {};
+    for (const si of fallbackInfo) {
+      const src = si.source || 'Unknown';
+      if (!bySource[src]) bySource[src] = [];
+      bySource[src].push(si.ts);
+    }
+    const srcKeys = Object.keys(bySource);
+    for (const src of srcKeys) {
+      const grpPrimary = _searchCompletePeriods(bySource[src], rangeStart, rangeEnd);
+      const grpSecondary = _searchSecondary(bySource[src]);
+      if (grpPrimary.length > 0 || grpSecondary.length > 0) {
+        sourceGroups.push({source: src, count: bySource[src].length, primary: grpPrimary, secondary: grpSecondary});
+      }
+    }
+  }
+  return {primary, secondary, sourceGroups};
+}
+
+function navigateToPeriod(p, context) {
+  ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
+    document.getElementById(id).classList.add('hidden'));
+  if (p.gran === 'year') {
+    state.timeMode = 'year'; state.selectedYear = p.y;
+    document.getElementById('time-mode').value = 'year';
+    document.getElementById('year-select').value = String(p.y);
+    document.getElementById('year-input').classList.remove('hidden');
+  } else if (p.gran === 'month') {
+    state.timeMode = 'month'; state.selectedMonth = {year: p.y, month: p.m};
+    document.getElementById('time-mode').value = 'month';
+    document.getElementById('month-select').value = `${p.y}-${p.m}`;
+    document.getElementById('month-input').classList.remove('hidden');
+  } else if (p.gran === 'week') {
+    state.timeMode = 'week'; state.selectedWeek = {year: p.y, week: p.w};
+    document.getElementById('time-mode').value = 'week';
+    document.getElementById('week-select').value = `${p.y}-${p.w}`;
+    document.getElementById('week-input').classList.remove('hidden');
+  } else if (p.gran === 'day') {
+    state.timeMode = 'day'; state.selectedDay = p.ts;
+    document.getElementById('time-mode').value = 'day';
+    document.getElementById('day-select').value = String(p.ts);
+    document.getElementById('day-input').classList.remove('hidden');
+  }
+  // If navigating to a source-specific period, update checkboxes to match
+  if (p.sourceType) {
+    const m = dataset().meta;
+    const extSet = new Set(m.externalLoggers || []);
+    if (context === 'histogram') {
+      const loggerDiv = document.getElementById('logger-checkboxes');
+      const allIds = m.loggers;
+      allIds.forEach(id => {
+        if (extSet.has(id)) return; // leave external loggers unchanged
+        const match = m.loggerSources[id] === p.sourceType;
+        if (match) state.selectedLoggers.add(id); else state.selectedLoggers.delete(id);
+        const cb = loggerDiv.querySelector(`input[data-logger-id="${id}"]`);
+        if (cb) cb.checked = match;
+      });
+    } else if (context === 'comfort') {
+      const roomDiv = document.getElementById('room-logger-checkboxes');
+      const roomIds = m.roomLoggers || [];
+      roomIds.forEach(id => {
+        const match = m.loggerSources[id] === p.sourceType;
+        if (match) state.selectedRoomLoggers.add(id); else state.selectedRoomLoggers.delete(id);
+        const cb = roomDiv.querySelector(`input[data-logger-id="${id}"]`);
+        if (cb) cb.checked = match;
+      });
+    }
+  }
+  updatePlot();
 }
 
 // ── Comfort stats ─────────────────────────────────────────────────────────────
 function updateComfortStats(start, end, params) {
   const overall = document.getElementById('comfort-overall');
   const grid = document.getElementById('comfort-room-grid');
+  const statsBox = document.getElementById('comfort-stats');
+  const warnDiv = document.getElementById('gap-warning');
+  const dropWrap = document.getElementById('gap-dropdown-wrap');
+  const gapTip = document.getElementById('gap-tip');
   grid.innerHTML = '';
-  if (!params) { overall.textContent = 'No comfort band selected'; return; }
+  warnDiv.classList.add('hidden');
+  dropWrap.classList.add('hidden');
+  statsBox.classList.remove('has-gaps');
+  if (!params) { overall.textContent = 'No comfort band selected'; statsBox.style.display = ''; return; }
   const m = dataset().meta;
   let totalIn = 0, totalAll = 0;
   const roomStats = [];
+  const gapInfoMap = {};
   for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
+    // Detect gaps for this series
+    const gaps = detectSeriesGaps(series.timestamps, start, end);
+    gapInfoMap[loggerId] = gaps;
     const filtered = filterSeries(series, start, end);
-    if (!filtered || !filtered.extTemp) continue;
-    let inZone = 0, count = 0;
-    const mode = state.comfortPctMode || 'below_upper';
-    for (let i = 0; i < filtered.temperature.length; i++) {
-      const ext = filtered.extTemp[i], temp = filtered.temperature[i];
-      if (ext == null || temp == null) continue;
-      const mid = params.m*ext + params.c;
-      const upper = mid + params.delta;
-      const lower = mid - params.delta;
-      if (mode === 'below_upper' && temp <= upper) inZone++;
-      else if (mode === 'within' && temp >= lower && temp <= upper) inZone++;
-      else if (mode === 'above_lower' && temp >= lower) inZone++;
-      count++;
+    let pct = null;
+    if (filtered && filtered.extTemp) {
+      let inZone = 0, count = 0;
+      const mode = state.comfortPctMode || 'below_upper';
+      for (let i = 0; i < filtered.temperature.length; i++) {
+        const ext = filtered.extTemp[i], temp = filtered.temperature[i];
+        if (ext == null || temp == null) continue;
+        const mid = params.m*ext + params.c;
+        const upper = mid + params.delta;
+        const lower = mid - params.delta;
+        if (mode === 'below_upper' && temp <= upper) inZone++;
+        else if (mode === 'within' && temp >= lower && temp <= upper) inZone++;
+        else if (mode === 'above_lower' && temp >= lower) inZone++;
+        count++;
+      }
+      pct = count > 0 ? inZone/count*100 : 0;
+      totalIn += inZone; totalAll += count;
     }
-    const pct = count > 0 ? inZone/count*100 : 0;
-    totalIn += inZone; totalAll += count;
-    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct});
+    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
+  if (roomStats.length === 0) { statsBox.style.display = 'none'; return; }
+  statsBox.style.display = '';
   const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '-';
   const modeLabel = {below_upper: 'below upper boundary', within: 'within comfort zone', above_lower: 'above lower boundary'}[state.comfortPctMode || 'below_upper'];
   overall.textContent = `Overall: ${overallPct}% ${modeLabel}`;
-  roomStats.forEach(({id, name, pct}) => {
+  // Gap warning and dropdown
+  const gapCount = roomStats.filter(r => r.hasGap).length;
+  if (gapCount > 0) {
+    statsBox.classList.add('has-gaps');
+    warnDiv.classList.remove('hidden');
+    warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
+    const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
+    // Build allAvailableInfo from ALL comfort loggers for source-group fallback
+    const allComfortLoggers = m.comfortLoggers || m.roomLoggers || [];
+    const allAvailableInfo = allComfortLoggers.filter(id => dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
+    const periods = findCompletePeriods(seriesInfo, start, end, allAvailableInfo);
+    const hasAny = periods.primary.length > 0 || periods.secondary.length > 0 || periods.sourceGroups.length > 0;
+    if (hasAny) {
+      const dd = document.getElementById('gap-dropdown');
+      dd.innerHTML = '';
+      const ph = document.createElement('option');
+      ph.value = ''; ph.textContent = 'Jump to a complete period\u2026'; ph.disabled = true; ph.selected = true;
+      dd.appendChild(ph);
+      if (periods.primary.length > 0) {
+        const g1 = document.createElement('optgroup');
+        g1.label = 'Complete for all selected loggers';
+        periods.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g1.appendChild(o); });
+        dd.appendChild(g1);
+      }
+      if (periods.secondary.length > 0) {
+        const g2 = document.createElement('optgroup');
+        const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+        g2.label = `Other complete ${gl} (all loggers)`;
+        periods.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g2.appendChild(o); });
+        dd.appendChild(g2);
+      }
+      for (const sg of periods.sourceGroups) {
+        if (sg.primary.length > 0) {
+          const g = document.createElement('optgroup');
+          g.label = `Complete for ${sg.source} loggers (${sg.count})`;
+          sg.primary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
+          dd.appendChild(g);
+        }
+        if (sg.secondary.length > 0) {
+          const g = document.createElement('optgroup');
+          const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+          g.label = `Other ${gl} \u2013 ${sg.source} only`;
+          sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
+          dd.appendChild(g);
+        }
+      }
+      dd.onchange = function() { if (!this.value) return; navigateToPeriod(JSON.parse(this.value), 'comfort'); };
+      dropWrap.classList.remove('hidden');
+    }
+  }
+  // Render room boxes
+  roomStats.forEach(({id, name, pct, hasGap}) => {
     const div = document.createElement('div');
-    div.className = 'room-item';
+    div.className = 'room-item' + (hasGap ? ' has-gap' : '');
     const src = (m.loggerSources && m.loggerSources[id]) || '';
     const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
-    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pct.toFixed(1)}%</div>`;
-    const hoverHTML  = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' · ' + idStr : ''}</div>`;
+    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '\u2014';
+    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>`;
+    const hoverHTML = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' \u00b7 ' + idStr : ''}</div>`;
     div.innerHTML = normalHTML;
-    div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
-    div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
+    if (hasGap) {
+      div.addEventListener('mouseenter', () => {
+        gapTip.innerHTML = gapTooltipHTML(gapInfoMap[id], start, end);
+        gapTip.style.display = 'block';
+        const rect = div.getBoundingClientRect();
+        let left = rect.right + 8;
+        if (left + 280 > window.innerWidth) left = rect.left - 288;
+        gapTip.style.left = Math.max(4, left) + 'px';
+        gapTip.style.top = Math.max(4, rect.top) + 'px';
+      });
+      div.addEventListener('mouseleave', () => { gapTip.style.display = 'none'; });
+    } else {
+      div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
+      div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });
+    }
     grid.appendChild(div);
   });
 }
