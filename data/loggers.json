@@ -4,7 +4,6 @@
     "hasCategories": true,
     "externalLoggers": [
       "External Historical (Open-Meteo)",
-      "External Forecast (Open-Meteo)",
       "861011",
       "320E02D1"
     ],
@@ -52,7 +51,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759493",
@@ -61,7 +61,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "861968",
@@ -70,7 +71,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": false
+        "showInComfort": false,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "327601CD",
@@ -79,7 +81,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "3276003D",
@@ -88,7 +91,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "639148",
@@ -97,7 +101,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "3276028A",
@@ -106,7 +111,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759522",
@@ -115,7 +121,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "32760205",
@@ -124,7 +131,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759521",
@@ -133,7 +141,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "327601CB",
@@ -142,7 +151,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759209",
@@ -151,7 +161,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759498",
@@ -160,7 +171,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": false
+        "showInComfort": false,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "861004",
@@ -169,7 +181,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "861034",
@@ -178,7 +191,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "32760371",
@@ -187,7 +201,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759492",
@@ -196,7 +211,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759489",
@@ -205,7 +221,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759519",
@@ -214,7 +231,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": false
+        "showInComfort": false,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "3276012B",
@@ -223,7 +241,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "32760164",
@@ -232,7 +251,8 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "32760208",
@@ -241,7 +261,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       }
     ]
   },
@@ -268,7 +289,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "861011"
       },
       {
         "id": "govee",
@@ -277,7 +299,8 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true
+        "showInComfort": true,
+        "external_source": "861011"
       }
     ]
   }
