@@ -367,95 +367,6 @@ function buildUI() {
   updateChangeCount();
 }
 
-    const tbody = document.createElement('tbody');
-    for (const logger of ds.loggers) {
-      const tr = document.createElement('tr');
-      const isExt = logger.section === 'external';
-
-      // ID
-      const tdId = document.createElement('td');
-      tdId.style.cssText = 'font-family:monospace;font-size:11px;color:#666;white-space:nowrap';
-      tdId.textContent = logger.id;
-      tr.appendChild(tdId);
-
-      // Source badge
-      const tdSrc = document.createElement('td');
-      const badge = document.createElement('span');
-      const srcKey = logger.source.split(' ')[0];
-      badge.className = `source-badge source-${srcKey}`;
-      badge.textContent = logger.source;
-      tdSrc.appendChild(badge);
-      tr.appendChild(tdSrc);
-
-      // Name
-      const tdName = document.createElement('td');
-      if (isExt) {
-        tdName.textContent = logger.name;
-        tdName.style.color = '#999';
-      } else {
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.value = getOverride(dsKey, logger.id, 'name', logger.name);
-        inp.addEventListener('input', e => setOverride(dsKey, logger.id, 'name', e.target.value, logger.name));
-        tdName.appendChild(inp);
-      }
-      tr.appendChild(tdName);
-
-      // Section dropdown (hasCat only, non-external)
-      if (hasCat) {
-        const tdSect = document.createElement('td');
-        if (isExt) {
-          tdSect.innerHTML = '<span class="ext-note">external (fixed)</span>';
-        } else {
-          const sel = document.createElement('select');
-          const currentSection = getOverride(dsKey, logger.id, 'section', logger.section);
-          [['room', 'Room'], ['structural', 'Structural']].forEach(([v, l]) => {
-            const opt = document.createElement('option');
-            opt.value = v; opt.textContent = l;
-            if (v === currentSection) opt.selected = true;
-            sel.appendChild(opt);
-          });
-          sel.addEventListener('change', e => setOverride(dsKey, logger.id, 'section', e.target.value, logger.section));
-          tdSect.appendChild(sel);
-        }
-        tr.appendChild(tdSect);
-      }
-
-      // Three visibility checkboxes
-      for (const [field, defaultVal] of [
-        ['showInLine', logger.showInLine],
-        ['showInHistogram', logger.showInHistogram],
-        ['showInComfort', logger.showInComfort],
-      ]) {
-        const td = document.createElement('td');
-        td.className = 'center';
-        if (isExt && field !== 'showInComfort') {
-          // External loggers: line/histogram always on, can't be changed
-          td.innerHTML = '<span class="ext-note">—</span>';
-        } else if (isExt && field === 'showInComfort') {
-          // External loggers never in comfort
-          td.innerHTML = '<span class="ext-note">—</span>';
-        } else {
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = getOverride(dsKey, logger.id, field, defaultVal);
-          cb.addEventListener('change', e => setOverride(dsKey, logger.id, field, e.target.checked, defaultVal));
-          td.appendChild(cb);
-        }
-        tr.appendChild(td);
-      }
-
-      tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    card.appendChild(table);
-    sec.appendChild(card);
-    container.appendChild(sec);
-  }
-
-  updateChangeCount();
-}
-
 function countChanges() {
   let n = 0;
   for (const ds of Object.values(pending)) {
@@ -473,6 +384,7 @@ function updateChangeCount() {
   const n = countChanges();
   const el = document.getElementById('change-count');
   const saveBtn = document.getElementById('save-btn');
+  if (!el || !saveBtn) return;
   if (n === 0) {
     el.textContent = 'No unsaved changes';
     saveBtn.disabled = true;

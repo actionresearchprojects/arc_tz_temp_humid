@@ -1930,7 +1930,7 @@ function renderLineGraph() {
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
-    xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range:[toEATString(dataMinMs), toEATString(dataMaxMs)],
+    xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range: state.timeMode === 'all' ? [toEATString(dataMinMs), toEATString(dataMaxMs)] : [toEATString(start), toEATString(end)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
