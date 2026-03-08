@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-08 17:30:00 CST
+- **PNG export: ID codes in legend** — On PNG download for all chart types (Line, Histogram, Adaptive Comfort), each legend item now shows the sensor ID code in grey text (e.g. "Living Room · 780981"). Implemented via a new `injectLegendIDCodes(doc)` function in `build.py` that post-processes the exported SVG DOM: wraps the existing text content in a `<tspan>`, then appends a second grey `<tspan fill="#aaaaaa">` with ` · <id>` to each `.legendtext` element whose trace has a real sensor ID (Open-Meteo, govee, and `climate-*` series are skipped). Called in all three export paths after `Plotly.toImage()`. The live chart is unaffected. Run `python build.py` to apply.
+
 ### 2026-03-09 00:00:00 CST
 - **Fixed x-axis range snapping on line graph** — When a specific time range (day/week/month/year/between) is selected, the x-axis now always spans the full selected period even if data doesn't cover it. Only the "All time" mode continues to snap to the actual data bounds. Change is in `build.py` (JS template, `renderLineGraph()`): x-axis `range` now uses `[start, end]` from `getTimeRange()` for non-"all" modes, and `[dataMinMs, dataMaxMs]` only for "all" mode.
 
