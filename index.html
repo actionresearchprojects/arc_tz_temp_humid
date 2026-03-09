@@ -627,6 +627,12 @@ function resetTimeMode() {
     document.getElementById(id).classList.add('hidden'));
 }
 
+function resetMetrics() {
+  state.selectedMetrics = new Set(['temperature', 'humidity']);
+  document.getElementById('cb-temperature').checked = true;
+  document.getElementById('cb-humidity').checked = true;
+}
+
 function resetLineDefaults() {
   const m = dataset().meta;
   if (state.historicMode) {
@@ -638,6 +644,7 @@ function resetLineDefaults() {
   document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
   });
+  resetMetrics();
   resetTimeMode();
   updatePlot();
 }
@@ -652,6 +659,7 @@ function resetComfortDefaults() {
   document.getElementById('comfort-model').value = 'rh_gt_60';
   state.comfortPctMode = 'below_upper';
   document.getElementById('comfort-pct-mode').value = 'below_upper';
+  resetMetrics();
   resetTimeMode();
   updatePlot();
 }
@@ -2390,7 +2398,7 @@ function updatePeriodicCompleteness(start, end) {
 
   // Build "jump to complete period" dropdown (same as histogram/comfort)
   const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
-  const allAvailableInfo = m.loggers.filter(id => lineSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
+  const allAvailableInfo = m.loggers.filter(id => !extSet.has(id) && lineSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
   buildGapDropdown('periodic-comp-dropdown', 'periodic-comp-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'periodic');
 
   renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end);
