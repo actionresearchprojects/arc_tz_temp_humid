@@ -39,7 +39,7 @@ select:focus { outline: none; border-color: #4a90d9; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, 'Times New Roman', serif; }
 .info-i:hover { background: #666; }
-#info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:280px; z-index:9999; pointer-events:none; white-space:normal; }
+#info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .control-row label { font-size: 12px; color: #666; white-space: nowrap; }
@@ -136,11 +136,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <select id="period-range" style="margin-left:6px;font-size:12px;">
             <option value="day">Day</option>
             <option value="year">Year</option>
-            <option value="mjo">MJO</option>
-            <option value="iod">IOD</option>
-            <option value="enso">ENSO</option>
+            <option value="mjo">Madden&ndash;Julian Oscillation (MJO)</option>
+            <option value="iod">Indian Ocean Dipole (IOD)</option>
+            <option value="enso">El Ni&ntilde;o&ndash;Southern Oscillation (ENSO)</option>
           </select>
+          <span class="info-i" id="period-range-info" style="display:none;margin-left:4px;">i</span>
         </label>
+        <div id="period-range-tip" style="display:none;font-size:11px;color:#666;line-height:1.4;margin-bottom:6px;padding:6px 8px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;"></div>
         <div id="periodic-warnings" style="margin-top:6px;"></div>
       </div>
       <hr class="divider" id="periodic-divider" style="display:none">
@@ -635,11 +637,11 @@ function resetMetrics() {
 
 function resetLineDefaults() {
   const m = dataset().meta;
+  state.selectedLoggers.clear();
   if (state.historicMode) {
-    state.selectedLoggers = new Set();
     m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
   } else {
-    state.selectedLoggers = new Set(m.lineLoggers || m.loggers);
+    (m.lineLoggers || m.loggers).forEach(id => state.selectedLoggers.add(id));
   }
   document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
@@ -651,7 +653,8 @@ function resetLineDefaults() {
 
 function resetComfortDefaults() {
   const m = dataset().meta;
-  state.selectedRoomLoggers = new Set(m.roomLoggers);
+  state.selectedRoomLoggers.clear();
+  (m.roomLoggers || []).forEach(id => state.selectedRoomLoggers.add(id));
   document.getElementById('room-logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedRoomLoggers.has(cb.dataset.loggerId);
   });
@@ -872,6 +875,23 @@ function setupStaticListeners() {
     iod:  [{value:'phase', label:'Phase (+/−/Neutral)'}],
     enso: [{value:'phase', label:'Phase (Niño/Niña/Neutral)'}],
   };
+  const oscInfoTexts = {
+    mjo: 'Madden\u2013Julian Oscillation: a tropical weather pattern that circles the globe every 30\u201360 days, modulating rainfall and temperature. 8 phases track its position \u2014 Phases 2\u20133 (Indian Ocean) and 4\u20135 (Maritime Continent) are most relevant to East Africa. Weekly RMM phase data; weeks with amplitude < 1.0 are excluded.',
+    iod: 'Indian Ocean Dipole: a sea-surface temperature gradient between the western and eastern Indian Ocean. Positive IOD brings wetter conditions to East Africa; Negative IOD brings drier conditions. Monthly DMI-based phases: Positive, Negative, or Neutral.',
+    enso: 'El Ni\u00f1o\u2013Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
+  };
+  function updatePeriodRangeInfo() {
+    const infoIcon = document.getElementById('period-range-info');
+    const infoTip = document.getElementById('period-range-tip');
+    const isOsc = state.periodRange === 'mjo' || state.periodRange === 'iod' || state.periodRange === 'enso';
+    infoIcon.style.display = isOsc ? '' : 'none';
+    infoTip.style.display = 'none';
+    infoTip.textContent = oscInfoTexts[state.periodRange] || '';
+    if (isOsc) {
+      infoIcon.onmouseenter = () => { infoTip.style.display = ''; };
+      infoIcon.onmouseleave = () => { infoTip.style.display = 'none'; };
+    }
+  }
   function updateGranularityDropdown() {
     const gsel = document.getElementById('period-granularity');
     gsel.innerHTML = '';
@@ -881,6 +901,10 @@ function setupStaticListeners() {
     const defaults = {year:'month', day:'hour', mjo:'phase', iod:'phase', enso:'phase'};
     state.periodGranularity = defaults[state.periodRange] || (opts.length ? opts[0].value : 'hour');
     gsel.value = state.periodGranularity;
+    // Hide granularity row when only one option (climate oscillations)
+    gsel.parentElement.style.display = opts.length <= 1 ? 'none' : '';
+    // Show/hide oscillation info icon + tip
+    updatePeriodRangeInfo();
     // Show/hide options based on period range in periodic mode
     if (state.chartType === 'periodic') {
       const isYear = state.periodRange === 'year';
@@ -889,11 +913,25 @@ function setupStaticListeners() {
       document.getElementById('line-options-divider').style.display = isYear ? '' : 'none';
     }
   }
+  function fitPeriodRangeWidth() {
+    const sel = document.getElementById('period-range');
+    const isOsc = sel.value === 'mjo' || sel.value === 'iod' || sel.value === 'enso';
+    const fs = isOsc ? '10px' : '12px';
+    sel.style.fontSize = fs;
+    const tmp = document.createElement('select');
+    tmp.style.cssText = 'position:absolute;visibility:hidden;font-size:' + fs + ';';
+    tmp.add(new Option(sel.options[sel.selectedIndex].text));
+    document.body.appendChild(tmp);
+    sel.style.width = (tmp.offsetWidth + 8) + 'px';
+    document.body.removeChild(tmp);
+  }
   document.getElementById('period-range').addEventListener('change', e => {
     state.periodRange = e.target.value;
+    fitPeriodRangeWidth();
     updateGranularityDropdown();
     updatePlot();
   });
+  fitPeriodRangeWidth();
   document.getElementById('period-granularity').addEventListener('change', e => {
     state.periodGranularity = e.target.value;
     updatePlot();
@@ -963,7 +1001,7 @@ function setupStaticListeners() {
       // First entry only: force loggers to Open-Meteo only
       if (!_historicEnteredOnce) {
         _historicEnteredOnce = true;
-        state.selectedLoggers = new Set();
+        state.selectedLoggers.clear();
         m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
         document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
           cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
@@ -993,7 +1031,8 @@ function setupStaticListeners() {
         cbThreshold.checked = s.threshold; state.showThreshold   = s.threshold;
         cbSeasons.checked   = s.seasons;   state.showSeasonLines = s.seasons;
         // Loggers
-        state.selectedLoggers = s.loggers;
+        state.selectedLoggers.clear();
+        s.loggers.forEach(id => state.selectedLoggers.add(id));
         document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
           cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
         });
@@ -1431,15 +1470,17 @@ function renderLineGraph() {
     });
   }
 
-  // Threshold and season lines adapt to the full data range
+  // Threshold and season lines span the full visible range
+  const rangeMinMs = state.timeMode === 'all' ? dataMinMs : start;
+  const rangeMaxMs = state.timeMode === 'all' ? dataMaxMs : end;
   if (state.showThreshold) {
-    traces.push({x:[new Date(dataMinMs),new Date(dataMaxMs)], y:[32,32], type:'scatter', mode:'lines',
+    traces.push({x:[new Date(rangeMinMs),new Date(rangeMaxMs)], y:[32,32], type:'scatter', mode:'lines',
       name:'32°C Threshold', line:{color:'#e74c3c', width:1.5, dash:'dot'},
       hovertemplate:'32°C Threshold<extra></extra>'});
   }
 
   if (state.showSeasonLines) {
-    const seasons = getSeasonBoundaries(dataMinMs, dataMaxMs);
+    const seasons = getSeasonBoundaries(rangeMinMs, rangeMaxMs);
     seasons.forEach(s => {
       shapes.push({type:'line', xref:'x', yref:'paper', x0:new Date(s.ts), x1:new Date(s.ts), y0:0, y1:1, line:{color:'#bbb', width:1, dash:'dot'}});
       annotations.push({x:new Date(s.ts), xref:'x', yref:'paper', y:1.01, yanchor:'bottom', xanchor:'left', text:s.name, showarrow:false, font:{size:9, color:'#888'}, textangle:-30});
@@ -1777,18 +1818,17 @@ function updateHistogramStats(start, end) {
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
     const filtered = filterSeries(series, start, end);
-    let pct = null;
-    if (filtered) {
-      let below = 0, count = 0;
-      for (let i = 0; i < filtered.temperature.length; i++) {
-        const t = filtered.temperature[i];
-        if (t == null) continue;
-        if (t < 32) below++;
-        count++;
-      }
-      pct = count > 0 ? below/count*100 : 0;
-      totalBelow += below; totalAll += count;
+    if (!filtered) continue; // no data in range — skip
+    let below = 0, count = 0;
+    for (let i = 0; i < filtered.temperature.length; i++) {
+      const t = filtered.temperature[i];
+      if (t == null) continue;
+      if (t < 32) below++;
+      count++;
     }
+    if (count === 0) continue; // no temperature readings in range
+    const pct = below/count*100;
+    totalBelow += below; totalAll += count;
     roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
   if (roomStats.length === 0) { histStatsPanel.classList.add('hidden'); return; }
@@ -1801,7 +1841,7 @@ function updateHistogramStats(start, end) {
     warnDiv.classList.remove('hidden');
     warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
-    const allAvailableInfo = m.loggers.filter(id => !extSet.has(id) && histSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
+    const allAvailableInfo = m.loggers.filter(id => (!extSet.has(id) || state.selectedLoggers.has(id)) && histSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
     buildGapDropdown('hist-gap-dropdown', 'hist-gap-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'histogram');
   }
   renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end);
@@ -2384,6 +2424,8 @@ function updatePeriodicCompleteness(start, end) {
     if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
+    const filtered = filterSeries(series, start, end);
+    if (!filtered) continue; // no data in range — skip
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
     roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct: null, hasGap: gaps.length > 0});
@@ -2398,7 +2440,7 @@ function updatePeriodicCompleteness(start, end) {
 
   // Build "jump to complete period" dropdown (same as histogram/comfort)
   const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
-  const allAvailableInfo = m.loggers.filter(id => !extSet.has(id) && lineSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
+  const allAvailableInfo = m.loggers.filter(id => (!extSet.has(id) || state.selectedLoggers.has(id)) && lineSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
   buildGapDropdown('periodic-comp-dropdown', 'periodic-comp-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'periodic');
 
   renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end);
@@ -2483,7 +2525,7 @@ function renderPeriodicAverages() {
     getCategoryIdx = ms => TZ_SEASON_IDX[eatDate(ms).getUTCMonth()];
   } else if (pr === 'mjo') {
     nCats = 8;
-    categoryLabels = ['Phase 1','Phase 2','Phase 3','Phase 4','Phase 5','Phase 6','Phase 7','Phase 8'];
+    categoryLabels = MJO_LABELS;
     getCategoryIdx = ms => {
       const wk = getISOWeekStr(ms);
       const ph = MJO_PHASES[wk];
@@ -2707,8 +2749,11 @@ function renderPeriodicAverages() {
   const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
 
   const rangeLabels = {day:'Day', year:'Year', mjo:'MJO', iod:'IOD', enso:'ENSO'};
+  const rangeFullLabels = {day:'Day', year:'Year', mjo:'Madden\u2013Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o\u2013Southern Oscillation (ENSO)'};
   const granLabels = {hour:'Hour', synoptic:'Synoptic', month:'Month', week:'Week', day:'Day', season:'Season', phase:'Phase'};
-  const periodLabel = (rangeLabels[pr] || pr) + ' / ' + (granLabels[pg] || pg);
+  const isOsc = pr === 'mjo' || pr === 'iod' || pr === 'enso';
+  const periodLabel = isOsc ? (rangeLabels[pr] || pr) + ' Phase' : (rangeLabels[pr] || pr) + ' / ' + (granLabels[pg] || pg);
+  const periodFullLabel = isOsc ? (rangeFullLabels[pr] || pr) : periodLabel;
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
   let xTitle;
@@ -2718,9 +2763,9 @@ function renderPeriodicAverages() {
   else if (pr === 'year' && pg === 'week') xTitle = 'Week of Year';
   else if (pr === 'year' && pg === 'day') xTitle = 'Day of Year';
   else if (pr === 'year' && pg === 'season') xTitle = 'Tanzanian Season';
-  else if (pr === 'mjo') xTitle = 'MJO Phase';
-  else if (pr === 'iod') xTitle = 'Indian Ocean Dipole Phase';
-  else if (pr === 'enso') xTitle = 'ENSO Phase';
+  else if (pr === 'mjo') xTitle = 'Madden\u2013Julian Oscillation (MJO) Phase';
+  else if (pr === 'iod') xTitle = 'Indian Ocean Dipole (IOD) Phase';
+  else if (pr === 'enso') xTitle = 'El Ni\u00f1o\u2013Southern Oscillation (ENSO) Phase';
   else xTitle = periodLabel;
 
   // Build x-axis config
@@ -2732,8 +2777,9 @@ function renderPeriodicAverages() {
       tickvals: [0,1,2,3,4,5,6,7,8,9,10,11], ticktext: MN,
       automargin: true};
   } else {
+    const longLabels = isOsc || nCats > 15;
     xaxisCfg = {title: xTitle, type: 'category', showgrid: true, gridcolor: '#eee',
-      tickangle: nCats > 15 ? -45 : 0, automargin: true};
+      tickangle: longLabels ? -30 : 0, automargin: true};
   }
 
   return {
@@ -2748,7 +2794,7 @@ function renderPeriodicAverages() {
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
       shapes, annotations,
     },
-    title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodLabel + ' Averages').replace(/&amp;/g, '&'),
+    title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
   };
 }
 
@@ -2851,15 +2897,16 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are stacked \u2014 hover to see individual logger values.',
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
-    periodic: 'Averages readings into periodic buckets. Day period shows hourly or synoptic patterns; Year shows monthly, weekly or seasonal. MJO/IOD/ENSO show averages by climate oscillation phase. Orange/red warnings flag low-data categories.'
+    periodic: 'Averages readings into periodic buckets. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences. Orange/red warnings flag categories with very few readings.',
   };
   icon.addEventListener('mouseenter', () => {
     tip.textContent = texts[state.chartType] || '';
     const r = icon.getBoundingClientRect();
     tip.style.display = 'block';
     let left = r.left;
-    if (left + 288 > window.innerWidth - 8) left = window.innerWidth - 296;
-    tip.style.left = left + 'px';
+    const tipW = 328;
+    if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+    tip.style.left = Math.max(4, left) + 'px';
     tip.style.top  = (r.bottom + 6) + 'px';
   });
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
