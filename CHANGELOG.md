@@ -1,12 +1,66 @@
 ## Changelog
 
+### 2026-03-09 22:30:00 CST
+- **Lock button fixes**: Button now changes text to "Unlock Avg" when locked (was staying as "Lock Avg"). Replaced tacky emoji lock indicator with small grey SVG lock icon next to average label.
+- **Section averages independent of checkboxes**: Section averages now always computed from ALL loggers in the section (unlocked) or the locked set (locked), regardless of which individual logger checkboxes are checked. Average lines show even when all individual loggers are unchecked.
+- **Removed `hasAnyData` gate on section averages**: Section avg traces render independently, and set `hasAnyData = true` so the chart doesn't return empty when only averages are visible.
+
+### 2026-03-09 22:00:00 CST
+- **Fixed lock buttons not appearing**: Lock buttons (and section average checkboxes) were created with `display: none` and only toggled visible by the chart type change handler. If `loadDataset()` rebuilt checkboxes while already in periodic mode, the new buttons stayed hidden. Added visibility sync at end of `loadDataset()`.
+
+### 2026-03-09 21:30:00 CST
+- **Season lines on season granularity**: Season boundary lines now show on all year sub-granularities including the season view itself (month-scale positions on linear axis).
+- **Removed 32°C threshold from periodic**: Threshold checkbox hidden when periodic is active; restored for line/histogram.
+- **Fixed January black line**: Added `zeroline: false` to season linear x-axis.
+- **Lock Average feature**: Each logger section (External/Room/Structural) now has a lock button (🔓/🔒) next to All/None, visible only in periodic mode. When locked, the section average freezes to the loggers that were selected at lock time — subsequent checkbox changes won't affect it. A 🔒 indicator appears next to the average checkbox label. Unlock returns to normal live-tracking behavior. Locked sections pre-compute their averages from the locked set before the main loop.
+- **Section avg follows All/None**: All button also checks the section average checkbox; None unchecks it.
+- **Section avg line style**: Higher color:white ratio (`12px 4px` dash pattern, width 3.5).
+- **MJO/IOD/ENSO climate data note**: The embedded phase lookup tables are approximate. Real data from NOAA ONI, BoM RMM, and JAMSTEC DMI would significantly improve accuracy.
+
+### 2026-03-09 20:00:00 CST
+- **Periodic Averages refinements**:
+  - Removed season background shading — season spacing on linear axis is now clean without colored bands.
+  - Removed 32°C threshold line from periodic averages entirely; threshold checkbox hidden in periodic mode.
+  - Fixed black vertical line on January in season view (`zeroline: false` on linear x-axis).
+  - Year granularity options reordered: Day, Week, Month (default), Season. Month is auto-selected when switching to Year.
+  - Section average checkboxes now follow All/None button rules — clicking "All" checks the average, "None" unchecks it.
+  - Section average lines use higher color:white dash ratio (`12px 4px` pattern, width 3.5) for better visibility.
+  - **MJO/IOD/ENSO display overhauled**: switched from bars/lines to scatter markers only (circles for loggers, diamonds for section averages). Cleaner with many loggers on 3-8 phase categories. MJO labels simplified to "Phase 1"–"Phase 8".
+  - Options section (Season Lines) only shown in periodic mode when Year period range is selected.
+
+### 2026-03-09 18:30:00 CST
+- **Periodic Averages UI and display improvements**:
+  - Granularity dropdown now appears above Period Range dropdown.
+  - Added **Day** granularity for Year period range (366 categories, "Jan 1"–"Dec 31").
+  - **Season granularity** now uses a linear x-axis with month ticks — seasons positioned at their temporal midpoints (Kiangazi Jan–Feb at 0.5, Masika Mar–May at 3, Kiangazi Jun–Oct at 7, Vuli Nov–Dec at 10.5) instead of evenly spaced. Background shading shows each season's extent.
+  - **IOD and ENSO** phases now display as **grouped bars** instead of lines, which better suits 3-category phase data.
+  - All traces now use `text` arrays for accurate hover labels (critical for linear-axis modes where `%{x}` shows a number).
+  - Season boundary lines now also appear for Day and Week granularities (not just Month).
+
+### 2026-03-09 17:00:00 CST
+- **Periodic Averages: Period Range + Granularity redesign**:
+  - Replaced single "Period Type" dropdown with two dropdowns: "Period Range" and "Granularity".
+  - **Day** period range: Hour (default, 24 categories) or Synoptic Hours (Late Night 00–06, Morning 06–12, Afternoon 12–18, Evening 18–00).
+  - **Year** period range: Month (12 categories), Week (53 categories), or Season (4 Tanzanian seasons: Kiangazi Jan–Feb, Masika Mar–May, Kiangazi Jun–Oct, Vuli Nov–Dec).
+  - **MJO** (Madden-Julian Oscillation): 8 phases. Uses embedded weekly RMM phase lookup table (2023-W11 through 2026-W10). Weak/inactive MJO weeks are excluded.
+  - **IOD** (Indian Ocean Dipole): 3 phases (Negative, Neutral, Positive). Uses embedded monthly DMI phase lookup (2023-01 through 2026-06).
+  - **ENSO**: 3 phases (La Niña, Neutral, El Niño). Uses embedded monthly ONI phase lookup (2023-01 through 2026-06).
+  - 32°C threshold line now shown in periodic mode (horizontal dashed red line across all categories).
+  - Season lines checkbox visible when Year period range is selected. Season boundary lines drawn at correct month positions on year/month charts.
+  - Options section (32°C Threshold, Season Lines) now visible in periodic mode instead of hidden.
+
+### 2026-03-09 15:30:00 CST
+- **Periodic Averages refinements (v2)**:
+  - Period Settings now at the very top of the sidebar (before Loggers section).
+  - Section averages (External, Room, Structural) are now individual checkboxes in their respective logger sections, visible only in periodic mode. Each controls its own dashed average line.
+  - Removed Custom period type entirely (along with `buildCustomCategories`, `roundToMonday`, all custom range state/inputs).
+  - Fixed legend scrollbar reappearing after PNG export — `doRestore()` now chains `unlockLegendScroll(chartEl)` after the Plotly relayout promise resolves.
+  - Only Hour of Day and Month of Year period types remain.
+
 ### 2026-03-08 22:45:00 CST
 - **Periodic Averages refinements**:
-  - Removed "Day of Week" and "Day of Month" period type options (kept Day granularity in Custom mode).
-  - Overall average now shows three separate section averages (External Avg, Room Avg, Structural Avg) with distinct colors (#1a1a1a, #333399, #663300) and thicker lines (width 3).
-  - Moved Period Settings to the top of the left sidebar (between Metrics and Options sections).
+  - Removed "Day of Week" and "Day of Month" period type options.
   - Added info tooltip text for the periodic chart type.
-  - Checkbox label simplified to "Overall Average".
   - Fixed periodic-options visibility toggling (style.display instead of classList.toggle).
 
 ### 2026-03-08 21:51:17 CST

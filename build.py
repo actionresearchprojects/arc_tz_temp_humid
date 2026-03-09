@@ -712,6 +712,10 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .hidden { display: none !important; }
 .sel-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
 .sel-btn:hover { background: #e8e8e8; }
+.lock-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
+.lock-btn:hover { background: #e8e8e8; }
+.lock-btn.locked { color: #fff; background: #888; border-color: #777; }
+.lock-indicator { color: #bbb; font-size: 10px; margin-left: 3px; }
 .sub-section-title { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin: 6px 0 2px; }
 #room-logger-checkboxes .sub-section-title:first-of-type { margin-top: 0.1px; }
 #download-btn { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; background: #28a745; color: white; font-weight: 500; white-space: nowrap; }
@@ -760,6 +764,28 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <div id="main">
   <div id="sidebar">
     <div id="line-controls">
+      <div class="section" id="periodic-options" style="display:none">
+        <div class="section-title">Period Settings</div>
+        <label class="cb-label" style="margin-bottom:6px;">
+          Granularity
+          <select id="period-granularity" style="margin-left:6px;font-size:12px;">
+            <option value="hour">Hour</option>
+            <option value="synoptic">Synoptic Hours</option>
+          </select>
+        </label>
+        <label class="cb-label" style="margin-bottom:6px;">
+          Period Range
+          <select id="period-range" style="margin-left:6px;font-size:12px;">
+            <option value="day">Day</option>
+            <option value="year">Year</option>
+            <option value="mjo">MJO</option>
+            <option value="iod">IOD</option>
+            <option value="enso">ENSO</option>
+          </select>
+        </label>
+        <div id="periodic-warnings" style="margin-top:6px;"></div>
+      </div>
+      <hr class="divider" id="periodic-divider" style="display:none">
       <div class="section">
         <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset to default</button></div>
         <div id="logger-checkboxes"></div>
@@ -771,35 +797,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label" id="humidity-label"><input type="checkbox" id="cb-humidity" checked> Humidity</label>
       </div>
       <hr class="divider">
-      <div class="section" id="periodic-options" style="display:none">
-        <div class="section-title">Period Settings</div>
-        <label class="cb-label" style="margin-bottom:6px;">
-          Period Type
-          <select id="period-type" style="margin-left:6px;font-size:12px;">
-            <option value="hour_of_day">Hour of Day</option>
-            <option value="month_of_year">Month of Year</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
-        <div id="custom-period-controls" style="display:none;margin-top:6px;">
-          <label class="cb-label" style="margin-bottom:4px;">
-            Granularity
-            <select id="custom-granularity" style="margin-left:6px;font-size:12px;">
-              <option value="day">Day</option>
-              <option value="week">Week</option>
-              <option value="month">Month</option>
-            </select>
-          </label>
-          <div style="font-size:11px;margin-top:4px;">
-            <div style="margin-bottom:3px;">Day range: <input id="custom-day-start" type="date" style="font-size:11px;"> – <input id="custom-day-end" type="date" style="font-size:11px;"></div>
-            <div style="margin-bottom:3px;">Week range: <input id="custom-week-start" type="week" style="font-size:11px;"> – <input id="custom-week-end" type="week" style="font-size:11px;"></div>
-            <div>Month range: <input id="custom-month-start" type="month" style="font-size:11px;"> – <input id="custom-month-end" type="month" style="font-size:11px;"></div>
-          </div>
-        </div>
-        <label class="cb-label" style="margin-top:6px;"><input type="checkbox" id="cb-overall-avg" checked> Overall Average</label>
-        <div id="periodic-warnings" style="margin-top:6px;"></div>
-      </div>
-      <hr class="divider" id="periodic-divider" style="display:none">
       <div class="section" id="line-options-section">
         <div class="section-title">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32°C Threshold</label>
@@ -956,15 +953,10 @@ const state = {
   selectedHistoricSeries: new Set(),
   comfortModel: 'rh_gt_60',
   comfortPctMode: 'below_upper',
-  periodType: 'hour_of_day',
-  showOverallAvg: true,
-  customGranularity: 'month',
-  customDayStart: null,
-  customDayEnd: null,
-  customWeekStart: null,
-  customWeekEnd: null,
-  customMonthStart: null,
-  customMonthEnd: null,
+  periodRange: 'day',
+  periodGranularity: 'hour',
+  showSectionAvg: {external: true, room: true, structural: true},
+  lockedAvg: {external: null, room: null, structural: null}, // null=unlocked, Set=locked logger IDs
   betweenStart: null,
   betweenEnd: null,
   selectedYear: null,
@@ -1080,7 +1072,7 @@ function loadDataset(key) {
     });
     container.appendChild(lbl);
   }
-  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn) {
+  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey) {
     if (ids.length === 0) return;
     const titleEl = document.createElement('div');
     titleEl.className = 'sub-section-title';
@@ -1090,12 +1082,41 @@ function loadDataset(key) {
     btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
     btnRow.appendChild(mkSelBtn('All', () => {
       ids.forEach(id => { stateSet.add(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
+      if (sectionKey) { state.showSectionAvg[sectionKey] = true; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = true; }
       updatePlot();
     }));
     btnRow.appendChild(mkSelBtn('None', () => {
       ids.forEach(id => { stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
+      if (sectionKey) { state.showSectionAvg[sectionKey] = false; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = false; }
       updatePlot();
     }));
+    if (sectionKey) {
+      const lockBtn = document.createElement('button');
+      lockBtn.className = 'lock-btn';
+      lockBtn.dataset.sectionLock = sectionKey;
+      lockBtn.style.display = state.chartType === 'periodic' ? 'inline-block' : 'none';
+      lockBtn.textContent = 'Lock Avg';
+      lockBtn.title = 'Lock average: freeze which loggers contribute to this section average';
+      lockBtn.addEventListener('click', function() {
+        if (state.lockedAvg[sectionKey] !== null) {
+          state.lockedAvg[sectionKey] = null;
+          this.textContent = 'Lock Avg';
+          this.classList.remove('locked');
+          this.title = 'Lock average: freeze which loggers contribute to this section average';
+          const ind = container.querySelector('.lock-indicator[data-lock-ind="' + sectionKey + '"]');
+          if (ind) ind.style.display = 'none';
+        } else {
+          state.lockedAvg[sectionKey] = new Set(ids.filter(id => stateSet.has(id)));
+          this.textContent = 'Unlock Avg';
+          this.classList.add('locked');
+          this.title = 'Click to unlock: average will follow checkbox selections again';
+          const ind = container.querySelector('.lock-indicator[data-lock-ind="' + sectionKey + '"]');
+          if (ind) ind.style.display = 'inline';
+        }
+        updatePlot();
+      });
+      btnRow.appendChild(lockBtn);
+    }
     if (extraBtns) extraBtns.forEach(b => btnRow.appendChild(b));
     container.appendChild(btnRow);
     ids.forEach(id => addCheckbox(container, stateSet, id, extraLabelFn ? extraLabelFn(id) : ''));
@@ -1115,19 +1136,36 @@ function loadDataset(key) {
   const midLoggers  = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
   const roomLoggers = m.loggers.filter(id => !extSet.has(id) &&  roomSet.has(id) && lineSet.has(id));
   const extTTLabel = id => (extSet.has(id) && m.loggerSources[id] === 'TinyTag') ? '<span style="color:#aaa"> (TinyTag)</span>' : '';
+  // Section average checkbox helper (only shown in periodic mode)
+  const sectionAvgColors = {external: '#1a1a1a', room: '#333399', structural: '#663300'};
+  function addSectionAvgCheckbox(container, sectionKey, label) {
+    const lbl = document.createElement('label');
+    lbl.className = 'cb-label periodic-avg-cb';
+    lbl.style.display = 'none'; // shown only in periodic mode
+    const color = sectionAvgColors[sectionKey];
+    const isLocked = state.lockedAvg[sectionKey] !== null;
+    lbl.innerHTML = `<input type="checkbox" data-section-avg="${sectionKey}" ${state.showSectionAvg[sectionKey] ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};vertical-align:middle"></span> ${label} Average<span class="lock-indicator" data-lock-ind="${sectionKey}" style="display:${isLocked ? 'inline' : 'none'}; color:#999; font-size:10px; margin-left:3px;"><svg style="vertical-align:middle" width="8" height="10" viewBox="0 0 8 10"><rect x="0" y="4" width="8" height="6" rx="1" fill="#aaa"/><path d="M2 4V3a2 2 0 0 1 4 0v1" fill="none" stroke="#aaa" stroke-width="1.2"/></svg></span>`;
+    lbl.querySelector('input').addEventListener('change', e => {
+      state.showSectionAvg[sectionKey] = e.target.checked; updatePlot();
+    });
+    container.appendChild(lbl);
+  }
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
-    addSection(loggerDiv, state.selectedLoggers, 'External', m.externalLoggers, null, extTTLabel);
+    addSection(loggerDiv, state.selectedLoggers, 'External', m.externalLoggers, null, extTTLabel, 'external');
+    addSectionAvgCheckbox(loggerDiv, 'external', 'External');
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
   // Room loggers section
   if (roomLoggers.length > 0) {
-    addSection(loggerDiv, state.selectedLoggers, 'Room', roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers));
+    addSection(loggerDiv, state.selectedLoggers, 'Room', roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers), null, 'room');
+    addSectionAvgCheckbox(loggerDiv, 'room', 'Room');
   }
   // Structural section
   if (midLoggers.length > 0) {
     if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
-    addSection(loggerDiv, state.selectedLoggers, 'Structural', midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers));
+    addSection(loggerDiv, state.selectedLoggers, 'Structural', midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers), null, 'structural');
+    addSectionAvgCheckbox(loggerDiv, 'structural', 'Structural');
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
     const allNonExt = m.loggers.filter(id => !extSet.has(id));
@@ -1169,18 +1207,6 @@ function loadDataset(key) {
 
   // Initialize custom period range defaults
   const fmtMonth = ms => new Date(ms).toISOString().slice(0, 7);
-  state.customDayStart = fmt(m.dateRange.min);
-  state.customDayEnd = fmt(m.dateRange.max);
-  state.customWeekStart = fmt(m.dateRange.min);
-  state.customWeekEnd = fmt(m.dateRange.max);
-  state.customMonthStart = fmtMonth(m.dateRange.min);
-  state.customMonthEnd = fmtMonth(m.dateRange.max);
-  document.getElementById('custom-day-start').value = state.customDayStart;
-  document.getElementById('custom-day-end').value = state.customDayEnd;
-  document.getElementById('custom-week-start').value = state.customWeekStart;
-  document.getElementById('custom-week-end').value = state.customWeekEnd;
-  document.getElementById('custom-month-start').value = state.customMonthStart;
-  document.getElementById('custom-month-end').value = state.customMonthEnd;
   document.getElementById('periodic-warnings').innerHTML = '';
 
   if (m.availableYears.length) {
@@ -1216,6 +1242,12 @@ function loadDataset(key) {
   document.getElementById('hist-gap-warning').classList.add('hidden');
   document.getElementById('hist-gap-dropdown-wrap').classList.add('hidden');
   document.getElementById('hist-gap-tip').style.display = 'none';
+
+  // If already in periodic mode, show periodic-specific UI elements on freshly created checkboxes
+  if (state.chartType === 'periodic') {
+    document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = ''; });
+    document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = 'inline-block'; });
+  }
 
   updatePlot();
 }
@@ -1353,16 +1385,20 @@ function setupStaticListeners() {
     document.getElementById('histogram-stats').classList.toggle('hidden', !isHistogram);
     document.getElementById('periodic-options').style.display = isPeriodic ? '' : 'none';
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
+    document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
+    document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isPeriodic) {
-      document.getElementById('line-options-section').style.display = 'none';
-      document.getElementById('line-options-divider').style.display = 'none';
+      document.getElementById('line-options-section').style.display = state.periodRange === 'year' ? '' : 'none';
+      document.getElementById('line-options-divider').style.display = state.periodRange === 'year' ? '' : 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
       document.getElementById('humidity-label').style.display = '';
-      document.getElementById('cb-seasons').parentElement.style.display = 'none';
+      document.getElementById('cb-threshold').parentElement.style.display = 'none';
+      document.getElementById('cb-seasons').parentElement.style.display = state.periodRange === 'year' ? '' : 'none';
     } else if (isHistogram) {
       // Show options but hide season lines checkbox (not applicable to histogram)
       document.getElementById('line-options-section').style.display = '';
       document.getElementById('line-options-divider').style.display = '';
+      document.getElementById('cb-threshold').parentElement.style.display = '';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = '';
       if (state.historicMode) {
@@ -1374,6 +1410,7 @@ function setupStaticListeners() {
         document.getElementById('historic-series-checkboxes').style.display = '';
       }
     } else if (isLine) {
+      document.getElementById('cb-threshold').parentElement.style.display = '';
       document.getElementById('cb-seasons').parentElement.style.display = '';
       document.getElementById('line-options-section').style.display = '';
       document.getElementById('line-options-divider').style.display = '';
@@ -1452,32 +1489,39 @@ function setupStaticListeners() {
   });
 
   // Periodic averages controls
-  document.getElementById('period-type').addEventListener('change', e => {
-    state.periodType = e.target.value;
-    document.getElementById('custom-period-controls').classList.toggle('hidden', state.periodType !== 'custom');
-    if (state.periodType === 'custom') updateCustomRangeVisibility();
-    updatePlot();
-  });
-  document.getElementById('cb-overall-avg').addEventListener('change', e => {
-    state.showOverallAvg = e.target.checked; updatePlot();
-  });
-  document.getElementById('custom-granularity').addEventListener('change', e => {
-    state.customGranularity = e.target.value;
-    updateCustomRangeVisibility();
-    updatePlot();
-  });
-  function updateCustomRangeVisibility() {
-    const g = state.customGranularity;
-    document.getElementById('custom-range-day').classList.toggle('hidden', g !== 'day');
-    document.getElementById('custom-range-week').classList.toggle('hidden', g !== 'week');
-    document.getElementById('custom-range-month').classList.toggle('hidden', g !== 'month');
+  const granularityOptions = {
+    day:  [{value:'hour', label:'Hour'}, {value:'synoptic', label:'Synoptic Hours'}],
+    year: [{value:'day', label:'Day'}, {value:'week', label:'Week'}, {value:'month', label:'Month'}, {value:'season', label:'Season'}],
+    mjo:  [{value:'phase', label:'Phase (1–8)'}],
+    iod:  [{value:'phase', label:'Phase (+/−/Neutral)'}],
+    enso: [{value:'phase', label:'Phase (Niño/Niña/Neutral)'}],
+  };
+  function updateGranularityDropdown() {
+    const gsel = document.getElementById('period-granularity');
+    gsel.innerHTML = '';
+    const opts = granularityOptions[state.periodRange] || [];
+    opts.forEach(o => gsel.add(new Option(o.label, o.value)));
+    // Default: month for year, hour for day, phase for oscillations
+    const defaults = {year:'month', day:'hour', mjo:'phase', iod:'phase', enso:'phase'};
+    state.periodGranularity = defaults[state.periodRange] || (opts.length ? opts[0].value : 'hour');
+    gsel.value = state.periodGranularity;
+    // Show/hide options based on period range in periodic mode
+    if (state.chartType === 'periodic') {
+      const isYear = state.periodRange === 'year';
+      document.getElementById('cb-seasons').parentElement.style.display = isYear ? '' : 'none';
+      document.getElementById('line-options-section').style.display = isYear ? '' : 'none';
+      document.getElementById('line-options-divider').style.display = isYear ? '' : 'none';
+    }
   }
-  document.getElementById('custom-day-start').addEventListener('change', e => { state.customDayStart = e.target.value; updatePlot(); });
-  document.getElementById('custom-day-end').addEventListener('change', e => { state.customDayEnd = e.target.value; updatePlot(); });
-  document.getElementById('custom-week-start').addEventListener('change', e => { state.customWeekStart = e.target.value; updatePlot(); });
-  document.getElementById('custom-week-end').addEventListener('change', e => { state.customWeekEnd = e.target.value; updatePlot(); });
-  document.getElementById('custom-month-start').addEventListener('change', e => { state.customMonthStart = e.target.value; updatePlot(); });
-  document.getElementById('custom-month-end').addEventListener('change', e => { state.customMonthEnd = e.target.value; updatePlot(); });
+  document.getElementById('period-range').addEventListener('change', e => {
+    state.periodRange = e.target.value;
+    updateGranularityDropdown();
+    updatePlot();
+  });
+  document.getElementById('period-granularity').addEventListener('change', e => {
+    state.periodGranularity = e.target.value;
+    updatePlot();
+  });
 
   function rebuildYearDropdown() {
     const ysel = document.getElementById('year-select');
@@ -1632,8 +1676,7 @@ function setupStaticListeners() {
       modelStr = '_' + modelSel.options[modelSel.selectedIndex].text.replace(/\(Vellei et al\.\)/gi,'').replace(/[^a-zA-Z0-9%<>≤]/g,'').slice(0,20);
     }
     if (state.chartType === 'periodic') {
-      const ptLabels = {hour_of_day:'HourOfDay', month_of_year:'MonthOfYear', custom:'Custom'};
-      modelStr = '_' + (ptLabels[state.periodType] || 'Period');
+      modelStr = '_' + state.periodRange + '_' + state.periodGranularity;
     }
     let metricStr = '';
     if (state.chartType === 'line' || state.chartType === 'histogram' || state.chartType === 'periodic') {
@@ -1762,7 +1805,7 @@ function setupStaticListeners() {
         Plotly.relayout('chart', {
           'title.text': '', 'margin.t': origMarginT,
           images: origImages, annotations: origAnnotations,
-        });
+        }).then(() => unlockLegendScroll(chartEl));
       }
       // For comfort chart: temporarily embed IDs into trace names so Plotly
       // computes proper horizontal legend spacing before we capture the SVG.
@@ -2849,85 +2892,74 @@ function expandHorizontalLegendSpacing(root, extraGap) {
 // ── Periodic Averages ─────────────────────────────────────────────────────────
 function eatDate(ms) { return new Date(ms + 3 * 3600 * 1000); }
 
-function roundToMonday(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr + 'T00:00:00Z');
-  const dow = d.getUTCDay();
-  const offset = dow === 0 ? 6 : dow - 1;
-  return new Date(d.getTime() - offset * 86400000).toISOString().slice(0, 10);
-}
-
-function buildCustomCategories() {
-  const gran = state.customGranularity;
-  const categories = [], labels = [];
-  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  if (gran === 'day') {
-    if (!state.customDayStart || !state.customDayEnd) return null;
-    let d = new Date(state.customDayStart + 'T00:00:00Z');
-    const endD = new Date(state.customDayEnd + 'T00:00:00Z');
-    if (d > endD) return null;
-    const dayMap = {};
-    let idx = 0;
-    while (d <= endD) {
-      const key = d.toISOString().slice(0, 10);
-      categories.push(idx); labels.push(key);
-      dayMap[key] = idx++;
-      d = new Date(d.getTime() + 86400000);
-    }
-    return { categories, labels, getIdx(ms) {
-      const key = eatDate(ms).toISOString().slice(0, 10);
-      const r = dayMap[key]; return r !== undefined ? r : -1;
-    }};
-  }
-
-  if (gran === 'week') {
-    const ws = roundToMonday(state.customWeekStart);
-    const we = roundToMonday(state.customWeekEnd);
-    if (!ws || !we) return null;
-    let d = new Date(ws + 'T00:00:00Z');
-    const endD = new Date(we + 'T00:00:00Z');
-    if (d > endD) return null;
-    const weekMap = {};
-    let idx = 0;
-    while (d <= endD) {
-      const key = d.toISOString().slice(0, 10);
-      categories.push(idx);
-      labels.push('Wk of ' + MN[d.getUTCMonth()] + ' ' + d.getUTCDate());
-      weekMap[key] = idx++;
-      d = new Date(d.getTime() + 7 * 86400000);
-    }
-    return { categories, labels, getIdx(ms) {
-      const eat = eatDate(ms);
-      const dow = eat.getUTCDay();
-      const off = dow === 0 ? 6 : dow - 1;
-      const key = new Date(eat.getTime() - off * 86400000).toISOString().slice(0, 10);
-      const r = weekMap[key]; return r !== undefined ? r : -1;
-    }};
-  }
-
-  if (gran === 'month') {
-    if (!state.customMonthStart || !state.customMonthEnd) return null;
-    const [sy, sm] = state.customMonthStart.split('-').map(Number);
-    const [ey, em] = state.customMonthEnd.split('-').map(Number);
-    if (isNaN(sy) || isNaN(sm) || isNaN(ey) || isNaN(em)) return null;
-    if (sy > ey || (sy === ey && sm > em)) return null;
-    const monthMap = {};
-    let idx = 0, y = sy, mo = sm;
-    while (y < ey || (y === ey && mo <= em)) {
-      const key = y + '-' + String(mo).padStart(2, '0');
-      categories.push(idx);
-      labels.push(MN[mo - 1] + ' ' + y);
-      monthMap[key] = idx++;
-      mo++; if (mo > 12) { mo = 1; y++; }
-    }
-    return { categories, labels, getIdx(ms) {
-      const eat = eatDate(ms);
-      const key = eat.getUTCFullYear() + '-' + String(eat.getUTCMonth() + 1).padStart(2, '0');
-      const r = monthMap[key]; return r !== undefined ? r : -1;
-    }};
-  }
-  return null;
+// Climate oscillation phase lookup tables (monthly, YYYY-MM → phase index)
+// ENSO: ONI-based. 0=La Niña, 1=Neutral, 2=El Niño
+const ENSO_LABELS = ['La Ni\u00f1a', 'Neutral', 'El Ni\u00f1o'];
+const ENSO_PHASES = {
+  '2023-01':0,'2023-02':0,'2023-03':0,'2023-04':1,'2023-05':1,'2023-06':1,
+  '2023-07':1,'2023-08':1,'2023-09':1,'2023-10':2,'2023-11':2,'2023-12':2,
+  '2024-01':2,'2024-02':2,'2024-03':2,'2024-04':1,'2024-05':1,'2024-06':1,
+  '2024-07':1,'2024-08':0,'2024-09':0,'2024-10':0,'2024-11':0,'2024-12':0,
+  '2025-01':0,'2025-02':0,'2025-03':0,'2025-04':1,'2025-05':1,'2025-06':1,
+  '2025-07':1,'2025-08':1,'2025-09':1,'2025-10':1,'2025-11':1,'2025-12':1,
+  '2026-01':1,'2026-02':1,'2026-03':1,'2026-04':1,'2026-05':1,'2026-06':1,
+};
+// IOD: DMI-based. 0=Negative, 1=Neutral, 2=Positive
+const IOD_LABELS = ['Negative IOD', 'Neutral', 'Positive IOD'];
+const IOD_PHASES = {
+  '2023-01':1,'2023-02':1,'2023-03':1,'2023-04':1,'2023-05':1,'2023-06':1,
+  '2023-07':2,'2023-08':2,'2023-09':2,'2023-10':2,'2023-11':2,'2023-12':1,
+  '2024-01':1,'2024-02':1,'2024-03':1,'2024-04':1,'2024-05':1,'2024-06':0,
+  '2024-07':0,'2024-08':0,'2024-09':0,'2024-10':0,'2024-11':1,'2024-12':1,
+  '2025-01':1,'2025-02':1,'2025-03':1,'2025-04':1,'2025-05':1,'2025-06':1,
+  '2025-07':1,'2025-08':1,'2025-09':1,'2025-10':1,'2025-11':1,'2025-12':1,
+  '2026-01':1,'2026-02':1,'2026-03':1,'2026-04':1,'2026-05':1,'2026-06':1,
+};
+// MJO: RMM phase by week (YYYY-Www → phase 0-7, or -1 for weak/inactive)
+// Phases 1-8 map to indices 0-7. -1 = weak MJO (amplitude < 1.0)
+const MJO_LABELS = ['Phase 1 (W. Hem/Africa)','Phase 2 (Indian Ocean)','Phase 3 (E. Indian Ocean)',
+  'Phase 4 (Maritime Continent)','Phase 5 (W. Pacific)','Phase 6 (W. Pacific/Dateline)',
+  'Phase 7 (E. Pacific)','Phase 8 (W. Hem/Africa)'];
+const MJO_PHASES = {
+  '2023-W11':4,'2023-W12':5,'2023-W13':6,'2023-W14':7,'2023-W15':0,'2023-W16':1,
+  '2023-W17':2,'2023-W18':3,'2023-W19':-1,'2023-W20':-1,'2023-W21':0,'2023-W22':1,
+  '2023-W23':2,'2023-W24':3,'2023-W25':4,'2023-W26':5,'2023-W27':-1,'2023-W28':-1,
+  '2023-W29':0,'2023-W30':1,'2023-W31':2,'2023-W32':3,'2023-W33':4,'2023-W34':5,
+  '2023-W35':6,'2023-W36':7,'2023-W37':-1,'2023-W38':-1,'2023-W39':0,'2023-W40':1,
+  '2023-W41':2,'2023-W42':3,'2023-W43':4,'2023-W44':5,'2023-W45':6,'2023-W46':7,
+  '2023-W47':0,'2023-W48':1,'2023-W49':2,'2023-W50':3,'2023-W51':4,'2023-W52':5,
+  '2024-W01':6,'2024-W02':7,'2024-W03':0,'2024-W04':1,'2024-W05':2,'2024-W06':3,
+  '2024-W07':4,'2024-W08':5,'2024-W09':6,'2024-W10':7,'2024-W11':-1,'2024-W12':-1,
+  '2024-W13':0,'2024-W14':1,'2024-W15':2,'2024-W16':3,'2024-W17':4,'2024-W18':5,
+  '2024-W19':6,'2024-W20':7,'2024-W21':0,'2024-W22':1,'2024-W23':2,'2024-W24':3,
+  '2024-W25':-1,'2024-W26':-1,'2024-W27':0,'2024-W28':1,'2024-W29':2,'2024-W30':3,
+  '2024-W31':4,'2024-W32':5,'2024-W33':6,'2024-W34':7,'2024-W35':0,'2024-W36':1,
+  '2024-W37':2,'2024-W38':3,'2024-W39':4,'2024-W40':5,'2024-W41':6,'2024-W42':7,
+  '2024-W43':0,'2024-W44':1,'2024-W45':2,'2024-W46':3,'2024-W47':4,'2024-W48':5,
+  '2024-W49':6,'2024-W50':7,'2024-W51':0,'2024-W52':1,
+  '2025-W01':2,'2025-W02':3,'2025-W03':4,'2025-W04':5,'2025-W05':6,'2025-W06':7,
+  '2025-W07':-1,'2025-W08':-1,'2025-W09':0,'2025-W10':1,'2025-W11':2,'2025-W12':3,
+  '2025-W13':4,'2025-W14':5,'2025-W15':6,'2025-W16':7,'2025-W17':0,'2025-W18':1,
+  '2025-W19':2,'2025-W20':3,'2025-W21':4,'2025-W22':5,'2025-W23':6,'2025-W24':7,
+  '2025-W25':0,'2025-W26':1,'2025-W27':2,'2025-W28':3,'2025-W29':4,'2025-W30':5,
+  '2025-W31':6,'2025-W32':7,'2025-W33':0,'2025-W34':1,'2025-W35':2,'2025-W36':3,
+  '2025-W37':4,'2025-W38':5,'2025-W39':-1,'2025-W40':-1,'2025-W41':0,'2025-W42':1,
+  '2025-W43':2,'2025-W44':3,'2025-W45':4,'2025-W46':5,'2025-W47':6,'2025-W48':7,
+  '2025-W49':0,'2025-W50':1,'2025-W51':2,'2025-W52':3,
+  '2026-W01':4,'2026-W02':5,'2026-W03':6,'2026-W04':7,'2026-W05':0,'2026-W06':1,
+  '2026-W07':2,'2026-W08':3,'2026-W09':4,'2026-W10':5,
+};
+// Helper: get ISO week string from ms timestamp (EAT-adjusted)
+function getISOWeekStr(ms) {
+  const d = eatDate(ms);
+  const jan4 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const dayOfYear = Math.floor((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000);
+  const dow = d.getUTCDay() || 7;
+  let wk = Math.floor((dayOfYear + jan4.getUTCDay() - dow) / 7) + 1;
+  let yr = d.getUTCFullYear();
+  if (wk < 1) { yr--; wk = 52; }
+  else if (wk > 52) { yr++; wk = 1; }
+  return yr + '-W' + String(wk).padStart(2, '0');
 }
 
 function updatePeriodicWarnings(warningInfos) {
@@ -2944,7 +2976,7 @@ function updatePeriodicWarnings(warningInfos) {
   });
 }
 
-function emptyPeriodicResult() {
+function emptyPeriodicResult(msg) {
   const sm = window.innerWidth < 680;
   return {
     traces: [],
@@ -2953,7 +2985,7 @@ function emptyPeriodicResult() {
       margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
       xaxis: {showgrid: false, zeroline: false, showticklabels: false},
       yaxis: {showgrid: false, zeroline: false, showticklabels: false},
-      annotations: [{text: 'No data in selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
+      annotations: [{text: msg || 'No data in selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
     },
     title: dsLabel() + ' \u2013 Periodic Averages',
@@ -2966,35 +2998,94 @@ function renderPeriodicAverages() {
   const traces = [];
   const lineSet = new Set(m.lineLoggers || m.loggers);
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pr = state.periodRange, pg = state.periodGranularity;
+
+  // Tanzanian seasons: month → season index
+  // 0=Kiangazi (Jan-Feb), 1=Masika (Mar-May), 2=Kiangazi (Jun-Oct), 3=Vuli (Nov-Dec)
+  const TZ_SEASON_IDX  = [0,0,1,1,1,2,2,2,2,2,3,3]; // indexed by month 0-11
+  const TZ_SEASON_LABELS = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)'];
 
   let nCats, categoryLabels, getCategoryIdx;
-  switch (state.periodType) {
-    case 'hour_of_day':
-      nCats = 24;
-      categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
-      getCategoryIdx = ms => eatDate(ms).getUTCHours();
-      break;
-    case 'month_of_year':
-      nCats = 12;
-      categoryLabels = MN;
-      getCategoryIdx = ms => eatDate(ms).getUTCMonth();
-      break;
-    case 'custom': {
-      const custom = buildCustomCategories();
-      if (!custom || custom.categories.length === 0) {
-        updatePeriodicWarnings([]);
-        return emptyPeriodicResult();
-      }
-      nCats = custom.categories.length;
-      categoryLabels = custom.labels;
-      getCategoryIdx = custom.getIdx;
-      break;
-    }
-    default:
-      nCats = 24;
-      categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
-      getCategoryIdx = ms => eatDate(ms).getUTCHours();
+  // xPositions: numeric positions for each category on x-axis (null = use categoryLabels as-is on category axis)
+  let xPositions = null;
+  // isClimateOsc: use markers-only for climate oscillation phases
+  let isClimateOsc = (pr === 'mjo' || pr === 'iod' || pr === 'enso');
+
+  if (pr === 'day' && pg === 'hour') {
+    nCats = 24;
+    categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
+    getCategoryIdx = ms => eatDate(ms).getUTCHours();
+  } else if (pr === 'day' && pg === 'synoptic') {
+    nCats = 4;
+    categoryLabels = ['Late Night (00\u201306)','Morning (06\u201312)','Afternoon (12\u201318)','Evening (18\u201300)'];
+    getCategoryIdx = ms => {
+      const h = eatDate(ms).getUTCHours();
+      if (h < 6) return 0; if (h < 12) return 1; if (h < 18) return 2; return 3;
+    };
+  } else if (pr === 'year' && pg === 'month') {
+    nCats = 12;
+    categoryLabels = MN;
+    getCategoryIdx = ms => eatDate(ms).getUTCMonth();
+  } else if (pr === 'year' && pg === 'week') {
+    nCats = 53;
+    categoryLabels = Array.from({length: 53}, (_, i) => 'W' + (i + 1));
+    getCategoryIdx = ms => {
+      const d = eatDate(ms);
+      const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.min(52, Math.floor((d - jan1) / (7 * 86400000)));
+    };
+  } else if (pr === 'year' && pg === 'day') {
+    nCats = 366;
+    categoryLabels = [];
+    const daysPerMonth = [31,29,31,30,31,30,31,31,30,31,30,31];
+    for (let mo = 0; mo < 12; mo++)
+      for (let d = 1; d <= daysPerMonth[mo]; d++)
+        categoryLabels.push(MN[mo] + ' ' + d);
+    getCategoryIdx = ms => {
+      const d = eatDate(ms);
+      const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.min(365, Math.floor((d - jan1) / 86400000));
+    };
+  } else if (pr === 'year' && pg === 'season') {
+    // Seasons positioned at temporal midpoints on a month-scale linear axis
+    nCats = 4;
+    categoryLabels = TZ_SEASON_LABELS;
+    // Midpoints in month-units: Kiangazi Jan-Feb=0.5, Masika Mar-May=3, Kiangazi Jun-Oct=7, Vuli Nov-Dec=10.5
+    xPositions = [0.5, 3, 7, 10.5];
+    getCategoryIdx = ms => TZ_SEASON_IDX[eatDate(ms).getUTCMonth()];
+  } else if (pr === 'mjo') {
+    nCats = 8;
+    categoryLabels = ['Phase 1','Phase 2','Phase 3','Phase 4','Phase 5','Phase 6','Phase 7','Phase 8'];
+    getCategoryIdx = ms => {
+      const wk = getISOWeekStr(ms);
+      const ph = MJO_PHASES[wk];
+      return ph != null ? ph : -1;
+    };
+  } else if (pr === 'iod') {
+    nCats = 3;
+    categoryLabels = IOD_LABELS;
+    getCategoryIdx = ms => {
+      const d = eatDate(ms);
+      const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+      const ph = IOD_PHASES[key];
+      return ph != null ? ph : -1;
+    };
+  } else if (pr === 'enso') {
+    nCats = 3;
+    categoryLabels = ENSO_LABELS;
+    getCategoryIdx = ms => {
+      const d = eatDate(ms);
+      const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+      const ph = ENSO_PHASES[key];
+      return ph != null ? ph : -1;
+    };
+  } else {
+    nCats = 24;
+    categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
+    getCategoryIdx = ms => eatDate(ms).getUTCHours();
   }
+  // xVal: maps category index to x-axis value (linear position or category label)
+  const xVal = ci => xPositions ? xPositions[ci] : categoryLabels[ci];
 
   if (nCats === 0) { updatePeriodicWarnings([]); return emptyPeriodicResult(); }
 
@@ -3010,6 +3101,34 @@ function renderPeriodicAverages() {
   const roomSet = new Set(m.roomLoggers || []);
   const structSet = new Set(m.structuralLoggers || []);
 
+  // Helper: accumulate a logger's data into section avg accumulators
+  function accumulateForSection(loggerId) {
+    const secKey = extSet.has(loggerId) ? 'external' : roomSet.has(loggerId) ? 'room' : 'structural';
+    const sec = sections[secKey];
+    const series = dataset().series[loggerId];
+    if (!series) return;
+    const filtered = filterSeries(series, start, end);
+    if (!filtered) return;
+    for (let i = 0; i < filtered.timestamps.length; i++) {
+      const ci = getCategoryIdx(filtered.timestamps[i]);
+      if (ci < 0 || ci >= nCats) continue;
+      const t = filtered.temperature[i], h = filtered.humidity[i];
+      if (t != null) { sec.tempSum[ci] += t; sec.tempN[ci]++; }
+      if (h != null) { sec.humSum[ci] += h; sec.humN[ci]++; }
+    }
+  }
+
+  // Pre-compute ALL section averages: locked sections use locked set, unlocked use all loggers in section
+  const sectionLoggerSets = {
+    external: (m.externalLoggers || []).filter(id => lineSet.has(id)),
+    room: m.loggers.filter(id => !extSet.has(id) && roomSet.has(id) && lineSet.has(id)),
+    structural: m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id)),
+  };
+  for (const sk of ['external','room','structural']) {
+    const sourceIds = state.lockedAvg[sk] ? [...state.lockedAvg[sk]].filter(id => lineSet.has(id)) : sectionLoggerSets[sk];
+    for (const lid of sourceIds) accumulateForSection(lid);
+  }
+
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
     if (!lineSet.has(loggerId)) continue;
@@ -3020,14 +3139,13 @@ function renderPeriodicAverages() {
 
     const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
     const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
-    const sec = extSet.has(loggerId) ? sections.external : roomSet.has(loggerId) ? sections.room : sections.structural;
 
     for (let i = 0; i < filtered.timestamps.length; i++) {
       const ci = getCategoryIdx(filtered.timestamps[i]);
       if (ci < 0 || ci >= nCats) continue;
       const t = filtered.temperature[i], h = filtered.humidity[i];
-      if (t != null) { tempSum[ci] += t; tempN[ci]++; sec.tempSum[ci] += t; sec.tempN[ci]++; }
-      if (h != null) { humSum[ci] += h; humN[ci]++; sec.humSum[ci] += h; sec.humN[ci]++; }
+      if (t != null) { tempSum[ci] += t; tempN[ci]++; }
+      if (h != null) { humSum[ci] += h; humN[ci]++; }
     }
 
     const color = m.colors[loggerId];
@@ -3041,11 +3159,12 @@ function renderPeriodicAverages() {
       if (!state.selectedMetrics.has(metric)) continue;
       const sums = metric === 'temperature' ? tempSum : humSum;
       const counts = metric === 'temperature' ? tempN : humN;
-      const x = [], y = [];
+      const x = [], y = [], txt = [];
       let singlePointCats = 0, catsWithData = 0;
 
       for (let ci = 0; ci < nCats; ci++) {
-        x.push(categoryLabels[ci]);
+        x.push(xVal(ci));
+        txt.push(categoryLabels[ci]);
         if (counts[ci] > 0) {
           y.push(+(sums[ci] / counts[ci]).toFixed(2));
           catsWithData++; hasAnyData = true;
@@ -3058,14 +3177,24 @@ function renderPeriodicAverages() {
 
       const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
       const metricName = metric === 'temperature' ? 'Avg temp' : 'Avg humidity';
-      traces.push({
-        x, y, type: 'scatter', mode: 'lines+markers',
+      const hoverTpl = m.loggerNames[loggerId] + '<br>%{text}<br>' + metricName + ': %{y:.1f}' + unit + '<br>Source: ' + source + idLabel + '<extra></extra>';
+      const trace = {
+        x, y, text: txt, type: 'scatter',
         name: logName + meteoSuffix(loggerId) + omniSuffix(source),
-        line: {color, width: 2}, marker: {size: 5},
-        connectgaps: false, legendgroup: loggerId, showlegend: firstMetric,
+        legendgroup: loggerId, showlegend: firstMetric,
         meta: {loggerId},
-        hovertemplate: m.loggerNames[loggerId] + '<br>%{x}<br>' + metricName + ': %{y:.1f}' + unit + '<br>Source: ' + source + idLabel + '<extra></extra>',
-      });
+        hovertemplate: hoverTpl,
+      };
+      if (isClimateOsc) {
+        trace.mode = 'markers';
+        trace.marker = {color, size: 10, line: {color: 'white', width: 1}};
+      } else {
+        trace.mode = 'lines+markers';
+        trace.line = {color, width: 2};
+        trace.marker = {size: 5};
+        trace.connectgaps = false;
+      }
+      traces.push(trace);
       firstMetric = false;
 
       // Data quality warning: >50% of categories with single-point averages
@@ -3076,39 +3205,66 @@ function renderPeriodicAverages() {
     }
   }
 
-  // Section average lines (External, Room, Structural)
-  if (state.showOverallAvg && hasAnyData) {
-    const sectionDefs = [
-      {key: 'external', name: 'External Avg', color: '#1a1a1a'},
-      {key: 'room', name: 'Room Avg', color: '#333399'},
-      {key: 'structural', name: 'Structural Avg', color: '#663300'},
-    ];
-    for (const sd of sectionDefs) {
-      const s = sections[sd.key];
-      for (const metric of ['temperature', 'humidity']) {
-        if (!state.selectedMetrics.has(metric)) continue;
-        const sums = metric === 'temperature' ? s.tempSum : s.humSum;
-        const counts = metric === 'temperature' ? s.tempN : s.humN;
-        const x = [], y = [];
-        let anyVal = false;
-        for (let ci = 0; ci < nCats; ci++) {
-          x.push(categoryLabels[ci]);
-          if (counts[ci] > 0) { y.push(+(sums[ci] / counts[ci]).toFixed(2)); anyVal = true; }
-          else y.push(null);
-        }
-        if (!anyVal) continue;
-        const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
-        const label = state.selectedMetrics.size > 1
-          ? sd.name + ' (' + (metric === 'temperature' ? 'temp' : 'humidity') + ')'
-          : sd.name;
+  // Section average lines (External, Room, Structural) — always computed, independent of individual logger checkboxes
+  const sectionDefs = [
+    {key: 'external', name: 'External Avg', color: '#1a1a1a'},
+    {key: 'room', name: 'Room Avg', color: '#333399'},
+    {key: 'structural', name: 'Structural Avg', color: '#663300'},
+  ];
+  for (const sd of sectionDefs) {
+    if (!state.showSectionAvg[sd.key]) continue;
+    const s = sections[sd.key];
+    for (const metric of ['temperature', 'humidity']) {
+      if (!state.selectedMetrics.has(metric)) continue;
+      const sums = metric === 'temperature' ? s.tempSum : s.humSum;
+      const counts = metric === 'temperature' ? s.tempN : s.humN;
+      const x = [], y = [], txt = [];
+      let anyVal = false;
+      for (let ci = 0; ci < nCats; ci++) {
+        x.push(xVal(ci));
+        txt.push(categoryLabels[ci]);
+        if (counts[ci] > 0) { y.push(+(sums[ci] / counts[ci]).toFixed(2)); anyVal = true; }
+        else y.push(null);
+      }
+      if (!anyVal) continue;
+      hasAnyData = true;
+      const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
+      const label = state.selectedMetrics.size > 1
+        ? sd.name + ' (' + (metric === 'temperature' ? 'temp' : 'humidity') + ')'
+        : sd.name;
+      if (isClimateOsc) {
         traces.push({
-          x, y, type: 'scatter', mode: 'lines',
-          name: label, line: {color: sd.color, width: 3, dash: 'dash'},
+          x, y, text: txt, type: 'scatter', mode: 'markers',
+          name: label, marker: {color: sd.color, size: 14, symbol: 'diamond', line: {color: 'white', width: 1.5}},
+          showlegend: true,
+          hovertemplate: label + '<br>%{text}<br>%{y:.1f}' + unit + '<extra></extra>',
+        });
+      } else {
+        traces.push({
+          x, y, text: txt, type: 'scatter', mode: 'lines',
+          name: label, line: {color: sd.color, width: 3.5, dash: '12px 4px'},
           connectgaps: false, showlegend: true,
-          hovertemplate: label + '<br>%{x}<br>%{y:.1f}' + unit + '<extra></extra>',
+          hovertemplate: label + '<br>%{text}<br>%{y:.1f}' + unit + '<extra></extra>',
         });
       }
     }
+  }
+
+  // Season boundary lines for year granularity (all sub-granularities)
+  const shapes = [], annotations = [];
+  if (pr === 'year' && state.showSeasonLines) {
+    const seasonBounds = [{ci:0, name:'Kiangazi'},{ci:2, name:'Masika'},{ci:5, name:'Kiangazi'},{ci:10, name:'Vuli'}];
+    seasonBounds.forEach(s => {
+      // Convert month index to x position based on granularity
+      let xPos;
+      if (pg === 'day') xPos = s.ci * 30.5;
+      else if (pg === 'week') xPos = s.ci * (53/12);
+      else xPos = s.ci; // month and season both use month-scale
+      shapes.push({type:'line', xref:'x', yref:'paper', x0:xPos-0.5, x1:xPos-0.5, y0:0, y1:1,
+        line:{color:'#bbb', width:1, dash:'dot'}});
+      annotations.push({x:xPos, xref:'x', yref:'paper', y:1.01, yanchor:'bottom', xanchor:'left',
+        text:s.name, showarrow:false, font:{size:9, color:'#888'}, textangle:-30});
+    });
   }
 
   updatePeriodicWarnings(warningInfos);
@@ -3119,26 +3275,48 @@ function renderPeriodicAverages() {
   const yTitle = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
   const ySuffix = hasTemp && hasHum ? '' : hasTemp ? '\u00b0C' : '%RH';
   const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
-  const periodLabelsMap = {
-    hour_of_day: 'Hour of Day', month_of_year: 'Month of Year', custom: 'Custom Period',
-  };
-  const periodLabel = periodLabelsMap[state.periodType] || 'Period';
+
+  const rangeLabels = {day:'Day', year:'Year', mjo:'MJO', iod:'IOD', enso:'ENSO'};
+  const granLabels = {hour:'Hour', synoptic:'Synoptic', month:'Month', week:'Week', day:'Day', season:'Season', phase:'Phase'};
+  const periodLabel = (rangeLabels[pr] || pr) + ' / ' + (granLabels[pg] || pg);
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
-  const xTitle = state.periodType === 'hour_of_day'
-    ? 'Hour of Day <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>'
-    : periodLabel;
+  let xTitle;
+  if (pr === 'day' && pg === 'hour') xTitle = 'Hour of Day <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>';
+  else if (pr === 'day' && pg === 'synoptic') xTitle = 'Time of Day <i><span style="color:#aaa">(EAT)</span></i>';
+  else if (pr === 'year' && pg === 'month') xTitle = 'Month of Year';
+  else if (pr === 'year' && pg === 'week') xTitle = 'Week of Year';
+  else if (pr === 'year' && pg === 'day') xTitle = 'Day of Year';
+  else if (pr === 'year' && pg === 'season') xTitle = 'Tanzanian Season';
+  else if (pr === 'mjo') xTitle = 'MJO Phase';
+  else if (pr === 'iod') xTitle = 'Indian Ocean Dipole Phase';
+  else if (pr === 'enso') xTitle = 'ENSO Phase';
+  else xTitle = periodLabel;
+
+  // Build x-axis config
+  let xaxisCfg;
+  if (xPositions) {
+    // Linear axis with month ticks (for season view)
+    xaxisCfg = {title: xTitle, type: 'linear', showgrid: true, gridcolor: '#eee',
+      range: [-0.5, 11.5], zeroline: false,
+      tickvals: [0,1,2,3,4,5,6,7,8,9,10,11], ticktext: MN,
+      automargin: true};
+  } else {
+    xaxisCfg = {title: xTitle, type: 'category', showgrid: true, gridcolor: '#eee',
+      tickangle: nCats > 15 ? -45 : 0, automargin: true};
+  }
 
   return {
     traces,
     layout: {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
-      xaxis: {title: xTitle, type: 'category', showgrid: true, gridcolor: '#eee', tickangle: nCats > 15 ? -45 : 0, automargin: true},
+      xaxis: xaxisCfg,
       yaxis: {title: yTitle, ticksuffix: ySuffix, showgrid: true, gridcolor: '#eee'},
       legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', ...legendStyle(state.selectedLoggers.size), itemclick: false, itemdoubleclick: false},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
+      shapes, annotations,
     },
     title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodLabel + ' Averages').replace(/&amp;/g, '&'),
   };
@@ -3243,7 +3421,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are stacked \u2014 hover to see individual logger values.',
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
-    periodic: 'Averages readings into periodic buckets (e.g. hour of day, month of year). Useful for spotting diurnal or seasonal patterns across selected loggers. Orange/red warnings flag categories where most averages are based on very few readings.'
+    periodic: 'Averages readings into periodic buckets. Day period shows hourly or synoptic patterns; Year shows monthly, weekly or seasonal. MJO/IOD/ENSO show averages by climate oscillation phase. Orange/red warnings flag low-data categories.'
   };
   icon.addEventListener('mouseenter', () => {
     tip.textContent = texts[state.chartType] || '';
