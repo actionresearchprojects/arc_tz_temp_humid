@@ -18,10 +18,12 @@ first to get the real time: ### YYYY-MM-DD HH:MM:SS CST
 import argparse
 import base64
 import json
+import math
 import re
 import struct
 import sys
-from datetime import datetime
+from collections import Counter
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -30,6 +32,7 @@ import pytz
 DATA_FOLDER = Path("data")
 OPENMETEO_DIR = DATA_FOLDER / "openmeteo"
 OMNISENSE_DIR = DATA_FOLDER / "omnisense"
+CYCLES_DIR = DATA_FOLDER / "cycles"
 SNAPSHOT_PATH = DATA_FOLDER / "sensor_snapshot.json"
 
 # ── Configuration ──────────────────────────────────────────────────────────────
@@ -193,6 +196,187 @@ def format_fetch_time(dt):
     if dt is None:
         return None
     return f"{_ordinal(dt.day)} {dt.strftime('%B %Y')} at {dt.strftime('%H:%M')} UTC"
+
+# ── Cycle phase generation ────────────────────────────────────────────────────
+
+def parse_enso_oni(path):
+    """Parse NOAA ONI CSV → dict of 'YYYY-MM' → phase index (0=La Niña, 1=Neutral, 2=El Niño).
+    ONI thresholds: ≤ -0.5 La Niña, ≥ 0.5 El Niño, else Neutral.
+    Uses 5 consecutive overlapping 3-month running mean seasons per standard CPC definition."""
+    phases = {}
+    if not path.exists():
+        print(f"  Warning: {path} not found, ENSO phases will be empty")
+        return phases
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("Date"):
+            continue
+        parts = line.split(",")
+        if len(parts) < 2:
+            continue
+        date_str = parts[0].strip()
+        val_str = parts[1].strip()
+        try:
+            val = float(val_str)
+        except ValueError:
+            continue
+        if val <= -99:  # missing value sentinel (-9999 or -99.9)
+            continue
+        # date_str like "1950-01-01"
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            continue
+        key = f"{dt.year}-{dt.month:02d}"
+        if val <= -0.5:
+            phases[key] = 0  # La Niña
+        elif val >= 0.5:
+            phases[key] = 2  # El Niño
+        else:
+            phases[key] = 1  # Neutral
+    print(f"  ENSO: {len(phases)} months parsed")
+    return phases
+
+
+def parse_iod_dmi(path):
+    """Parse BoM IOD weekly DMI → dict of 'YYYY-MM' → phase index (0=Negative, 1=Neutral, 2=Positive).
+    DMI thresholds: ≤ -0.4 Negative, ≥ 0.4 Positive, else Neutral.
+    Weekly values are averaged per month, then classified."""
+    monthly_vals = {}  # 'YYYY-MM' → list of DMI values
+    if not path.exists():
+        print(f"  Warning: {path} not found, IOD phases will be empty")
+        return {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(",")
+        if len(parts) < 3:
+            continue
+        try:
+            start_str = parts[0].strip()
+            dmi = float(parts[2].strip())
+            # start date is YYYYMMDD
+            dt = datetime.strptime(start_str, "%Y%m%d")
+        except (ValueError, IndexError):
+            continue
+        key = f"{dt.year}-{dt.month:02d}"
+        monthly_vals.setdefault(key, []).append(dmi)
+
+    phases = {}
+    for key, vals in monthly_vals.items():
+        avg = sum(vals) / len(vals)
+        if avg <= -0.4:
+            phases[key] = 0  # Negative IOD
+        elif avg >= 0.4:
+            phases[key] = 2  # Positive IOD
+        else:
+            phases[key] = 1  # Neutral
+    print(f"  IOD: {len(phases)} months parsed")
+    return phases
+
+
+def _iso_week(dt):
+    """Return ISO week string 'YYYY-Www' for a date."""
+    iso = dt.isocalendar()
+    return f"{iso[0]}-W{iso[1]:02d}"
+
+
+def _romi_to_phase(rmm1, rmm2):
+    """Convert ROMI RMM1/RMM2 components to MJO phase (1-8) using Wheeler-Hendon convention.
+    Returns phase number 1-8 based on angle in RMM1-RMM2 plane."""
+    angle = math.degrees(math.atan2(rmm2, rmm1)) % 360
+    # Sector mapping: 0°-45°→Phase5, 45°-90°→Phase6, ... 315°-360°→Phase4
+    sector = int(angle / 45) % 8
+    phase_map = [5, 6, 7, 8, 1, 2, 3, 4]
+    return phase_map[sector]
+
+
+def parse_mjo_romi(path):
+    """Parse NOAA ROMI data → dict of 'YYYY-Www' → phase index (0-7, or -1 for weak).
+    Converts ROMI (RMM1/RMM2) to standard RMM phases.
+    Daily data aggregated to ISO weeks by majority phase; amplitude < 1.0 → weak (-1)."""
+    weekly_phases = {}  # 'YYYY-Www' → list of (phase_index_or_neg1)
+    if not path.exists():
+        print(f"  Warning: {path} not found, MJO phases will be empty")
+        return {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) < 7:
+            continue
+        try:
+            yr, mo, dy = int(parts[0]), int(parts[1]), int(parts[2])
+            rmm1 = float(parts[4])
+            rmm2 = float(parts[5])
+            amplitude = float(parts[6])
+        except (ValueError, IndexError):
+            continue
+        try:
+            dt = date(yr, mo, dy)
+        except ValueError:
+            continue
+        wk = _iso_week(dt)
+        if amplitude < 1.0:
+            phase_idx = -1  # weak/inactive
+        else:
+            phase_num = _romi_to_phase(rmm1, rmm2)
+            phase_idx = phase_num - 1  # 0-indexed
+        weekly_phases.setdefault(wk, []).append(phase_idx)
+
+    # For each week, pick the majority phase (excluding weak days for mode,
+    # but if majority of days are weak, mark week as weak)
+    phases = {}
+    for wk, daily in weekly_phases.items():
+        counts = Counter(daily)
+        # If more than half the days are weak, mark week as weak
+        n_weak = counts.get(-1, 0)
+        if n_weak > len(daily) / 2:
+            phases[wk] = -1
+        else:
+            # Mode of non-weak phases
+            non_weak = {k: v for k, v in counts.items() if k >= 0}
+            if non_weak:
+                phases[wk] = max(non_weak, key=non_weak.get)
+            else:
+                phases[wk] = -1
+    print(f"  MJO: {len(phases)} weeks parsed (from ROMI data)")
+    return phases
+
+
+def generate_cycle_phases_js():
+    """Parse cycle data files and return JavaScript code for phase lookup tables."""
+    print("Parsing climate cycle data...")
+    enso = parse_enso_oni(CYCLES_DIR / "enso" / "oni.csv")
+    iod = parse_iod_dmi(CYCLES_DIR / "iod" / "iod_1.txt")
+    mjo = parse_mjo_romi(CYCLES_DIR / "mjo" / "romi.cpcolr.1x.txt")
+
+    def dict_to_js(d, per_line=6):
+        """Format a dict as compact JS object literal."""
+        items = [f"'{k}':{v}" for k, v in sorted(d.items())]
+        lines = []
+        for i in range(0, len(items), per_line):
+            lines.append("  " + ",".join(items[i:i+per_line]) + ",")
+        return "{\n" + "\n".join(lines) + "\n}" if lines else "{}"
+
+    js = []
+    js.append("// Climate oscillation phase lookup tables (auto-generated from cycle data files)")
+    js.append("// ENSO: ONI-based. 0=La Ni\\u00f1a, 1=Neutral, 2=El Ni\\u00f1o")
+    js.append("const ENSO_LABELS = ['La Ni\\u00f1a', 'Neutral', 'El Ni\\u00f1o'];")
+    js.append(f"const ENSO_PHASES = {dict_to_js(enso)};")
+    js.append("// IOD: DMI-based. 0=Negative, 1=Neutral, 2=Positive")
+    js.append("const IOD_LABELS = ['Negative IOD', 'Neutral', 'Positive IOD'];")
+    js.append(f"const IOD_PHASES = {dict_to_js(iod)};")
+    js.append("// MJO: Phase by week (YYYY-Www \\u2192 phase 0-7, or -1 for weak/inactive)")
+    js.append("// Derived from ROMI (Real-time OLR-based MJO Index) converted to RMM phases")
+    js.append("const MJO_LABELS = ['Phase 1 (W. Hem/Africa)','Phase 2 (Indian Ocean)','Phase 3 (E. Indian Ocean)',")
+    js.append("  'Phase 4 (Maritime Continent)','Phase 5 (W. Pacific)','Phase 6 (W. Pacific/Dateline)',")
+    js.append("  'Phase 7 (E. Pacific)','Phase 8 (W. Hem/Africa)'];")
+    js.append(f"const MJO_PHASES = {dict_to_js(mjo)};")
+    return "\n".join(js)
+
 
 # ── Data loading ───────────────────────────────────────────────────────────────
 def load_logger_excel(path, skip_rows):
@@ -1042,10 +1226,11 @@ async function init() {
 
   // Populate data freshness notes
   const ftDiv = document.getElementById('fetch-time-notes');
-  if (ftDiv && (FETCH_TIMES.openmeteo || FETCH_TIMES.omnisense)) {
+  if (ftDiv && (FETCH_TIMES.openmeteo || FETCH_TIMES.omnisense || FETCH_TIMES.cycles)) {
     const lines = [];
     if (FETCH_TIMES.openmeteo) lines.push(`Open-Meteo last updated: ${FETCH_TIMES.openmeteo}`);
     if (FETCH_TIMES.omnisense) lines.push(`Omnisense last updated: ${FETCH_TIMES.omnisense}`);
+    if (FETCH_TIMES.cycles) lines.push(`Cycles (ENSO/IOD/MJO) last updated: ${FETCH_TIMES.cycles}`);
     ftDiv.innerHTML = lines.join('<br>');
   }
   setupStaticListeners();
@@ -2960,63 +3145,7 @@ function expandHorizontalLegendSpacing(root, extraGap) {
 // ── Periodic Averages ─────────────────────────────────────────────────────────
 function eatDate(ms) { return new Date(ms + 3 * 3600 * 1000); }
 
-// Climate oscillation phase lookup tables (monthly, YYYY-MM → phase index)
-// ENSO: ONI-based. 0=La Niña, 1=Neutral, 2=El Niño
-const ENSO_LABELS = ['La Ni\u00f1a', 'Neutral', 'El Ni\u00f1o'];
-const ENSO_PHASES = {
-  '2023-01':0,'2023-02':0,'2023-03':0,'2023-04':1,'2023-05':1,'2023-06':1,
-  '2023-07':1,'2023-08':1,'2023-09':1,'2023-10':2,'2023-11':2,'2023-12':2,
-  '2024-01':2,'2024-02':2,'2024-03':2,'2024-04':1,'2024-05':1,'2024-06':1,
-  '2024-07':1,'2024-08':0,'2024-09':0,'2024-10':0,'2024-11':0,'2024-12':0,
-  '2025-01':0,'2025-02':0,'2025-03':0,'2025-04':1,'2025-05':1,'2025-06':1,
-  '2025-07':1,'2025-08':1,'2025-09':1,'2025-10':1,'2025-11':1,'2025-12':1,
-  '2026-01':1,'2026-02':1,'2026-03':1,'2026-04':1,'2026-05':1,'2026-06':1,
-};
-// IOD: DMI-based. 0=Negative, 1=Neutral, 2=Positive
-const IOD_LABELS = ['Negative IOD', 'Neutral', 'Positive IOD'];
-const IOD_PHASES = {
-  '2023-01':1,'2023-02':1,'2023-03':1,'2023-04':1,'2023-05':1,'2023-06':1,
-  '2023-07':2,'2023-08':2,'2023-09':2,'2023-10':2,'2023-11':2,'2023-12':1,
-  '2024-01':1,'2024-02':1,'2024-03':1,'2024-04':1,'2024-05':1,'2024-06':0,
-  '2024-07':0,'2024-08':0,'2024-09':0,'2024-10':0,'2024-11':1,'2024-12':1,
-  '2025-01':1,'2025-02':1,'2025-03':1,'2025-04':1,'2025-05':1,'2025-06':1,
-  '2025-07':1,'2025-08':1,'2025-09':1,'2025-10':1,'2025-11':1,'2025-12':1,
-  '2026-01':1,'2026-02':1,'2026-03':1,'2026-04':1,'2026-05':1,'2026-06':1,
-};
-// MJO: RMM phase by week (YYYY-Www → phase 0-7, or -1 for weak/inactive)
-// Phases 1-8 map to indices 0-7. -1 = weak MJO (amplitude < 1.0)
-const MJO_LABELS = ['Phase 1 (W. Hem/Africa)','Phase 2 (Indian Ocean)','Phase 3 (E. Indian Ocean)',
-  'Phase 4 (Maritime Continent)','Phase 5 (W. Pacific)','Phase 6 (W. Pacific/Dateline)',
-  'Phase 7 (E. Pacific)','Phase 8 (W. Hem/Africa)'];
-const MJO_PHASES = {
-  '2023-W11':4,'2023-W12':5,'2023-W13':6,'2023-W14':7,'2023-W15':0,'2023-W16':1,
-  '2023-W17':2,'2023-W18':3,'2023-W19':-1,'2023-W20':-1,'2023-W21':0,'2023-W22':1,
-  '2023-W23':2,'2023-W24':3,'2023-W25':4,'2023-W26':5,'2023-W27':-1,'2023-W28':-1,
-  '2023-W29':0,'2023-W30':1,'2023-W31':2,'2023-W32':3,'2023-W33':4,'2023-W34':5,
-  '2023-W35':6,'2023-W36':7,'2023-W37':-1,'2023-W38':-1,'2023-W39':0,'2023-W40':1,
-  '2023-W41':2,'2023-W42':3,'2023-W43':4,'2023-W44':5,'2023-W45':6,'2023-W46':7,
-  '2023-W47':0,'2023-W48':1,'2023-W49':2,'2023-W50':3,'2023-W51':4,'2023-W52':5,
-  '2024-W01':6,'2024-W02':7,'2024-W03':0,'2024-W04':1,'2024-W05':2,'2024-W06':3,
-  '2024-W07':4,'2024-W08':5,'2024-W09':6,'2024-W10':7,'2024-W11':-1,'2024-W12':-1,
-  '2024-W13':0,'2024-W14':1,'2024-W15':2,'2024-W16':3,'2024-W17':4,'2024-W18':5,
-  '2024-W19':6,'2024-W20':7,'2024-W21':0,'2024-W22':1,'2024-W23':2,'2024-W24':3,
-  '2024-W25':-1,'2024-W26':-1,'2024-W27':0,'2024-W28':1,'2024-W29':2,'2024-W30':3,
-  '2024-W31':4,'2024-W32':5,'2024-W33':6,'2024-W34':7,'2024-W35':0,'2024-W36':1,
-  '2024-W37':2,'2024-W38':3,'2024-W39':4,'2024-W40':5,'2024-W41':6,'2024-W42':7,
-  '2024-W43':0,'2024-W44':1,'2024-W45':2,'2024-W46':3,'2024-W47':4,'2024-W48':5,
-  '2024-W49':6,'2024-W50':7,'2024-W51':0,'2024-W52':1,
-  '2025-W01':2,'2025-W02':3,'2025-W03':4,'2025-W04':5,'2025-W05':6,'2025-W06':7,
-  '2025-W07':-1,'2025-W08':-1,'2025-W09':0,'2025-W10':1,'2025-W11':2,'2025-W12':3,
-  '2025-W13':4,'2025-W14':5,'2025-W15':6,'2025-W16':7,'2025-W17':0,'2025-W18':1,
-  '2025-W19':2,'2025-W20':3,'2025-W21':4,'2025-W22':5,'2025-W23':6,'2025-W24':7,
-  '2025-W25':0,'2025-W26':1,'2025-W27':2,'2025-W28':3,'2025-W29':4,'2025-W30':5,
-  '2025-W31':6,'2025-W32':7,'2025-W33':0,'2025-W34':1,'2025-W35':2,'2025-W36':3,
-  '2025-W37':4,'2025-W38':5,'2025-W39':-1,'2025-W40':-1,'2025-W41':0,'2025-W42':1,
-  '2025-W43':2,'2025-W44':3,'2025-W45':4,'2025-W46':5,'2025-W47':6,'2025-W48':7,
-  '2025-W49':0,'2025-W50':1,'2025-W51':2,'2025-W52':3,
-  '2026-W01':4,'2026-W02':5,'2026-W03':6,'2026-W04':7,'2026-W05':0,'2026-W06':1,
-  '2026-W07':2,'2026-W08':3,'2026-W09':4,'2026-W10':5,
-};
+__CYCLE_PHASES__
 // Helper: get ISO week string from ms timestamp (EAT-adjusted)
 function getISOWeekStr(ms) {
   const d = eatDate(ms);
@@ -3824,6 +3953,16 @@ def main():
         os_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
     if os_files:
         fetch_times["omnisense"] = format_fetch_time(parse_fetch_time(os_files[-1]))
+    # Cycle data fetch timestamp
+    cycle_ts_files = sorted(CYCLES_DIR.glob("cycles_fetched_*.txt"))
+    if cycle_ts_files:
+        m = re.search(r'_(\d{8})_(\d{4})\.txt$', cycle_ts_files[-1].name)
+        if m:
+            cycle_dt = datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M")
+            fetch_times["cycles"] = format_fetch_time(cycle_dt)
+
+    # Generate cycle phase lookup tables from data files
+    cycle_phases_js = generate_cycle_phases_js()
 
     print("Writing output...")
     # Embed logo as base64 for PNG watermarks
@@ -3844,6 +3983,7 @@ def main():
             .replace('__DATA__', json_str)
             .replace('__HISTORIC__', historic_str)
             .replace('__FETCH_TIMES__', fetch_times_str)
+            .replace('__CYCLE_PHASES__', cycle_phases_js)
             .replace('__LOGO_B64__', logo_b64)
             .replace('__LOGO_ASPECT__', str(logo_aspect)))
     OUTPUT_FILE.write_text(html, encoding='utf-8')

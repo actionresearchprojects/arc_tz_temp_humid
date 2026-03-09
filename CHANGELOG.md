@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2026-03-09 21:46:00 CST
+- **Live cycle data for periodic averages**: Replaced hardcoded placeholder ENSO/IOD/MJO phase tables with auto-generated data parsed from real source files in `data/cycles/`.
+  - ENSO: Parsed from NOAA ONI CSV (913 months, 1950–present). Thresholds: ONI ≤ -0.5 → La Niña, ≥ 0.5 → El Niño.
+  - IOD: Parsed from BoM DMI weekly data (213 months, 2008–present). Weekly values averaged per month; DMI ≤ -0.4 → Negative, ≥ 0.4 → Positive.
+  - MJO: Parsed from NOAA ROMI daily data (1836 weeks, 1991–present). ROMI RMM1/RMM2 converted to Wheeler-Hendon phases via angle mapping; amplitude < 1.0 → weak. Daily phases aggregated to ISO weeks by majority vote.
+- **`fetch_cycles.py`**: New script to download latest ENSO/IOD/MJO data files from NOAA and BoM.
+- **Weekly GitHub Action**: `update-cycle-data.yml` runs every Monday at 06:30 UTC, fetches cycle data, rebuilds dashboard.
+- **Sidebar note**: Added "Cycles (ENSO/IOD/MJO) last updated" timestamp to the data freshness notes at the bottom of all sidebars.
+
 ### 2026-03-09 23:00:00 CST
 - **Periodic data completeness panel**: Full data completeness section for periodic averages, matching histogram/comfort functionality. Includes gap warning message, "Jump to a complete period" dropdown with source-specific groups, and hover tooltips on orange boxes showing gap dates/durations. Dropdown navigation updates time mode and checkboxes (same as histogram/comfort). Panel auto-hides when no gaps or not in periodic mode.
 - **Lock indicator**: Replaced "(locked)" text with small grey SVG lock icon next to average label.
