@@ -697,6 +697,7 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .room-src { font-size: 9px; color: #888; line-height: 1.3; }
 #comfort-stats.has-gaps { background: #fff5e6; border: 1px solid #e8a840; }
 #hist-stats-box.has-gaps { background: #fff5e6 !important; border-color: #e8a840 !important; }
+#periodic-comp-box.has-gaps { background: #fff5e6 !important; border-color: #e8a840 !important; }
 .room-item.has-gap { background: #f5d4a0; border-color: #d4a040; }
 .room-item.has-gap:hover { background: #f0c880; border-color: #c89030; }
 #gap-warning { font-size: 11px; color: #8a6d20; line-height: 1.4; margin-bottom: 6px; }
@@ -809,6 +810,15 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Long-term historic and projected future data generated from <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
       </div>
       <hr class="divider">
+      <div id="periodic-completeness" class="hidden">
+        <div id="periodic-comp-box" style="background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:8px;">
+          <div id="periodic-comp-warning" style="font-size:11px;color:#666;line-height:1.4;margin-bottom:4px;"></div>
+          <div id="periodic-comp-dropdown-wrap" class="hidden" style="margin-bottom:4px;"><select id="periodic-comp-dropdown" style="font-size:11px;width:100%;padding:3px 5px;border:1px solid #ccc;border-radius:4px;background:#fafafa;cursor:pointer;color:#555;"></select></div>
+          <div id="periodic-comp-grid" class="room-grid"></div>
+        </div>
+        <div class="gap-tip" id="periodic-comp-tip"></div>
+        <hr class="divider">
+      </div>
       <div id="histogram-stats" class="hidden">
         <div id="hist-stats-box" style="background:#eef6ee;border:1px solid #b8d4b8;border-radius:6px;padding:8px;">
           <div id="hist-overall" style="font-weight:600;font-size:12px;margin-bottom:6px;">-</div>
@@ -1383,6 +1393,7 @@ function setupStaticListeners() {
     document.getElementById('line-controls').classList.toggle('hidden', isComfort);
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
     document.getElementById('histogram-stats').classList.toggle('hidden', !isHistogram);
+    if (!isPeriodic) document.getElementById('periodic-completeness').classList.add('hidden');
     document.getElementById('periodic-options').style.display = isPeriodic ? '' : 'none';
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
@@ -2344,8 +2355,8 @@ function renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end) {
     div.className = 'room-item' + (hasGap ? ' has-gap' : '');
     const src = (m.loggerSources && m.loggerSources[id]) || '';
     const idStr = (id === 'govee' || isOpenMeteo(id)) ? '' : id;
-    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '\u2014';
-    const normalHTML = `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>`;
+    const pctStr = pct !== null ? pct.toFixed(1) + '%' : '';
+    const normalHTML = pctStr ? `<div class="room-name">${name}</div><div class="room-pct">${pctStr}</div>` : `<div class="room-name">${name}</div>`;
     const hoverHTML = `<div class="room-name">${name}</div><div class="room-src">${src}${idStr ? ' \u00b7 ' + idStr : ''}</div>`;
     div.innerHTML = normalHTML;
     if (hasGap) {
@@ -2696,6 +2707,7 @@ function findCompletePeriods(seriesInfo, rangeStart, rangeEnd, allAvailableInfo)
 function navigateToPeriod(p, context) {
   document.getElementById('gap-tip').style.display = 'none';
   document.getElementById('hist-gap-tip').style.display = 'none';
+  document.getElementById('periodic-comp-tip').style.display = 'none';
   ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
     document.getElementById(id).classList.add('hidden'));
   if (p.gran === 'year') {
@@ -2740,6 +2752,14 @@ function navigateToPeriod(p, context) {
         const match = m.loggerSources[id] === p.sourceType;
         if (match) state.selectedRoomLoggers.add(id); else state.selectedRoomLoggers.delete(id);
         const cb = roomDiv.querySelector(`input[data-logger-id="${id}"]`);
+        if (cb) cb.checked = match;
+      });
+    } else if (context === 'periodic') {
+      const loggerDiv = document.getElementById('logger-checkboxes');
+      m.loggers.forEach(id => {
+        const match = m.loggerSources[id] === p.sourceType;
+        if (match) state.selectedLoggers.add(id); else state.selectedLoggers.delete(id);
+        const cb = loggerDiv.querySelector(`input[data-logger-id="${id}"]`);
         if (cb) cb.checked = match;
       });
     }
@@ -2974,6 +2994,49 @@ function updatePeriodicWarnings(warningInfos) {
     div.innerHTML = '<b>' + w.name + '</b> (' + w.metric + '): ' + w.pct.toFixed(0) + '% of categories based on single readings';
     container.appendChild(div);
   });
+}
+
+function updatePeriodicCompleteness(start, end) {
+  const panel = document.getElementById('periodic-completeness');
+  const box = document.getElementById('periodic-comp-box');
+  const warnDiv = document.getElementById('periodic-comp-warning');
+  const dropWrap = document.getElementById('periodic-comp-dropdown-wrap');
+  const grid = document.getElementById('periodic-comp-grid');
+  const gapTip = document.getElementById('periodic-comp-tip');
+  grid.innerHTML = '';
+  box.classList.remove('has-gaps');
+  warnDiv.textContent = '';
+  dropWrap.classList.add('hidden');
+
+  const m = dataset().meta;
+  const extSet = new Set(m.externalLoggers || []);
+  const lineSet = new Set(m.lineLoggers || m.loggers);
+  const roomStats = [];
+  const gapInfoMap = {};
+
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!lineSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    const gaps = detectSeriesGaps(series.timestamps, start, end);
+    gapInfoMap[loggerId] = gaps;
+    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct: null, hasGap: gaps.length > 0});
+  }
+
+  const gapCount = roomStats.filter(r => r.hasGap).length;
+  if (gapCount === 0) { panel.classList.add('hidden'); return; }
+
+  panel.classList.remove('hidden');
+  box.classList.add('has-gaps');
+  warnDiv.textContent = 'Data completeness: ' + gapCount + ' of ' + roomStats.length + ' series have gaps of 24h+. Hover orange boxes for details.';
+
+  // Build "jump to complete period" dropdown (same as histogram/comfort)
+  const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
+  const allAvailableInfo = m.loggers.filter(id => lineSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
+  buildGapDropdown('periodic-comp-dropdown', 'periodic-comp-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'periodic');
+
+  renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end);
 }
 
 function emptyPeriodicResult(msg) {
@@ -3269,6 +3332,7 @@ function renderPeriodicAverages() {
   }
 
   updatePeriodicWarnings(warningInfos);
+  updatePeriodicCompleteness(start, end);
   if (!hasAnyData) return emptyPeriodicResult();
 
   const hasTemp = state.selectedMetrics.has('temperature');

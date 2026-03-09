@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2026-03-09 23:00:00 CST
+- **Periodic data completeness panel**: Full data completeness section for periodic averages, matching histogram/comfort functionality. Includes gap warning message, "Jump to a complete period" dropdown with source-specific groups, and hover tooltips on orange boxes showing gap dates/durations. Dropdown navigation updates time mode and checkboxes (same as histogram/comfort). Panel auto-hides when no gaps or not in periodic mode.
+- **Lock indicator**: Replaced "(locked)" text with small grey SVG lock icon next to average label.
+
 ### 2026-03-09 22:30:00 CST
 - **Lock button fixes**: Button now changes text to "Unlock Avg" when locked (was staying as "Lock Avg"). Replaced tacky emoji lock indicator with small grey SVG lock icon next to average label.
 - **Section averages independent of checkboxes**: Section averages now always computed from ALL loggers in the section (unlocked) or the locked set (locked), regardless of which individual logger checkboxes are checked. Average lines show even when all individual loggers are unchecked.
