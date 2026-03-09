@@ -3118,15 +3118,13 @@ function renderPeriodicAverages() {
     }
   }
 
-  // Pre-compute ALL section averages: locked sections use locked set, unlocked use all loggers in section
-  const sectionLoggerSets = {
-    external: (m.externalLoggers || []).filter(id => lineSet.has(id)),
-    room: m.loggers.filter(id => !extSet.has(id) && roomSet.has(id) && lineSet.has(id)),
-    structural: m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id)),
-  };
+  // Pre-fill locked section averages from their frozen logger sets
   for (const sk of ['external','room','structural']) {
-    const sourceIds = state.lockedAvg[sk] ? [...state.lockedAvg[sk]].filter(id => lineSet.has(id)) : sectionLoggerSets[sk];
-    for (const lid of sourceIds) accumulateForSection(lid);
+    if (state.lockedAvg[sk]) {
+      for (const lid of state.lockedAvg[sk]) {
+        if (lineSet.has(lid)) accumulateForSection(lid);
+      }
+    }
   }
 
   for (const loggerId of m.loggers) {
@@ -3139,13 +3137,16 @@ function renderPeriodicAverages() {
 
     const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
     const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
+    const secKey = extSet.has(loggerId) ? 'external' : roomSet.has(loggerId) ? 'room' : 'structural';
+    const sec = sections[secKey];
+    const contributeToAvg = state.lockedAvg[secKey] === null; // only accumulate if unlocked
 
     for (let i = 0; i < filtered.timestamps.length; i++) {
       const ci = getCategoryIdx(filtered.timestamps[i]);
       if (ci < 0 || ci >= nCats) continue;
       const t = filtered.temperature[i], h = filtered.humidity[i];
-      if (t != null) { tempSum[ci] += t; tempN[ci]++; }
-      if (h != null) { humSum[ci] += h; humN[ci]++; }
+      if (t != null) { tempSum[ci] += t; tempN[ci]++; if (contributeToAvg) { sec.tempSum[ci] += t; sec.tempN[ci]++; } }
+      if (h != null) { humSum[ci] += h; humN[ci]++; if (contributeToAvg) { sec.humSum[ci] += h; sec.humN[ci]++; } }
     }
 
     const color = m.colors[loggerId];
