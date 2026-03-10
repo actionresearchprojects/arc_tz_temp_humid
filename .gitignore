@@ -4,10 +4,14 @@ data/*
 # But track these:
 !data/openmeteo/
 !data/omnisense/
+!data/cycles/
 !data/sensor_snapshot.json
 !data/hist_proj/
 !data/config.json
 !data/loggers.json
+
+# Within cycles/, track everything
+!data/cycles/**
 
 # Within openmeteo/, ignore legacy folder
 data/openmeteo/legacy/
