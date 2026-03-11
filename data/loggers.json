@@ -278,22 +278,8 @@
   "schoolteacher": {
     "label": "Schoolteacher's House",
     "hasCategories": true,
-    "externalLoggers": [
-      {
-        "id": "861011",
-        "label": "External Ambient (TinyTag)"
-      }
-    ],
+    "externalLoggers": [],
     "loggers": [
-      {
-        "id": "861011",
-        "name": "External Ambient",
-        "source": "TinyTag",
-        "section": "external",
-        "showInLine": true,
-        "showInHistogram": true,
-        "showInComfort": false
-      },
       {
         "id": "759498",
         "name": "Bedroom 1",

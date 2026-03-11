@@ -65,6 +65,7 @@ DATASETS = {
         # Per-logger date filters: only keep data within [from, before) for that logger
         "logger_date_filters": {
             "759498": {"before": "2024-06-01"},  # moved to Schoolteacher's on 1 Jun; drop Jun 1 entirely
+            "861011": {"before": "2024-05-07 12:00:00"},  # erroneous data from 12pm EAT 7 May 2024 onward
         },
         # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
@@ -113,6 +114,7 @@ DATASETS = {
         # Per-logger date filters
         "logger_date_filters": {
             "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
+            "861011": {"before": "2024-05-07 12:00:00"},  # erroneous data from 12pm EAT 7 May 2024 onward
         },
         # Per-dataset name overrides (759498 is "Bedroom 3 below metal roof" globally but "Bedroom 1" here)
         "logger_name_overrides": {"759498": "Bedroom 1"},
@@ -843,8 +845,9 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 #header { background: white; border-bottom: 1px solid #ddd; padding: 6px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; min-height: 40px; }
-#header h1 { font-size: 14px; font-weight: 600; color: #222; margin-right: 2px; white-space: nowrap; }
-#logo { height: 32px; width: auto; flex-shrink: 0; }
+#header h1 { font-size: 18px; font-weight: 500; color: #222; margin-right: 2px; white-space: nowrap; }
+#logo { height: 32px; width: auto; flex-shrink: 0; vertical-align: middle; }
+#header a { display: flex; align-items: center; }
 .bar-divider { border-left: 1px solid #ccc; height: 20px; flex-shrink: 0; margin: 0 2px; }
 #main { display: flex; flex: 1; overflow: hidden; position: relative; }
 #sidebar { width: 300px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; transition: transform 0.2s ease; z-index: 10; }
@@ -901,7 +904,6 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 #advanced-settings-arrow { transition:transform 0.2s; display:inline-block; font-size:9px; }
 #advanced-settings-arrow.open { transform:rotate(90deg); }
 #advanced-settings-body { display:none; margin-top:6px; }
-#advanced-settings-body.open { display:block; }
 .substrat-combine { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:11px; }
 .substrat-combine label { cursor:pointer; display:flex; align-items:center; gap:3px; }
 .substrat-filter { border:1px solid #ddd; border-radius:5px; padding:8px; margin-bottom:6px; position:relative; background:#fafafa; }
@@ -911,8 +913,8 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .substrat-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; }
 .substrat-row label { font-size:11px; color:#666; white-space:nowrap; min-width:36px; }
 .substrat-row select { font-size:11px; padding:2px 4px; max-width:130px; }
-.substrat-phases { display:flex; flex-wrap:wrap; gap:3px; margin-top:2px; }
-.substrat-phases label { font-size:11px; cursor:pointer; display:flex; align-items:center; gap:2px; }
+.substrat-phases { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+.substrat-phases label { font-size:11px; cursor:pointer; display:flex; align-items:center; gap:3px; }
 #substrat-add-btn { font-size:11px; padding:3px 8px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer; color:#555; }
 #substrat-add-btn:hover { background:#e8e8e8; }
 .substrat-no-data { display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:14px; color:#999; font-style:italic; z-index:5; pointer-events:none; background:rgba(248,249,250,0.9); padding:8px 16px; border-radius:6px; }
@@ -963,7 +965,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <div id="sidebar-backdrop"></div>
 <div id="header">
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
-  <a href="https://actionresearchprojects.net"><img id="logo" src="logo.png" alt="ARC logo"></a>
+  <a href="https://actionresearchprojects.net"><img id="logo" src="logotrim.png" alt="ARC logo"></a>
   <h1>ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
 </div>
 
@@ -994,6 +996,18 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div id="periodic-warnings" style="margin-top:6px;"></div>
       </div>
       <hr class="divider" id="periodic-divider" style="display:none">
+      <div id="advanced-settings-toggle" style="display:none" onclick="toggleAdvancedSettings()">
+        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
+      </div>
+      <div id="advanced-settings-body">
+        <div class="substrat-combine">
+          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
+          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
+        </div>
+        <div id="substrat-filters"></div>
+        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
+      </div>
+      <hr class="divider" id="advanced-settings-divider" style="display:none">
       <div class="section">
         <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset to default</button></div>
         <div id="logger-checkboxes"></div>
@@ -1038,18 +1052,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
         Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Historical series drives the adaptive comfort running mean; forecast shows the next 16 days.
-      </div>
-      <hr class="divider">
-      <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
-        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
-      </div>
-      <div id="advanced-settings-body">
-        <div class="substrat-combine">
-          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
-          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
-        </div>
-        <div id="substrat-filters"></div>
-        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
       </div>
     </div>
 
@@ -1207,7 +1209,10 @@ const TZ_SEASON_IDX_GLOBAL = [0,0,1,1,1,2,2,2,2,2,3,3];
 function toggleAdvancedSettings() {
   const body = document.getElementById('advanced-settings-body');
   const arrow = document.getElementById('advanced-settings-arrow');
-  const isOpen = body.classList.toggle('open');
+  const wasOpen = body.dataset.open === '1';
+  const isOpen = !wasOpen;
+  body.dataset.open = isOpen ? '1' : '0';
+  body.style.display = isOpen ? 'block' : 'none';
   arrow.classList.toggle('open', isOpen);
   if (!isOpen) {
     // Collapse = clear all filters
@@ -1789,17 +1794,63 @@ function resetMetrics() {
 
 function resetLineDefaults() {
   const m = dataset().meta;
+
+  // Loggers
   state.selectedLoggers.clear();
-  if (state.historicMode) {
-    m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
-  } else {
-    (m.lineLoggers || m.loggers).forEach(id => state.selectedLoggers.add(id));
-  }
+  (m.lineLoggers || m.loggers).forEach(id => state.selectedLoggers.add(id));
   document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
   });
+
+  // Metrics & time
   resetMetrics();
   resetTimeMode();
+
+  // Options
+  state.showThreshold = true;
+  document.getElementById('cb-threshold').checked = true;
+  state.showSeasonLines = true;
+  document.getElementById('cb-seasons').checked = true;
+
+  // Historic mode off
+  state.historicMode = false;
+  state.selectedHistoricSeries = new Set();
+  document.getElementById('cb-historic-mode').checked = false;
+  document.getElementById('historic-series-checkboxes').style.display = 'none';
+  document.getElementById('historic-series-checkboxes').innerHTML = '';
+  document.getElementById('humidity-label').style.display = '';
+
+  // Periodic settings
+  state.periodRange = 'day';
+  state.periodGranularity = 'hour';
+  document.getElementById('natural-cycles').value = 'day';
+  document.getElementById('period-granularity').value = 'hour';
+  const ncTip = document.getElementById('natural-cycles-tip');
+  if (ncTip) { ncTip.style.display = 'none'; ncTip.innerHTML = ''; }
+  const ncInfo = document.getElementById('natural-cycles-info');
+  if (ncInfo) ncInfo.style.display = 'none';
+
+  // Section averages: all on, all unlocked
+  state.showSectionAvg = {external: true, room: true, structural: true};
+  state.lockedAvg = {external: null, room: null, structural: null};
+  document.querySelectorAll('input[data-section-avg]').forEach(cb => { cb.checked = true; });
+  document.querySelectorAll('[data-section-lock]').forEach(btn => {
+    btn.textContent = 'Lock Avg';
+    btn.classList.remove('locked');
+    btn.title = 'Lock average: freeze which loggers contribute to this section average';
+  });
+  document.querySelectorAll('.lock-indicator').forEach(el => { el.style.display = 'none'; });
+
+  // Substratification: clear all filters and collapse
+  state.substratFilters = [];
+  state.substratCombine = 'all';
+  document.getElementById('substrat-filters').innerHTML = '';
+  document.querySelectorAll('input[name="substrat-combine"]').forEach(r => { r.checked = r.value === 'all'; });
+  const advBody2 = document.getElementById('advanced-settings-body');
+  advBody2.dataset.open = '0';
+  advBody2.style.display = 'none';
+  document.getElementById('advanced-settings-arrow').classList.remove('open');
+
   updatePlot();
 }
 
@@ -1921,6 +1972,19 @@ function setupStaticListeners() {
     if (!isPeriodic) document.getElementById('periodic-completeness').classList.add('hidden');
     document.getElementById('periodic-options').style.display = isPeriodic ? '' : 'none';
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
+    // Advanced Settings only for periodic & histogram
+    const showAdvanced = isPeriodic || isHistogram;
+    document.getElementById('advanced-settings-toggle').style.display = showAdvanced ? '' : 'none';
+    document.getElementById('advanced-settings-divider').style.display = showAdvanced ? '' : 'none';
+    const advBody = document.getElementById('advanced-settings-body');
+    advBody.style.display = (showAdvanced && advBody.dataset.open === '1') ? 'block' : 'none';
+    if (!showAdvanced) {
+      // Clear filters when leaving periodic/histogram
+      state.substratFilters = [];
+      document.getElementById('substrat-filters').innerHTML = '';
+      advBody.dataset.open = '0';
+      document.getElementById('advanced-settings-arrow').classList.remove('open');
+    }
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isPeriodic) {
@@ -2569,9 +2633,7 @@ function renderLineGraph() {
     if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
-    let filtered = filterSeries(series, start, end);
-    if (!filtered) continue;
-    filtered = applySubstratFilter(filtered);
+    const filtered = filterSeries(series, start, end);
     if (!filtered) continue;
 
     // Track actual data bounds
@@ -2605,6 +2667,7 @@ function renderLineGraph() {
   }
 
   // Fall back to time filter range if no data traces
+  const _lineHasData = dataMinMs !== Infinity;
   if (dataMinMs === Infinity) { dataMinMs = start; dataMaxMs = end; }
 
   // Expand bounds for historic/climate data before drawing threshold/season lines
@@ -2706,7 +2769,7 @@ function renderLineGraph() {
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: barTitle};
+  }, title: barTitle, _noData: !_lineHasData && !showingHistoric};
 }
 
 // ── Date-range annotation (visible in PNG exports) ────────────────────────────
@@ -2870,7 +2933,7 @@ function renderHistogram() {
     barmode:'stack', shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&')};
+  }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
 }
 
 // ── Shared stats helpers (used by both histogram and comfort stats) ───────────
@@ -3086,7 +3149,7 @@ function renderAdaptiveComfort() {
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false)] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: `${dsl} \u2013 Adaptive Comfort`};
+  }, title: `${dsl} \u2013 Adaptive Comfort`, _noData: allExtTemps.length === 0};
 }
 
 // ── Data completeness detection ───────────────────────────────────────────────
@@ -3564,6 +3627,7 @@ function emptyPeriodicResult(msg) {
       plot_bgcolor: 'white', paper_bgcolor: 'white',
     },
     title: dsLabel() + ' \u2013 Periodic Averages',
+    _noData: true,
   };
 }
 
@@ -3937,18 +4001,34 @@ function hideLoadingBar() {
 }
 
 function _doRender() {
-  const {traces, layout, title} = state.chartType === 'line' ? renderLineGraph()
+  let result = state.chartType === 'line' ? renderLineGraph()
     : state.chartType === 'histogram' ? renderHistogram()
     : state.chartType === 'periodic' ? renderPeriodicAverages()
     : renderAdaptiveComfort();
+  // Replace with empty message if no actual data
+  if (result._noData) {
+    const sm = window.innerWidth < 680;
+    result = {
+      traces: [],
+      layout: {
+        autosize: true, font: {family: 'Ubuntu, sans-serif'},
+        margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
+        xaxis: {showgrid: false, zeroline: false, showticklabels: false},
+        yaxis: {showgrid: false, zeroline: false, showticklabels: false},
+        annotations: [{text: 'No data available in the selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
+        plot_bgcolor: 'white', paper_bgcolor: 'white',
+      },
+      title: result.title,
+    };
+  }
+  const {traces, layout, title} = result;
   _currentTitle = title || '';
   _currentLayout = layout;
   document.getElementById('bar-title').textContent = _currentTitle;
   // Show "no data" overlay when substrat filters produce empty results
   const noDataEl = document.getElementById('substrat-no-data');
   const hasActiveFilters = getActiveSubstratFilters().length > 0;
-  const noTraces = traces.length === 0 || traces.every(t => !t.x || t.x.length === 0);
-  noDataEl.style.display = (hasActiveFilters && noTraces) ? 'block' : 'none';
+  noDataEl.style.display = (hasActiveFilters && result._noData) ? 'block' : 'none';
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   document.getElementById('chart').on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
   requestAnimationFrame(setupLegendTooltips);
