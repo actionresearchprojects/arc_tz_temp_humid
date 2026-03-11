@@ -895,6 +895,27 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .periodic-warning.orange { background: #fff5e6; color: #8a6d20; border: 1px solid #e8a840; }
 .periodic-warning.red { background: #fde8e8; color: #a03030; border: 1px solid #e06060; }
 .hidden { display: none !important; }
+/* ── Advanced Settings (Substratification) ─────────────────────────────── */
+#advanced-settings-toggle { display:flex; align-items:center; gap:4px; cursor:pointer; font-size:11px; font-weight:600; color:#666; text-transform:uppercase; letter-spacing:0.05em; padding:2px 0; user-select:none; }
+#advanced-settings-toggle:hover { color:#333; }
+#advanced-settings-arrow { transition:transform 0.2s; display:inline-block; font-size:9px; }
+#advanced-settings-arrow.open { transform:rotate(90deg); }
+#advanced-settings-body { display:none; margin-top:6px; }
+#advanced-settings-body.open { display:block; }
+.substrat-combine { display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:11px; }
+.substrat-combine label { cursor:pointer; display:flex; align-items:center; gap:3px; }
+.substrat-filter { border:1px solid #ddd; border-radius:5px; padding:8px; margin-bottom:6px; position:relative; background:#fafafa; }
+.substrat-filter.invalid { border-color:#e06060; background:#fef5f5; }
+.substrat-remove { position:absolute; top:4px; right:6px; background:none; border:none; cursor:pointer; font-size:14px; color:#999; line-height:1; padding:0 2px; }
+.substrat-remove:hover { color:#e06060; }
+.substrat-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; }
+.substrat-row label { font-size:11px; color:#666; white-space:nowrap; min-width:36px; }
+.substrat-row select { font-size:11px; padding:2px 4px; max-width:130px; }
+.substrat-phases { display:flex; flex-wrap:wrap; gap:3px; margin-top:2px; }
+.substrat-phases label { font-size:11px; cursor:pointer; display:flex; align-items:center; gap:2px; }
+#substrat-add-btn { font-size:11px; padding:3px 8px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer; color:#555; }
+#substrat-add-btn:hover { background:#e8e8e8; }
+.substrat-no-data { display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:14px; color:#999; font-style:italic; z-index:5; pointer-events:none; background:rgba(248,249,250,0.9); padding:8px 16px; border-radius:6px; }
 .sel-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
 .sel-btn:hover { background: #e8e8e8; }
 .lock-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
@@ -959,17 +980,17 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           </select>
         </label>
         <label class="cb-label" style="margin-bottom:6px;">
-          Period Range
-          <select id="period-range" style="margin-left:6px;font-size:12px;">
+          Natural Cycles
+          <select id="natural-cycles" style="margin-left:6px;font-size:12px;">
             <option value="day">Day</option>
             <option value="year">Year</option>
             <option value="mjo">Madden&ndash;Julian Oscillation (MJO)</option>
             <option value="iod">Indian Ocean Dipole (IOD)</option>
             <option value="enso">El Ni&ntilde;o&ndash;Southern Oscillation (ENSO)</option>
           </select>
-          <span class="info-i" id="period-range-info" style="display:none;margin-left:4px;">i</span>
+          <span class="info-i" id="natural-cycles-info" style="display:none;margin-left:4px;">i</span>
         </label>
-        <div id="period-range-tip" style="display:none;font-size:11px;color:#666;line-height:1.4;margin-bottom:6px;padding:6px 8px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;"></div>
+        <div id="natural-cycles-tip" style="display:none;font-size:11px;color:#666;line-height:1.4;margin-bottom:6px;padding:6px 8px;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;"></div>
         <div id="periodic-warnings" style="margin-top:6px;"></div>
       </div>
       <hr class="divider" id="periodic-divider" style="display:none">
@@ -1017,6 +1038,18 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
         Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Historical series drives the adaptive comfort running mean; forecast shows the next 16 days.
+      </div>
+      <hr class="divider">
+      <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
+        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
+      </div>
+      <div id="advanced-settings-body">
+        <div class="substrat-combine">
+          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
+          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
+        </div>
+        <div id="substrat-filters"></div>
+        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
       </div>
     </div>
 
@@ -1109,6 +1142,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
+    <div class="substrat-no-data" id="substrat-no-data">No data matches the selected filter</div>
     <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
       <div style="font-size:12px;color:#555;font-family:'Ubuntu',sans-serif">Loading chart…</div>
       <div style="width:160px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
@@ -1159,9 +1193,299 @@ const state = {
   selectedMonth: null,
   selectedWeek: null,
   selectedDay: null,
+  substratFilters: [],
+  substratCombine: 'all',
 };
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
+
+// ── Substratification (Advanced Filtering) ────────────────────────────────────
+let _substratIdCounter = 0;
+
+const TZ_SEASON_IDX_GLOBAL = [0,0,1,1,1,2,2,2,2,2,3,3];
+
+function toggleAdvancedSettings() {
+  const body = document.getElementById('advanced-settings-body');
+  const arrow = document.getElementById('advanced-settings-arrow');
+  const isOpen = body.classList.toggle('open');
+  arrow.classList.toggle('open', isOpen);
+  if (!isOpen) {
+    // Collapse = clear all filters
+    state.substratFilters = [];
+    document.getElementById('substrat-filters').innerHTML = '';
+    updatePlot();
+  }
+}
+
+function addSubstratFilter() {
+  const f = { id: ++_substratIdCounter, cycle: 'none', granularity: null, from: null, to: null, phases: new Set() };
+  state.substratFilters.push(f);
+  renderSubstratFilterBlock(f);
+}
+
+function removeSubstratFilter(id) {
+  state.substratFilters = state.substratFilters.filter(f => f.id !== id);
+  const el = document.getElementById('substrat-f-' + id);
+  if (el) el.remove();
+  updatePlot();
+}
+
+function renderSubstratFilterBlock(f) {
+  const container = document.getElementById('substrat-filters');
+  const block = document.createElement('div');
+  block.className = 'substrat-filter';
+  block.id = 'substrat-f-' + f.id;
+
+  const removeBtn = '<button class="substrat-remove" onclick="removeSubstratFilter(' + f.id + ')">&times;</button>';
+
+  // Tier 1: cycle selector
+  block.innerHTML = removeBtn +
+    '<div class="substrat-row"><label>Filter by</label>' +
+    '<select class="substrat-cycle" onchange="substratCycleChanged(' + f.id + ', this.value)">' +
+    '<option value="none">None</option>' +
+    '<option value="day">Day</option>' +
+    '<option value="year">Year</option>' +
+    '<option value="mjo">MJO</option>' +
+    '<option value="iod">IOD</option>' +
+    '<option value="enso">ENSO</option>' +
+    '</select></div>' +
+    '<div class="substrat-tier2"></div>' +
+    '<div class="substrat-tier3"></div>';
+
+  container.appendChild(block);
+}
+
+function substratCycleChanged(id, cycle) {
+  const f = state.substratFilters.find(x => x.id === id);
+  if (!f) return;
+  f.cycle = cycle;
+  f.granularity = null;
+  f.from = null;
+  f.to = null;
+  f.phases = new Set();
+
+  const block = document.getElementById('substrat-f-' + id);
+  block.classList.remove('invalid');
+  const tier2 = block.querySelector('.substrat-tier2');
+  const tier3 = block.querySelector('.substrat-tier3');
+  tier2.innerHTML = '';
+  tier3.innerHTML = '';
+
+  if (cycle === 'none') { updatePlot(); return; }
+
+  if (cycle === 'day' || cycle === 'year') {
+    // Tier 2: granularity dropdown
+    let opts = '';
+    if (cycle === 'day') {
+      opts = '<option value="hour">Hour</option><option value="synoptic">Synoptic Hours</option>';
+    } else {
+      opts = '<option value="day">Day of Month</option><option value="week">Week</option><option value="month">Month</option><option value="season">Season</option>';
+    }
+    tier2.innerHTML = '<div class="substrat-row"><label>Granularity</label>' +
+      '<select class="substrat-gran" onchange="substratGranChanged(' + id + ', this.value)">' + opts + '</select></div>';
+    // Auto-select first option
+    const firstVal = tier2.querySelector('select').value;
+    substratGranChanged(id, firstVal);
+  } else {
+    // Oscillation: show phase checkboxes directly
+    let labels, nPhases;
+    if (cycle === 'mjo') { labels = MJO_LABELS; nPhases = 8; }
+    else if (cycle === 'iod') { labels = IOD_LABELS; nPhases = 3; }
+    else { labels = ENSO_LABELS; nPhases = 3; }
+
+    let html = '<div class="substrat-phases">';
+    for (let i = 0; i < nPhases; i++) {
+      html += '<label><input type="checkbox" data-phase="' + i + '" onchange="substratPhaseChanged(' + id + ')"> ' + labels[i] + '</label>';
+    }
+    html += '</div>';
+    tier3.innerHTML = html;
+    f.granularity = 'phase';
+    updatePlot();
+  }
+}
+
+function substratGranChanged(id, gran) {
+  const f = state.substratFilters.find(x => x.id === id);
+  if (!f) return;
+  f.granularity = gran;
+  f.from = null;
+  f.to = null;
+
+  const block = document.getElementById('substrat-f-' + id);
+  block.classList.remove('invalid');
+  const tier3 = block.querySelector('.substrat-tier3');
+
+  let fromOpts = '', toOpts = '';
+  if (f.cycle === 'day' && gran === 'hour') {
+    for (let h = 0; h < 24; h++) {
+      const lbl = String(h).padStart(2, '0') + ':00';
+      fromOpts += '<option value="' + h + '">' + lbl + '</option>';
+      toOpts += '<option value="' + h + '">' + lbl + '</option>';
+    }
+    f.from = 0; f.to = 23;
+  } else if (f.cycle === 'day' && gran === 'synoptic') {
+    const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
+    for (let s = 0; s < 4; s++) {
+      fromOpts += '<option value="' + s + '">' + synLabels[s] + '</option>';
+      toOpts += '<option value="' + s + '">' + synLabels[s] + '</option>';
+    }
+    f.from = 0; f.to = 3;
+  } else if (f.cycle === 'year' && gran === 'month') {
+    const mns = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    for (let m = 0; m < 12; m++) {
+      fromOpts += '<option value="' + m + '">' + mns[m] + '</option>';
+      toOpts += '<option value="' + m + '">' + mns[m] + '</option>';
+    }
+    f.from = 0; f.to = 11;
+  } else if (f.cycle === 'year' && gran === 'week') {
+    for (let w = 1; w <= 53; w++) {
+      fromOpts += '<option value="' + w + '">W' + w + '</option>';
+      toOpts += '<option value="' + w + '">W' + w + '</option>';
+    }
+    f.from = 1; f.to = 53;
+  } else if (f.cycle === 'year' && gran === 'day') {
+    for (let d = 1; d <= 31; d++) {
+      fromOpts += '<option value="' + d + '">' + d + '</option>';
+      toOpts += '<option value="' + d + '">' + d + '</option>';
+    }
+    f.from = 1; f.to = 31;
+  } else if (f.cycle === 'year' && gran === 'season') {
+    const sLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
+    for (let s = 0; s < 4; s++) {
+      fromOpts += '<option value="' + s + '">' + sLabels[s] + '</option>';
+      toOpts += '<option value="' + s + '">' + sLabels[s] + '</option>';
+    }
+    f.from = 0; f.to = 3;
+  }
+
+  // Set 'to' dropdown default to last value
+  const toVal = f.to;
+  tier3.innerHTML = '<div class="substrat-row"><label>From</label>' +
+    '<select class="substrat-from" onchange="substratRangeChanged(' + id + ')">' + fromOpts + '</select>' +
+    '<label>To</label>' +
+    '<select class="substrat-to" onchange="substratRangeChanged(' + id + ')">' + toOpts + '</select></div>';
+  tier3.querySelector('.substrat-to').value = String(toVal);
+  updatePlot();
+}
+
+function substratRangeChanged(id) {
+  const f = state.substratFilters.find(x => x.id === id);
+  if (!f) return;
+  const block = document.getElementById('substrat-f-' + id);
+  f.from = parseInt(block.querySelector('.substrat-from').value);
+  f.to = parseInt(block.querySelector('.substrat-to').value);
+
+  // Validate: Day of Month and Week are NOT cyclic — invalid if from > to
+  const nonCyclic = (f.cycle === 'year' && (f.granularity === 'day' || f.granularity === 'week'));
+  if (nonCyclic && f.from > f.to) {
+    block.classList.add('invalid');
+  } else {
+    block.classList.remove('invalid');
+  }
+  updatePlot();
+}
+
+function substratPhaseChanged(id) {
+  const f = state.substratFilters.find(x => x.id === id);
+  if (!f) return;
+  const block = document.getElementById('substrat-f-' + id);
+  f.phases = new Set();
+  block.querySelectorAll('.substrat-phases input[type=checkbox]:checked').forEach(cb => {
+    f.phases.add(parseInt(cb.dataset.phase));
+  });
+  updatePlot();
+}
+
+// ── Substratification: filter test ────────────────────────────────────────────
+
+function isSubstratFilterActive(f) {
+  if (f.cycle === 'none') return false;
+  if (f.cycle === 'mjo' || f.cycle === 'iod' || f.cycle === 'enso') {
+    return f.phases.size > 0;
+  }
+  if (f.from == null || f.to == null) return false;
+  // Non-cyclic ranges invalid when from > to
+  const nonCyclic = (f.cycle === 'year' && (f.granularity === 'day' || f.granularity === 'week'));
+  if (nonCyclic && f.from > f.to) return false;
+  return true;
+}
+
+function inCyclicRange(val, from, to, max) {
+  if (from <= to) return val >= from && val <= to;
+  return val >= from || val <= to; // wraps around
+}
+
+function passesFilter(ms, f) {
+  const d = eatDate(ms);
+  if (f.cycle === 'day') {
+    const h = d.getUTCHours();
+    if (f.granularity === 'hour') return inCyclicRange(h, f.from, f.to, 24);
+    if (f.granularity === 'synoptic') {
+      const syn = h < 6 ? 0 : h < 12 ? 1 : h < 18 ? 2 : 3;
+      return inCyclicRange(syn, f.from, f.to, 4);
+    }
+  } else if (f.cycle === 'year') {
+    if (f.granularity === 'month') return inCyclicRange(d.getUTCMonth(), f.from, f.to, 12);
+    if (f.granularity === 'season') return inCyclicRange(TZ_SEASON_IDX_GLOBAL[d.getUTCMonth()], f.from, f.to, 4);
+    if (f.granularity === 'week') {
+      const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const wk = Math.min(53, Math.floor((d - jan1) / (7 * 86400000)) + 1);
+      return wk >= f.from && wk <= f.to;
+    }
+    if (f.granularity === 'day') {
+      const dom = d.getUTCDate();
+      return dom >= f.from && dom <= f.to;
+    }
+  } else if (f.cycle === 'mjo') {
+    const wk = getISOWeekStr(ms);
+    const ph = MJO_PHASES[wk];
+    return ph != null && ph >= 0 && f.phases.has(ph);
+  } else if (f.cycle === 'iod') {
+    const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+    const ph = IOD_PHASES[key];
+    return ph != null && f.phases.has(ph);
+  } else if (f.cycle === 'enso') {
+    const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
+    const ph = ENSO_PHASES[key];
+    return ph != null && f.phases.has(ph);
+  }
+  return true;
+}
+
+function getActiveSubstratFilters() {
+  return state.substratFilters.filter(isSubstratFilterActive);
+}
+
+function passesAllSubstratFilters(ms) {
+  const active = getActiveSubstratFilters();
+  if (active.length === 0) return true;
+  if (state.substratCombine === 'all') {
+    for (const f of active) { if (!passesFilter(ms, f)) return false; }
+    return true;
+  } else {
+    for (const f of active) { if (passesFilter(ms, f)) return true; }
+    return false;
+  }
+}
+
+// Apply substratification to a filtered series — returns new filtered object with non-matching points nulled
+function applySubstratFilter(filtered) {
+  const active = getActiveSubstratFilters();
+  if (active.length === 0) return filtered;
+  const n = filtered.timestamps.length;
+  const ts = [], temp = [], hum = [];
+  const extTemp = filtered.extTemp ? [] : null;
+  for (let i = 0; i < n; i++) {
+    if (passesAllSubstratFilters(filtered.timestamps[i])) {
+      ts.push(filtered.timestamps[i]);
+      temp.push(filtered.temperature[i]);
+      hum.push(filtered.humidity[i]);
+      if (extTemp) extTemp.push(filtered.extTemp[i]);
+    }
+  }
+  if (ts.length === 0) return null;
+  return { timestamps: ts, temperature: temp, humidity: hum, extTemp };
+}
 
 function isOpenMeteo(id) { return id && id.indexOf('(Open-Meteo)') !== -1; }
 function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMeteo(id); }
@@ -1402,7 +1726,7 @@ function loadDataset(key) {
   state.betweenStart = m.dateRange.min;
   state.betweenEnd = m.dateRange.max;
 
-  // Initialize custom period range defaults
+  // Initialize custom natural cycles defaults
   const fmtMonth = ms => new Date(ms).toISOString().slice(0, 7);
   document.getElementById('periodic-warnings').innerHTML = '';
 
@@ -1552,6 +1876,11 @@ function svgToCanvas(svgStr, W, H, scale) {
 function setupStaticListeners() {
   document.getElementById('reset-line-btn').addEventListener('click', resetLineDefaults);
   document.getElementById('reset-comfort-btn').addEventListener('click', resetComfortDefaults);
+
+  // Substratification combine logic
+  document.querySelectorAll('input[name="substrat-combine"]').forEach(r => {
+    r.addEventListener('change', () => { state.substratCombine = r.value; updatePlot(); });
+  });
 
   document.getElementById('dataset-select').addEventListener('change', e => {
     loadDataset(e.target.value);
@@ -1709,8 +2038,8 @@ function setupStaticListeners() {
     enso: 'El Ni\u00f1o\u2013Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
   };
   function updatePeriodRangeInfo() {
-    const infoIcon = document.getElementById('period-range-info');
-    const infoTip = document.getElementById('period-range-tip');
+    const infoIcon = document.getElementById('natural-cycles-info');
+    const infoTip = document.getElementById('natural-cycles-tip');
     const isOsc = state.periodRange === 'mjo' || state.periodRange === 'iod' || state.periodRange === 'enso';
     infoIcon.style.display = isOsc ? '' : 'none';
     infoTip.style.display = 'none';
@@ -1733,7 +2062,7 @@ function setupStaticListeners() {
     gsel.parentElement.style.display = opts.length <= 1 ? 'none' : '';
     // Show/hide oscillation info icon + tip
     updatePeriodRangeInfo();
-    // Show/hide options based on period range in periodic mode
+    // Show/hide options based on natural cycles selected in periodic mode
     if (state.chartType === 'periodic') {
       const isYear = state.periodRange === 'year';
       document.getElementById('cb-seasons').parentElement.style.display = isYear ? '' : 'none';
@@ -1742,7 +2071,7 @@ function setupStaticListeners() {
     }
   }
   function fitPeriodRangeWidth() {
-    const sel = document.getElementById('period-range');
+    const sel = document.getElementById('natural-cycles');
     const isOsc = sel.value === 'mjo' || sel.value === 'iod' || sel.value === 'enso';
     const fs = isOsc ? '10px' : '12px';
     sel.style.fontSize = fs;
@@ -1753,7 +2082,7 @@ function setupStaticListeners() {
     sel.style.width = (tmp.offsetWidth + 8) + 'px';
     document.body.removeChild(tmp);
   }
-  document.getElementById('period-range').addEventListener('change', e => {
+  document.getElementById('natural-cycles').addEventListener('change', e => {
     state.periodRange = e.target.value;
     fitPeriodRangeWidth();
     updateGranularityDropdown();
@@ -2240,7 +2569,9 @@ function renderLineGraph() {
     if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
 
     // Track actual data bounds
@@ -2424,7 +2755,9 @@ function renderHistogram() {
     if (!histSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
     const range = actualDataRange(series.timestamps, start, end);
     if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
@@ -3349,7 +3682,9 @@ function renderPeriodicAverages() {
     const sec = sections[secKey];
     const series = dataset().series[loggerId];
     if (!series) return;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) return;
+    filtered = applySubstratFilter(filtered);
     if (!filtered) return;
     for (let i = 0; i < filtered.timestamps.length; i++) {
       const ci = getCategoryIdx(filtered.timestamps[i]);
@@ -3374,7 +3709,9 @@ function renderPeriodicAverages() {
     if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
 
     const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
@@ -3607,6 +3944,11 @@ function _doRender() {
   _currentTitle = title || '';
   _currentLayout = layout;
   document.getElementById('bar-title').textContent = _currentTitle;
+  // Show "no data" overlay when substrat filters produce empty results
+  const noDataEl = document.getElementById('substrat-no-data');
+  const hasActiveFilters = getActiveSubstratFilters().length > 0;
+  const noTraces = traces.length === 0 || traces.every(t => !t.x || t.x.length === 0);
+  noDataEl.style.display = (hasActiveFilters && noTraces) ? 'block' : 'none';
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   document.getElementById('chart').on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
   requestAnimationFrame(setupLegendTooltips);

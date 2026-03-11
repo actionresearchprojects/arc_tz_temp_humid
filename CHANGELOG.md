@@ -1,5 +1,17 @@
 ## Changelog
 
+### 2026-03-11 16:28:44 CST
+- **Substratification (Advanced Filtering)**: New "Advanced Settings" collapsible section in the sidebar with multi-filter data subsetting.
+  - Users can create multiple independent filters combined with AND/OR logic.
+  - Each filter follows a hierarchical selection: Cycle (Day/Year/MJO/IOD/ENSO) → Granularity → Subset.
+  - **Day cycle**: Filter by Hour (0–23) or Synoptic Hours, with cyclic wrap-around.
+  - **Year cycle**: Filter by Day of Month (1–31), Week (1–53), Month (Jan–Dec, cyclic), or Season (Tanzanian seasons, cyclic).
+  - **Oscillation cycles** (MJO/IOD/ENSO): Multi-select phase checkboxes.
+  - Filters apply as pre-filters to Line, Histogram, and Periodic Averages charts.
+  - Invalid ranges (Day of Month/Week where From > To) shown with red border and treated as inactive.
+  - "No data matches the selected filter" overlay shown when filters produce empty results.
+  - Collapsing the section clears all filters automatically.
+
 ### 2026-03-09 21:46:00 CST
 - **Live cycle data for periodic averages**: Replaced hardcoded placeholder ENSO/IOD/MJO phase tables with auto-generated data parsed from real source files in `data/cycles/`.
   - ENSO: Parsed from NOAA ONI CSV (913 months, 1950–present). Thresholds: ONI ≤ -0.5 → La Niña, ≥ 0.5 → El Niño.
