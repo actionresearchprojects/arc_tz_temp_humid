@@ -4091,7 +4091,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are stacked \u2014 hover to see individual logger values.',
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
-    periodic: 'Averages readings into periodic buckets. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences. Orange/red warnings flag categories with very few readings.',
+    periodic: 'Averages readings into periodic buckets. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
   };
   icon.addEventListener('mouseenter', () => {
     tip.textContent = texts[state.chartType] || '';
