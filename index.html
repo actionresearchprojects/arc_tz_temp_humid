@@ -136,7 +136,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <div id="sidebar-backdrop"></div>
 <div id="header">
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
-  <a href="https://actionresearchprojects.net"><img id="logo" src="logotrim.png" alt="ARC logo"></a>
+  <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
   <h1>ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
 </div>
 
@@ -966,30 +966,61 @@ function resetMetrics() {
 function resetLineDefaults() {
   const m = dataset().meta;
 
-  // Loggers
+  // Loggers: Open-Meteo only in historic mode, all line loggers otherwise
   state.selectedLoggers.clear();
-  (m.lineLoggers || m.loggers).forEach(id => state.selectedLoggers.add(id));
+  if (state.historicMode) {
+    m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
+  } else {
+    (m.lineLoggers || m.loggers).forEach(id => state.selectedLoggers.add(id));
+  }
   document.getElementById('logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
   });
 
-  // Metrics & time
-  resetMetrics();
+  // Metrics
+  if (state.historicMode) {
+    state.selectedMetrics = new Set(['temperature']);
+    document.getElementById('cb-temperature').checked = true;
+    document.getElementById('cb-humidity').checked = false;
+    document.getElementById('humidity-label').style.display = 'none';
+  } else {
+    resetMetrics();
+    document.getElementById('humidity-label').style.display = '';
+  }
+
+  // Time
   resetTimeMode();
 
   // Options
-  state.showThreshold = true;
-  document.getElementById('cb-threshold').checked = true;
-  state.showSeasonLines = true;
-  document.getElementById('cb-seasons').checked = true;
-
-  // Historic mode off
-  state.historicMode = false;
-  state.selectedHistoricSeries = new Set();
-  document.getElementById('cb-historic-mode').checked = false;
-  document.getElementById('historic-series-checkboxes').style.display = 'none';
-  document.getElementById('historic-series-checkboxes').innerHTML = '';
-  document.getElementById('humidity-label').style.display = '';
+  if (state.historicMode) {
+    state.showThreshold = false;
+    document.getElementById('cb-threshold').checked = false;
+    state.showSeasonLines = false;
+    document.getElementById('cb-seasons').checked = false;
+    if (state.chartType !== 'histogram') {
+      document.getElementById('line-options-section').style.display = 'none';
+      document.getElementById('line-options-divider').style.display = 'none';
+    }
+    // Reset historic series to all checked
+    state.selectedHistoricSeries = new Set();
+    if (HISTORIC) {
+      HISTORIC.series.forEach(s => state.selectedHistoricSeries.add(s.id));
+    }
+    document.getElementById('historic-series-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.checked = true;
+    });
+  } else {
+    state.showThreshold = true;
+    document.getElementById('cb-threshold').checked = true;
+    state.showSeasonLines = true;
+    document.getElementById('cb-seasons').checked = true;
+    document.getElementById('line-options-section').style.display = '';
+    document.getElementById('line-options-divider').style.display = '';
+    state.selectedHistoricSeries = new Set();
+    document.getElementById('cb-historic-mode').checked = false;
+    document.getElementById('historic-series-checkboxes').style.display = 'none';
+    document.getElementById('historic-series-checkboxes').innerHTML = '';
+  }
 
   // Periodic settings
   state.periodRange = 'day';

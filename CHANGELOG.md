@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2026-03-13 12:10:50 CST
+- **Reset to default respects Long-Term Mode**: When historic mode is on, "Reset to default" now resets to the default historic mode settings (Open-Meteo loggers only, temperature only, threshold/seasons off, all historic series checked) instead of turning historic mode off.
+- **Logo files moved to `logo/` folder**: Header uses `logo/logotrim.png`, PNG export watermark uses `logo/logo.png`.
+
 ### 2026-03-11 17:00:00 CST
 - **"No data available" message on all chart types**: Previously only periodic averages showed this. Now line, histogram, and adaptive comfort all display "No data available in the selected range" when no actual data traces are present (e.g. all loggers unchecked, or only threshold/decoration traces showing). Each render function sets a `_noData` flag; `_doRender` intercepts it and replaces the chart with a centred annotation.
 
