@@ -1804,6 +1804,15 @@ function getComfortParams() {
   };
   return models[state.comfortModel] || null;
 }
+function comfortSourceLabel(extSrcText) {
+  const sel = document.getElementById('comfort-model');
+  const parts = [];
+  if (sel && state.comfortModel !== 'none') {
+    parts.push(`Adaptive comfort: EN 15251 · ${sel.options[sel.selectedIndex].text}`);
+  }
+  if (extSrcText) parts.push(extSrcText);
+  return parts.join('<br>') || '';
+}
 
 // Returns grey "(OmniSense)" HTML suffix for Omnisense sensors, empty string otherwise.
 function omniSuffix(source) {
@@ -1993,12 +2002,14 @@ function fmtDateEAT(ms, isStart) {
   if (!isStart && hour < 1) d = new Date(d.getTime() - 24 * 3600 * 1000);
   return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
 }
-function dateRangeAnnotation(actualStartMs, actualEndMs, atTop) {
+function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
+  let text = `Data ranges from ${fmtDateEAT(actualStartMs, true)} to ${fmtDateEAT(actualEndMs, false)}`;
+  if (extraLine) text += `<br>${extraLine}`;
   return {
     xref: 'paper', yref: 'paper',
     x: 1, y: atTop ? 1 : 0,
     xanchor: 'right', yanchor: atTop ? 'top' : 'bottom',
-    text: `Data ranges from ${fmtDateEAT(actualStartMs, true)} to ${fmtDateEAT(actualEndMs, false)}`,
+    text,
     showarrow: false,
     font: {size: 10, color: '#888'},
     bgcolor: 'rgba(255,255,255,0.75)',
@@ -2280,6 +2291,7 @@ function renderAdaptiveComfort() {
   const traces = [], params = getComfortParams();
   const allExtTemps = [], allTemps = [];
   let actualStartMs = Infinity, actualEndMs = -Infinity;
+  const seenSpans = new Map();
   for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
@@ -2288,6 +2300,15 @@ function renderAdaptiveComfort() {
     if (!filtered || !filtered.extTemp) continue;
     const range = actualDataRange(series.timestamps, start, end);
     if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
+    if (series.extSourceSpans) {
+      for (const sp of series.extSourceSpans) {
+        const prev = seenSpans.get(sp.source);
+        if (!prev) seenSpans.set(sp.source, {from: sp.from, to: sp.to});
+        else { if (sp.from < prev.from) prev.from = sp.from; if (sp.to > prev.to) prev.to = sp.to; }
+      }
+    } else if (series.extSource) {
+      if (!seenSpans.has(series.extSource)) seenSpans.set(series.extSource, null);
+    }
     for (let i = 0; i < filtered.extTemp.length; i++) {
       if (filtered.extTemp[i] != null && filtered.temperature[i] != null) {
         allExtTemps.push(filtered.extTemp[i]);
@@ -2344,12 +2365,31 @@ function renderAdaptiveComfort() {
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
 
+  // Build external source summary for annotation
+  let extSrcText = '';
+  if (seenSpans.size > 0) {
+    const srcLabel = (id) => {
+      const name = m.loggerNames[id] || id;
+      const type = m.loggerSources[id];
+      return type ? `${name} [${type}]` : name;
+    };
+    if (seenSpans.size === 1) {
+      const [sid, span] = [...seenSpans.entries()][0];
+      extSrcText = `Running mean source: ${srcLabel(sid)}`;
+    } else {
+      const parts = [...seenSpans.entries()]
+        .sort((a,b) => (a[1]&&b[1]) ? (a[1].from < b[1].from ? -1 : 1) : 0)
+        .map(([sid, span]) => span ? `${srcLabel(sid)} (${span.from} to ${span.to})` : srcLabel(sid));
+      extSrcText = `Running mean sources: ${parts.join(', ')}`;
+    }
+  }
+
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
     xaxis:{title:'Running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
     yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
-    annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false)] : [],
+    annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: `${dsl} \u2013 Adaptive Comfort`, _noData: allExtTemps.length === 0};
 }
