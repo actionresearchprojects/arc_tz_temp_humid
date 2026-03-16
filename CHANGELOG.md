@@ -1,8 +1,8 @@
 ## Changelog
 
-### 2026-03-16 19:29:09 CST
-- **Add anomalous data filter**: "Exclude anomalous data" checkbox in the Options section (unchecked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. Visible on all chart types. A ⚠ warning symbol next to the Bedroom 4 checkbox shows the anomaly reason on hover via fixed-position tooltip.
-- **Advanced Settings positioning**: No Advanced Settings on line graph. On histogram/periodic/comfort, placed after "Histogram Settings" / "Period Settings" respectively; dynamically moved into comfort-controls for Adaptive Comfort.
+### 2026-03-16 19:32:24 CST
+- **Add anomalous data filter**: "Exclude anomalous data" checkbox inside Advanced Settings (unchecked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. A ⚠ warning symbol next to the Bedroom 4 checkbox shows the anomaly reason on hover via fixed-position tooltip.
+- **Advanced Settings on all chart types**: Visible on line graph, histogram, average profiles, and adaptive comfort. On line graph, only the anomalous checkbox is shown (substratification controls hidden via `substrat-only` class). Placed after "Histogram Settings" / "Period Settings" respectively; dynamically moved into comfort-controls for Adaptive Comfort.
 
 ### 2026-03-17 02:30:00 CST
 - **Move Advanced Settings to top of sidebar**: In Histogram and Average Profiles modes, the Advanced Settings (substratification filters) now appears at the top of the sidebar instead of at the bottom, making it more discoverable.
