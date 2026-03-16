@@ -70,7 +70,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true,
+        "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
       {
@@ -190,7 +190,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true,
+        "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
       {
@@ -200,7 +200,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true,
+        "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
       {
@@ -230,7 +230,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true,
+        "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
       {
@@ -260,7 +260,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
-        "showInComfort": true,
+        "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
       {

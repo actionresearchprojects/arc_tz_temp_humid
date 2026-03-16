@@ -710,8 +710,8 @@ def build_dataset_json(key, df, logger_overrides=None):
     if sidebar_order:
         structural_loggers = sorted(structural_loggers, key=lambda l: order_map.get(l, 9999))
 
-    # comfort_loggers = room + structural (for adaptive comfort graph)
-    comfort_logger_set = set(room_loggers) | set(structural_loggers)
+    # comfort_loggers = room only (for adaptive comfort graph; no structurals)
+    comfort_logger_set = set(room_loggers)
     comfort_loggers = [l for l in unique_loggers if l in comfort_logger_set]
 
     color_map = {l: COLORS[i % len(COLORS)] for i, l in enumerate(unique_loggers)}

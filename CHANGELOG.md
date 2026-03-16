@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-16 16:30:00 CST
+- **Remove structural loggers from Adaptive Comfort**: Changed `build.py` to exclude structural loggers from `comfortLoggers`, so only room loggers appear in the adaptive comfort sidebar.
+
 ### 2026-03-16 16:25:00 CST
 - **Faster hover on Adaptive Comfort chart**: Switched scatter traces from `scatter` to `scattergl` (WebGL-accelerated) for dramatically faster hover/tooltip response when many data points are displayed.
 
