@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 00:15:00 CST (2)
+- **Advanced Settings: single-select default for filters**: Substrat filters now default to a single dropdown (e.g. pick "Mar") instead of always showing From/To range selects. A small "range" link toggles to From/To mode when a range is needed, and "single" toggles back. Reduces friction for the common case of filtering to a single month, hour, or season.
+
 ### 2026-03-17 00:15:00 CST
 - **Histogram bar mode toggle**: Added "Histogram Settings" section at top of sidebar (visible when Histogram chart is selected) with a "Bar Mode" dropdown to switch between Stacked (additive) and Overlay modes. Overlay mode reduces opacity for readability. Y-axis title and info tooltip update dynamically based on the selected mode.
 

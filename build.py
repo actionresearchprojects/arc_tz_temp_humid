@@ -944,6 +944,8 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .substrat-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; }
 .substrat-row label { font-size:11px; color:#666; white-space:nowrap; min-width:36px; }
 .substrat-row select { font-size:11px; padding:2px 4px; max-width:130px; }
+.substrat-range-toggle { font-size:10px; color:#888; cursor:pointer; text-decoration:underline; user-select:none; margin-left:2px; }
+.substrat-range-toggle:hover { color:#555; }
 .substrat-phases { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
 .substrat-phases label { font-size:11px; cursor:pointer; display:flex; align-items:center; gap:3px; }
 #substrat-add-btn { font-size:11px; padding:3px 8px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer; color:#555; }
@@ -1358,62 +1360,100 @@ function substratGranChanged(id, gran) {
   f.granularity = gran;
   f.from = null;
   f.to = null;
+  f._rangeMode = false;
 
   const block = document.getElementById('substrat-f-' + id);
   block.classList.remove('invalid');
   const tier3 = block.querySelector('.substrat-tier3');
 
-  let fromOpts = '', toOpts = '';
-  if (f.cycle === 'day' && gran === 'hour') {
+  const opts = substratBuildOptions(f.cycle, gran);
+  f.from = opts.defaultVal;
+  f.to = opts.defaultVal; // single selection: from === to
+
+  tier3.innerHTML = '<div class="substrat-row">' +
+    '<select class="substrat-single" onchange="substratSingleChanged(' + id + ')">' + opts.html + '</select>' +
+    '<span class="substrat-range-toggle" onclick="substratToggleRange(' + id + ')">range</span>' +
+    '</div>' +
+    '<div class="substrat-range-row substrat-row" style="display:none">' +
+    '<label>From</label><select class="substrat-from" onchange="substratRangeChanged(' + id + ')">' + opts.html + '</select>' +
+    '<label>To</label><select class="substrat-to" onchange="substratRangeChanged(' + id + ')">' + opts.html + '</select>' +
+    '</div>';
+  tier3.querySelector('.substrat-to').value = String(opts.lastVal);
+  updatePlot();
+}
+
+function substratBuildOptions(cycle, gran) {
+  let html = '', defaultVal = 0, lastVal = 0;
+  if (cycle === 'day' && gran === 'hour') {
     for (let h = 0; h < 24; h++) {
       const lbl = String(h).padStart(2, '0') + ':00';
-      fromOpts += '<option value="' + h + '">' + lbl + '</option>';
-      toOpts += '<option value="' + h + '">' + lbl + '</option>';
+      html += '<option value="' + h + '">' + lbl + '</option>';
     }
-    f.from = 0; f.to = 23;
-  } else if (f.cycle === 'day' && gran === 'synoptic') {
+    defaultVal = 0; lastVal = 23;
+  } else if (cycle === 'day' && gran === 'synoptic') {
     const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
-    for (let s = 0; s < 4; s++) {
-      fromOpts += '<option value="' + s + '">' + synLabels[s] + '</option>';
-      toOpts += '<option value="' + s + '">' + synLabels[s] + '</option>';
-    }
-    f.from = 0; f.to = 3;
-  } else if (f.cycle === 'year' && gran === 'month') {
+    for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + synLabels[s] + '</option>';
+    defaultVal = 0; lastVal = 3;
+  } else if (cycle === 'year' && gran === 'month') {
     const mns = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    for (let m = 0; m < 12; m++) {
-      fromOpts += '<option value="' + m + '">' + mns[m] + '</option>';
-      toOpts += '<option value="' + m + '">' + mns[m] + '</option>';
-    }
-    f.from = 0; f.to = 11;
-  } else if (f.cycle === 'year' && gran === 'week') {
-    for (let w = 1; w <= 53; w++) {
-      fromOpts += '<option value="' + w + '">W' + w + '</option>';
-      toOpts += '<option value="' + w + '">W' + w + '</option>';
-    }
-    f.from = 1; f.to = 53;
-  } else if (f.cycle === 'year' && gran === 'day') {
-    for (let d = 1; d <= 31; d++) {
-      fromOpts += '<option value="' + d + '">' + d + '</option>';
-      toOpts += '<option value="' + d + '">' + d + '</option>';
-    }
-    f.from = 1; f.to = 31;
-  } else if (f.cycle === 'year' && gran === 'season') {
+    for (let m = 0; m < 12; m++) html += '<option value="' + m + '">' + mns[m] + '</option>';
+    defaultVal = 0; lastVal = 11;
+  } else if (cycle === 'year' && gran === 'week') {
+    for (let w = 1; w <= 53; w++) html += '<option value="' + w + '">W' + w + '</option>';
+    defaultVal = 1; lastVal = 53;
+  } else if (cycle === 'year' && gran === 'day') {
+    for (let d = 1; d <= 31; d++) html += '<option value="' + d + '">' + d + '</option>';
+    defaultVal = 1; lastVal = 31;
+  } else if (cycle === 'year' && gran === 'season') {
     const sLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
-    for (let s = 0; s < 4; s++) {
-      fromOpts += '<option value="' + s + '">' + sLabels[s] + '</option>';
-      toOpts += '<option value="' + s + '">' + sLabels[s] + '</option>';
-    }
-    f.from = 0; f.to = 3;
+    for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + sLabels[s] + '</option>';
+    defaultVal = 0; lastVal = 3;
   }
+  return { html, defaultVal, lastVal };
+}
 
-  // Set 'to' dropdown default to last value
-  const toVal = f.to;
-  tier3.innerHTML = '<div class="substrat-row"><label>From</label>' +
-    '<select class="substrat-from" onchange="substratRangeChanged(' + id + ')">' + fromOpts + '</select>' +
-    '<label>To</label>' +
-    '<select class="substrat-to" onchange="substratRangeChanged(' + id + ')">' + toOpts + '</select></div>';
-  tier3.querySelector('.substrat-to').value = String(toVal);
+function substratSingleChanged(id) {
+  const f = state.substratFilters.find(x => x.id === id);
+  if (!f) return;
+  const block = document.getElementById('substrat-f-' + id);
+  const val = parseInt(block.querySelector('.substrat-single').value);
+  f.from = val;
+  f.to = val;
+  block.classList.remove('invalid');
   updatePlot();
+}
+
+function substratToggleRange(id) {
+  const f = state.substratFilters.find(x => x.id === id);
+  if (!f) return;
+  f._rangeMode = !f._rangeMode;
+  const block = document.getElementById('substrat-f-' + id);
+  const tier3 = block.querySelector('.substrat-tier3');
+  const singleRow = tier3.querySelector('.substrat-row:first-child');
+  const rangeRow = tier3.querySelector('.substrat-range-row');
+  const toggle = block.querySelector('.substrat-range-toggle');
+
+  if (f._rangeMode) {
+    singleRow.style.display = 'none';
+    rangeRow.style.display = '';
+    toggle.textContent = 'single';
+    // Sync from/to dropdowns from current state
+    block.querySelector('.substrat-from').value = String(f.from);
+    block.querySelector('.substrat-to').value = String(f.to);
+    // Move toggle into range row
+    rangeRow.appendChild(toggle);
+  } else {
+    singleRow.style.display = '';
+    rangeRow.style.display = 'none';
+    toggle.textContent = 'range';
+    // Snap to single: use 'from' value
+    f.to = f.from;
+    block.querySelector('.substrat-single').value = String(f.from);
+    block.classList.remove('invalid');
+    // Move toggle back into single row
+    singleRow.appendChild(toggle);
+    updatePlot();
+  }
 }
 
 function substratRangeChanged(id) {
