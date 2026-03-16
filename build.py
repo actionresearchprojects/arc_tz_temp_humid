@@ -68,7 +68,7 @@ DATASETS = {
             "861011": {"before": "2024-05-07 12:00:00"},  # erroneous data from 12pm EAT 7 May 2024 onward
         },
         "anomalous_ranges": {
-            "3276012B": {"before": "2026-02-12", "reason": "Data before 12 Feb 2026 is anomalous. A third bunk bed placed across the bay window, combined with drawn curtains and nets for six children instead of four, completely blocked natural airflow and trapped warm air inside. Subject to further investigation."},
+            "3276012B": {"before": "2026-02-12", "reason": "Data before 12 Feb 2026 is anomalous. A third bunk bed placed across the bay window, accomodating six occupants instead of the intended four, combined with drawn curtains, is suspected to have blocked natural airflow and trapped warm air inside. Subject to further investigation."},
         },
         # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
