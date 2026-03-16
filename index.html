@@ -146,21 +146,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 
 <div id="main">
   <div id="sidebar">
-    <div id="advanced-settings-wrap">
-      <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
-        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
-      </div>
-      <div id="advanced-settings-body">
-        <div class="substrat-combine">
-          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
-          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
-        </div>
-        <div id="substrat-filters"></div>
-        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
-        <label class="cb-label" id="anomalous-label" style="margin-top:8px;display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
-      </div>
-      <hr class="divider">
-    </div>
     <div id="line-controls">
       <div class="section" id="periodic-options" style="display:none">
         <div class="section-title">Period Settings</div>
@@ -197,6 +182,21 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         </label>
       </div>
       <hr class="divider" id="histogram-options-divider" style="display:none">
+      <div id="advanced-settings-wrap" style="display:none">
+        <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
+          <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
+        </div>
+        <div id="advanced-settings-body">
+          <div class="substrat-combine">
+            <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
+            <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
+          </div>
+          <div id="substrat-filters"></div>
+          <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
+          <label class="cb-label" id="anomalous-label" style="margin-top:8px;display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
+        </div>
+        <hr class="divider">
+      </div>
       <div class="section">
         <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset to default</button></div>
         <div id="logger-checkboxes"></div>
@@ -1262,10 +1262,27 @@ function setupStaticListeners() {
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
     document.getElementById('histogram-options').style.display = isHistogram ? '' : 'none';
     document.getElementById('histogram-options-divider').style.display = isHistogram ? '' : 'none';
-    // Advanced Settings for all chart types
-    document.getElementById('advanced-settings-wrap').style.display = '';
+    // Advanced Settings for periodic, histogram & comfort
+    const advWrap = document.getElementById('advanced-settings-wrap');
+    const showAdvanced = isPeriodic || isHistogram || isComfort;
+    if (isComfort) {
+      // Move into comfort-controls (before Room Loggers)
+      const comfortCtrl = document.getElementById('comfort-controls');
+      comfortCtrl.insertBefore(advWrap, comfortCtrl.children[0]);
+    } else {
+      // Move back into line-controls (after histogram-options-divider)
+      const anchor = document.getElementById('histogram-options-divider');
+      anchor.parentNode.insertBefore(advWrap, anchor.nextSibling);
+    }
+    advWrap.style.display = showAdvanced ? '' : 'none';
     const advBody = document.getElementById('advanced-settings-body');
-    advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
+    advBody.style.display = (showAdvanced && advBody.dataset.open === '1') ? 'block' : 'none';
+    if (!showAdvanced) {
+      state.substratFilters = [];
+      document.getElementById('substrat-filters').innerHTML = '';
+      advBody.dataset.open = '0';
+      document.getElementById('advanced-settings-arrow').classList.remove('open');
+    }
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isPeriodic) {
@@ -1994,8 +2011,6 @@ function renderLineGraph() {
     let filtered = filterSeries(series, start, end);
     if (!filtered) continue;
     filtered = applyAnomalousFilter(filtered, loggerId);
-    if (!filtered) continue;
-    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
 
     // Track actual data bounds
@@ -3512,8 +3527,6 @@ function updatePeriodicCompleteness(start, end) {
     let filtered = filterSeries(series, start, end);
     if (!filtered) continue; // no data in range — skip
     filtered = applyAnomalousFilter(filtered, loggerId);
-    if (!filtered) continue;
-    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
