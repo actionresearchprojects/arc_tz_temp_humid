@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 00:15:00 CST (3)
+- **Advanced Settings on Adaptive Comfort**: Moved Advanced Settings out of `#line-controls` into a shared sidebar position (between line-controls and comfort-controls) so it appears for Adaptive Comfort charts too. Applied `applySubstratFilter` to both the scatter plot data and the comfort stats calculations. Filters now work identically on comfort as on periodic/histogram.
+
 ### 2026-03-17 00:15:00 CST (2)
 - **Advanced Settings: single-select default for filters**: Substrat filters now default to a single dropdown (e.g. pick "Mar") instead of always showing From/To range selects. A small "range" link toggles to From/To mode when a range is needed, and "single" toggles back. Reduces friction for the common case of filtering to a single month, hour, or season.
 

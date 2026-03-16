@@ -1040,18 +1040,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         </label>
       </div>
       <hr class="divider" id="histogram-options-divider" style="display:none">
-      <div id="advanced-settings-toggle" style="display:none" onclick="toggleAdvancedSettings()">
-        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
-      </div>
-      <div id="advanced-settings-body">
-        <div class="substrat-combine">
-          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
-          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
-        </div>
-        <div id="substrat-filters"></div>
-        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
-      </div>
-      <hr class="divider" id="advanced-settings-divider" style="display:none">
       <div class="section">
         <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;">Loggers<button class="sel-btn" id="reset-line-btn">Reset to default</button></div>
         <div id="logger-checkboxes"></div>
@@ -1096,6 +1084,21 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
         Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Forecast shows the next 16 days.
+      </div>
+    </div>
+
+    <div id="advanced-settings-wrap" style="display:none">
+      <hr class="divider">
+      <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
+        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
+      </div>
+      <div id="advanced-settings-body">
+        <div class="substrat-combine">
+          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
+          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
+        </div>
+        <div id="substrat-filters"></div>
+        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
       </div>
     </div>
 
@@ -2092,14 +2095,13 @@ function setupStaticListeners() {
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
     document.getElementById('histogram-options').style.display = isHistogram ? '' : 'none';
     document.getElementById('histogram-options-divider').style.display = isHistogram ? '' : 'none';
-    // Advanced Settings only for periodic & histogram
-    const showAdvanced = isPeriodic || isHistogram;
-    document.getElementById('advanced-settings-toggle').style.display = showAdvanced ? '' : 'none';
-    document.getElementById('advanced-settings-divider').style.display = showAdvanced ? '' : 'none';
+    // Advanced Settings for periodic, histogram & comfort
+    const showAdvanced = isPeriodic || isHistogram || isComfort;
+    document.getElementById('advanced-settings-wrap').style.display = showAdvanced ? '' : 'none';
     const advBody = document.getElementById('advanced-settings-body');
     advBody.style.display = (showAdvanced && advBody.dataset.open === '1') ? 'block' : 'none';
     if (!showAdvanced) {
-      // Clear filters when leaving periodic/histogram
+      // Clear filters when leaving supported chart types
       state.substratFilters = [];
       document.getElementById('substrat-filters').innerHTML = '';
       advBody.dataset.open = '0';
@@ -3219,7 +3221,9 @@ function renderAdaptiveComfort() {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    if (!filtered || !filtered.extTemp) continue;
+    filtered = applySubstratFilter(filtered);
     if (!filtered || !filtered.extTemp) continue;
     const range = actualDataRange(series.timestamps, start, end);
     if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
@@ -3585,7 +3589,8 @@ function updateComfortStats(start, end, params) {
     // Detect gaps for this series
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    filtered = filtered ? applySubstratFilter(filtered) : null;
     let pct = null;
     if (filtered && filtered.extTemp) {
       let inZone = 0, count = 0;
