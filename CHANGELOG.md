@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 00:15:00 CST
+- **Histogram bar mode toggle**: Added "Histogram Settings" section at top of sidebar (visible when Histogram chart is selected) with a "Bar Mode" dropdown to switch between Stacked (additive) and Overlay modes. Overlay mode reduces opacity for readability. Y-axis title and info tooltip update dynamically based on the selected mode.
+
 ### 2026-03-16 17:00:00 CST
 - **Adaptive comfort source attribution on chart**: The Adaptive Comfort chart bottom-right annotation now shows:
   1. The comfort model (e.g. "Adaptive comfort: EN 15251 · RH>60% (Vellei et al.)")
