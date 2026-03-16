@@ -1692,10 +1692,43 @@ function setupStaticListeners() {
       Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGTitle(doc, W);
-        injectSVGWatermark(doc, W, H, 1.0);
         injectLegendIDCodes(doc);
         unlockLegendScroll(doc.documentElement);
-        return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
+        // Measure legend bottom; expand SVG height if legend overflows
+        const watermarkPad = 40; // space for watermark text below legend
+        let finalH = H;
+        const legend = doc.querySelector('.legend');
+        if (legend) {
+          const items = Array.from(legend.querySelectorAll('.traces'));
+          if (items.length) {
+            const lastItem = items[items.length - 1];
+            // Walk up transforms to get absolute Y of last item
+            let absY = 0;
+            let el = lastItem;
+            while (el && el !== doc.documentElement) {
+              const m = (el.getAttribute && el.getAttribute('transform') || '').match(/translate\(\s*([-\d.]+)[\s,]+([-\d.]+)/);
+              if (m) absY += parseFloat(m[2]);
+              el = el.parentNode;
+            }
+            const legendBottom = absY + 20; // ~20px for item height
+            const needed = legendBottom + watermarkPad;
+            if (needed > H) {
+              finalH = needed;
+              const svgRoot = doc.documentElement;
+              svgRoot.setAttribute('height', String(finalH));
+              const vb = svgRoot.getAttribute('viewBox');
+              if (vb) {
+                const parts = vb.split(/[\s,]+/);
+                if (parts.length === 4) {
+                  parts[3] = String(finalH);
+                  svgRoot.setAttribute('viewBox', parts.join(' '));
+                }
+              }
+            }
+          }
+        }
+        injectSVGWatermark(doc, W, finalH, 1.0);
+        return svgToCanvas(new XMLSerializer().serializeToString(doc), W, finalH, scale);
       }).then(canvasToPNG).catch(dlDone);
     } else {
       // Histogram / adaptive comfort: add title via relayout, capture as SVG,

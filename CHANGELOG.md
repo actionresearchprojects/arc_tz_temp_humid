@@ -1,7 +1,7 @@
 ## Changelog
 
 ### 2026-03-17 01:15:00 CST
-- **Periodic average PNG export: fix legend ID clipping**: Moved periodic chart to the same no-relayout SVG export path as line graphs. Previously periodic went through the relayout path (which changes `margin.t` and causes Plotly to recompute the legend with scroll/clip issues). Now captures SVG as-is and injects title/watermark/IDs directly into the SVG DOM, same as line. Datalogger IDs appear as grey suffix text via `injectLegendIDCodes`.
+- **Periodic average PNG export: fix legend clipping + add datalogger IDs**: Moved periodic chart to the same no-relayout SVG export path as line graphs. After injecting legend IDs and unlocking scroll, the export now measures the actual legend bottom and expands the SVG height (+ viewBox) if the legend overflows, adding 40px padding for the watermark text. Watermark is injected at the new expanded height so it always appears below the legend with a clean gap.
 
 ### 2026-03-17 00:45:00 CST
 - **Histogram overlay hover: show overlapping series count**: In overlay mode, the default Plotly hover (which only shows one random series) is replaced with a custom tooltip that shows the hovered series name, its value, and how many total series overlap at that bin (e.g. "5 series at this bin (4 others)"). Stacked mode hover is unchanged.
