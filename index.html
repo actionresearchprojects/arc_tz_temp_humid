@@ -2193,6 +2193,7 @@ function renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end) {
     div.innerHTML = normalHTML;
     if (hasGap) {
       div.addEventListener('mouseenter', () => {
+        div.innerHTML = hoverHTML;
         gapTip.innerHTML = gapTooltipHTML(gapInfoMap[id], start, end);
         gapTip.style.display = 'block';
         const rect = div.getBoundingClientRect();
@@ -2201,7 +2202,7 @@ function renderStatsBoxes(grid, roomStats, gapInfoMap, gapTip, start, end) {
         gapTip.style.left = Math.max(4, left) + 'px';
         gapTip.style.top = Math.max(4, rect.top) + 'px';
       });
-      div.addEventListener('mouseleave', () => { gapTip.style.display = 'none'; });
+      div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; gapTip.style.display = 'none'; });
     } else {
       div.addEventListener('mouseenter', () => { div.innerHTML = hoverHTML; });
       div.addEventListener('mouseleave', () => { div.innerHTML = normalHTML; });

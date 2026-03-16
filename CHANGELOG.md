@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-16 16:10:00 CST
+- **Orange boxes now show source/ID on hover**: Orange (has-gap) completeness boxes in the sidebar now swap to show the monitor type and ID on hover, matching the behaviour of non-orange boxes. The gap detail tooltip still appears alongside.
+
 ### 2026-03-16 16:00:00 CST
 - **Fix sticky gap tooltip on period switch**: Gap detail tooltips (on orange completeness boxes) now hide immediately when the stats grid is rebuilt — previously they could remain stuck on screen after switching to a complete period because destroying the DOM element removed the `mouseleave` listener before it could fire. Fixed in all three stat box functions (adaptive comfort, histogram, periodic averages).
 
