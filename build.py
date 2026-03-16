@@ -1717,7 +1717,7 @@ function loadDataset(key) {
       const reason = anomRanges[id].reason || 'Anomalous data';
       warn.addEventListener('mouseenter', () => {
         const r = warn.getBoundingClientRect();
-        tip.textContent = reason;
+        tip.innerHTML = reason + '<div style="margin-top:6px;font-style:italic;color:#d4c8a0;font-size:9px;">Exclude anomalous data in Advanced Settings</div>';
         tip.style.display = 'block';
         let left = r.right + 8;
         if (left + 268 > window.innerWidth - 8) left = r.left - 268;
