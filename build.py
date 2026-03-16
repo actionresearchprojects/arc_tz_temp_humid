@@ -67,6 +67,9 @@ DATASETS = {
             "759498": {"before": "2024-06-01"},  # moved to Schoolteacher's on 1 Jun; drop Jun 1 entirely
             "861011": {"before": "2024-05-07 12:00:00"},  # erroneous data from 12pm EAT 7 May 2024 onward
         },
+        "anomalous_ranges": {
+            "3276012B": {"before": "2026-02-12"},  # overcrowding blocked ventilation
+        },
         # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
             OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID,       # Open-Meteo
@@ -744,6 +747,21 @@ def build_dataset_json(key, df, logger_overrides=None):
     comfort_logger_set = set(room_loggers)
     comfort_loggers = [l for l in unique_loggers if l in comfort_logger_set]
 
+    # Anomalous data ranges
+    anomalous_cfg = cfg.get("anomalous_ranges", {})
+    anomalous_ranges_js = {}
+    for lid, rng in anomalous_cfg.items():
+        if lid in unique_loggers:
+            entry = {}
+            if "before" in rng:
+                dt = pd.Timestamp(rng["before"]).tz_localize(TIMEZONE)
+                entry["before"] = int(dt.timestamp() * 1000)
+            if "after" in rng:
+                dt = pd.Timestamp(rng["after"]).tz_localize(TIMEZONE)
+                entry["after"] = int(dt.timestamp() * 1000)
+            if entry:
+                anomalous_ranges_js[lid] = entry
+
     color_map = {l: COLORS[i % len(COLORS)] for i, l in enumerate(unique_loggers)}
     # Give Open-Meteo Historical the light cyan, Forecast a blue-grey
     cyan = "#17becf"
@@ -851,6 +869,7 @@ def build_dataset_json(key, df, logger_overrides=None):
                 "max": int(df.index.max().timestamp() * 1000),
             },
             "extDateRange": ext_date_range,
+            "anomalousRanges": anomalous_ranges_js,
         },
         "series": series,
     }
@@ -1069,6 +1088,11 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div class="section-title">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32°C Threshold</label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
+        <label class="cb-label" id="anomalous-label"><input type="checkbox" id="cb-exclude-anomalous" checked> Exclude anomalous data <span class="info-i" id="anomalous-info" style="margin-left:4px;">i</span></label>
+        <div id="anomalous-note" style="display:none;font-size:11px;color:#666;line-height:1.4;margin-bottom:6px;padding:6px 8px;background:#fff8f0;border:1px solid #e8d4b8;border-radius:4px;">
+          <b>Bedroom 4 (Omnisense 3276012B)</b> — data before 12 Feb 2026 is flagged as anomalous.<br><br>
+          <b>Reason:</b> A third bunk bed placed across the bay window, combined with drawn curtains and nets for six children instead of four, completely blocked natural airflow and trapped warm air inside. This lack of ventilation allowed heat to build up and soak into the walls, maintaining high readings until the extra bed was removed and curtains were opened. Subject to further investigation.
+        </div>
       </div>
       <hr class="divider" id="line-options-divider">
       <div class="section" id="historic-section" style="display:none">
@@ -1245,6 +1269,7 @@ const state = {
   substratFilters: [],
   substratCombine: 'all',
   histogramBarmode: 'stack',
+  excludeAnomalous: true,
 };
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
@@ -1861,6 +1886,11 @@ function loadDataset(key) {
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = 'inline-block'; });
   }
 
+  // Show/hide anomalous data checkbox based on dataset
+  document.getElementById('anomalous-label').style.display =
+    (dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0) ? '' : 'none';
+  document.getElementById('anomalous-note').style.display = 'none';
+
   updatePlot();
 }
 
@@ -2151,6 +2181,9 @@ function setupStaticListeners() {
         document.getElementById('historic-series-checkboxes').style.display = '';
       }
     }
+    document.getElementById('anomalous-label').style.display =
+      (dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0) ? '' : 'none';
+    document.getElementById('anomalous-note').style.display = 'none';
     updatePlot();
   });
 
@@ -2205,6 +2238,13 @@ function setupStaticListeners() {
   });
   document.getElementById('cb-seasons').addEventListener('change', e => {
     state.showSeasonLines = e.target.checked; updatePlot();
+  });
+  document.getElementById('cb-exclude-anomalous').addEventListener('change', e => {
+    state.excludeAnomalous = e.target.checked; updatePlot();
+  });
+  document.getElementById('anomalous-info').addEventListener('click', () => {
+    const note = document.getElementById('anomalous-note');
+    note.style.display = note.style.display === 'none' ? 'block' : 'none';
   });
   document.getElementById('cb-density').addEventListener('change', e => {
     state.showDensity = e.target.checked; updatePlot();
@@ -2722,6 +2762,31 @@ function filterSeries(series, startMs, endMs) {
   };
 }
 
+// ── Anomalous data filter ─────────────────────────────────────────────────────
+function applyAnomalousFilter(filtered, loggerId) {
+  if (!state.excludeAnomalous) return filtered;
+  const m = dataset().meta;
+  const ranges = m.anomalousRanges;
+  if (!ranges || !ranges[loggerId]) return filtered;
+  const rng = ranges[loggerId];
+  const ts = [], temp = [], hum = [];
+  const extTemp = filtered.extTemp ? [] : null;
+  for (let i = 0; i < filtered.timestamps.length; i++) {
+    const t = filtered.timestamps[i];
+    let anomalous = false;
+    if (rng.before && t < rng.before) anomalous = true;
+    if (rng.after && t > rng.after) anomalous = true;
+    if (!anomalous) {
+      ts.push(t);
+      temp.push(filtered.temperature[i]);
+      hum.push(filtered.humidity[i]);
+      if (extTemp) extTemp.push(filtered.extTemp[i]);
+    }
+  }
+  if (ts.length === 0) return null;
+  return { timestamps: ts, temperature: temp, humidity: hum, extTemp };
+}
+
 // ── Gap detection ─────────────────────────────────────────────────────────────
 const GAP_MS = 12 * 3600 * 1000;
 function buildGapArrays(timestamps, values) {
@@ -2802,7 +2867,9 @@ function renderLineGraph() {
     if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
 
     // Track actual data bounds
@@ -2990,6 +3057,8 @@ function renderHistogram() {
     const series = dataset().series[loggerId];
     if (!series) continue;
     let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
@@ -3214,8 +3283,10 @@ function updateHistogramStats(start, end) {
     // Gap detection
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
     if (!filtered) continue; // no data in range — skip
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
     let below = 0, count = 0;
     for (let i = 0; i < filtered.temperature.length; i++) {
       const t = filtered.temperature[i];
@@ -3257,6 +3328,8 @@ function renderAdaptiveComfort() {
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
     let filtered = filterSeries(series, start, end);
+    if (!filtered || !filtered.extTemp) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered || !filtered.extTemp) continue;
     filtered = applySubstratFilter(filtered);
     if (!filtered || !filtered.extTemp) continue;
@@ -3625,6 +3698,7 @@ function updateComfortStats(start, end, params) {
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
     let filtered = filterSeries(series, start, end);
+    filtered = filtered ? applyAnomalousFilter(filtered, loggerId) : null;
     filtered = filtered ? applySubstratFilter(filtered) : null;
     let pct = null;
     if (filtered && filtered.extTemp) {
@@ -3797,8 +3871,10 @@ function updatePeriodicCompleteness(start, end) {
     if (!lineSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
-    const filtered = filterSeries(series, start, end);
+    let filtered = filterSeries(series, start, end);
     if (!filtered) continue; // no data in range — skip
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
     roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct: null, hasGap: gaps.length > 0});
@@ -3953,6 +4029,8 @@ function renderPeriodicAverages() {
     if (!series) return;
     let filtered = filterSeries(series, start, end);
     if (!filtered) return;
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) return;
     filtered = applySubstratFilter(filtered);
     if (!filtered) return;
     for (let i = 0; i < filtered.timestamps.length; i++) {
@@ -3979,6 +4057,8 @@ function renderPeriodicAverages() {
     const series = dataset().series[loggerId];
     if (!series) continue;
     let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
