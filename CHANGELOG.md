@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 02:30:00 CST
+- **Move Advanced Settings to top of sidebar**: In Histogram and Average Profiles modes, the Advanced Settings (substratification filters) now appears at the top of the sidebar instead of at the bottom, making it more discoverable.
+
 ### 2026-03-17 02:00:00 CST
 - **Rename UI labels and internal variables for Average Profiles**: Renamed chart type "Periodic Averages" → "Average Profiles", sidebar label "Natural Cycles" → "Cycle", sidebar label "Granularity" → "Group By". Updated all corresponding internal variable names (`periodRange` → `periodCycle`, `periodGranularity` → `periodGroupBy`, `granularityOptions` → `groupByOptions`, etc.), HTML element IDs (`period-granularity` → `period-group-by`), and code comments throughout build.py.
 

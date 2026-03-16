@@ -1005,6 +1005,20 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <div id="main">
   <div id="sidebar">
     <div id="line-controls">
+      <div id="advanced-settings-wrap" style="display:none">
+        <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
+          <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
+        </div>
+        <div id="advanced-settings-body">
+          <div class="substrat-combine">
+            <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
+            <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
+          </div>
+          <div id="substrat-filters"></div>
+          <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
+        </div>
+        <hr class="divider">
+      </div>
       <div class="section" id="periodic-options" style="display:none">
         <div class="section-title">Period Settings</div>
         <label class="cb-label" style="margin-bottom:6px;">
@@ -1084,21 +1098,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
         Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Forecast shows the next 16 days.
-      </div>
-    </div>
-
-    <div id="advanced-settings-wrap" style="display:none">
-      <hr class="divider">
-      <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
-        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
-      </div>
-      <div id="advanced-settings-body">
-        <div class="substrat-combine">
-          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
-          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
-        </div>
-        <div id="substrat-filters"></div>
-        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
       </div>
     </div>
 
