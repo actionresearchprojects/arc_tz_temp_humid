@@ -68,7 +68,7 @@ DATASETS = {
             "861011": {"before": "2024-05-07 12:00:00"},  # erroneous data from 12pm EAT 7 May 2024 onward
         },
         "anomalous_ranges": {
-            "3276012B": {"before": "2026-02-12"},  # overcrowding blocked ventilation
+            "3276012B": {"before": "2026-02-12", "reason": "Data before 12 Feb 2026 is anomalous. A third bunk bed placed across the bay window, combined with drawn curtains and nets for six children instead of four, completely blocked natural airflow and trapped warm air inside. Subject to further investigation."},
         },
         # Sidebar display order: external first, then interleaved by room
         "sidebar_order": [
@@ -759,6 +759,8 @@ def build_dataset_json(key, df, logger_overrides=None):
             if "after" in rng:
                 dt = pd.Timestamp(rng["after"]).tz_localize(TIMEZONE)
                 entry["after"] = int(dt.timestamp() * 1000)
+            if "reason" in rng:
+                entry["reason"] = rng["reason"]
             if entry:
                 anomalous_ranges_js[lid] = entry
 
@@ -919,6 +921,7 @@ select:focus { outline: none; border-color: #4a90d9; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, 'Times New Roman', serif; }
 .info-i:hover { background: #666; }
+.anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; }
 #info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1035,6 +1038,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           </div>
           <div id="substrat-filters"></div>
           <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
+          <label class="cb-label" id="anomalous-label" style="margin-top:8px;display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
         </div>
         <hr class="divider">
       </div>
@@ -1088,11 +1092,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div class="section-title">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32°C Threshold</label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
-        <label class="cb-label" id="anomalous-label"><input type="checkbox" id="cb-exclude-anomalous" checked> Exclude anomalous data <span class="info-i" id="anomalous-info" style="margin-left:4px;">i</span></label>
-        <div id="anomalous-note" style="display:none;font-size:11px;color:#666;line-height:1.4;margin-bottom:6px;padding:6px 8px;background:#fff8f0;border:1px solid #e8d4b8;border-radius:4px;">
-          <b>Bedroom 4 (Omnisense 3276012B)</b> — data before 12 Feb 2026 is flagged as anomalous.<br><br>
-          <b>Reason:</b> A third bunk bed placed across the bay window, combined with drawn curtains and nets for six children instead of four, completely blocked natural airflow and trapped warm air inside. This lack of ventilation allowed heat to build up and soak into the walls, maintaining high readings until the extra bed was removed and curtains were opened. Subject to further investigation.
-        </div>
       </div>
       <hr class="divider" id="line-options-divider">
       <div class="section" id="historic-section" style="display:none">
@@ -1269,7 +1268,7 @@ const state = {
   substratFilters: [],
   substratCombine: 'all',
   histogramBarmode: 'stack',
-  excludeAnomalous: true,
+  excludeAnomalous: false,
 };
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
@@ -1698,11 +1697,13 @@ function loadDataset(key) {
     b.addEventListener('click', onClick); return b;
   }
   // Generic checkbox + section builder for both line/histogram and comfort sidebars
+  const anomRanges = m.anomalousRanges || {};
   function addCheckbox(container, stateSet, id, extraLabel) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}`;
+    const anomSuffix = anomRanges[id] ? ` <span class="anomalous-warn" title="${(anomRanges[id].reason || 'Anomalous data').replace(/"/g, '&quot;')}">&#9888;</span>` : '';
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? stateSet.add(id) : stateSet.delete(id);
       updatePlot();
@@ -1887,9 +1888,8 @@ function loadDataset(key) {
   }
 
   // Show/hide anomalous data checkbox based on dataset
-  document.getElementById('anomalous-label').style.display =
-    (dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0) ? '' : 'none';
-  document.getElementById('anomalous-note').style.display = 'none';
+  const hasAnomalous = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
+  document.getElementById('anomalous-label').style.display = hasAnomalous ? '' : 'none';
 
   updatePlot();
 }
@@ -2183,7 +2183,6 @@ function setupStaticListeners() {
     }
     document.getElementById('anomalous-label').style.display =
       (dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0) ? '' : 'none';
-    document.getElementById('anomalous-note').style.display = 'none';
     updatePlot();
   });
 
@@ -2241,10 +2240,6 @@ function setupStaticListeners() {
   });
   document.getElementById('cb-exclude-anomalous').addEventListener('change', e => {
     state.excludeAnomalous = e.target.checked; updatePlot();
-  });
-  document.getElementById('anomalous-info').addEventListener('click', () => {
-    const note = document.getElementById('anomalous-note');
-    note.style.display = note.style.display === 'none' ? 'block' : 'none';
   });
   document.getElementById('cb-density').addEventListener('change', e => {
     state.showDensity = e.target.checked; updatePlot();

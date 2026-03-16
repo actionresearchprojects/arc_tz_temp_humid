@@ -1,7 +1,7 @@
 ## Changelog
 
-### 2026-03-16 15:50:51 CST
-- **Add anomalous data filter**: New sidebar checkbox "Exclude anomalous data" (checked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. An info button reveals a note explaining the anomaly (overcrowding blocked ventilation). The filter applies to all chart types: line, histogram, comfort scatter, comfort percentages, line stats, and average profiles. The checkbox only appears when the active dataset has anomalous ranges defined.
+### 2026-03-16 15:55:57 CST
+- **Add anomalous data filter**: "Exclude anomalous data" checkbox in Advanced Settings (unchecked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. A ⚠ warning symbol next to the Bedroom 4 checkbox shows the anomaly reason on hover. The filter applies to all chart types: line, histogram, comfort scatter, comfort percentages, line stats, and average profiles. The checkbox only appears when the active dataset has anomalous ranges defined.
 
 ### 2026-03-17 02:30:00 CST
 - **Move Advanced Settings to top of sidebar**: In Histogram and Average Profiles modes, the Advanced Settings (substratification filters) now appears at the top of the sidebar instead of at the bottom, making it more discoverable.
