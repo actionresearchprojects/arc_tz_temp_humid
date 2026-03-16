@@ -187,13 +187,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
         </div>
         <div id="advanced-settings-body">
-          <div class="substrat-combine">
+          <div class="substrat-combine substrat-only">
             <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
             <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
           </div>
-          <div id="substrat-filters"></div>
-          <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
-          <label class="cb-label" id="anomalous-label" style="margin-top:8px;display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
+          <div id="substrat-filters" class="substrat-only"></div>
+          <button id="substrat-add-btn" class="substrat-only" onclick="addSubstratFilter()">+ Add Filter</button>
+          <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
         </div>
         <hr class="divider">
       </div>
@@ -1262,26 +1262,23 @@ function setupStaticListeners() {
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
     document.getElementById('histogram-options').style.display = isHistogram ? '' : 'none';
     document.getElementById('histogram-options-divider').style.display = isHistogram ? '' : 'none';
-    // Advanced Settings for periodic, histogram & comfort
+    // Advanced Settings — always visible; substrat controls hidden on line graph
     const advWrap = document.getElementById('advanced-settings-wrap');
-    const showAdvanced = isPeriodic || isHistogram || isComfort;
+    const showSubstrat = isPeriodic || isHistogram || isComfort;
     if (isComfort) {
-      // Move into comfort-controls (before Room Loggers)
       const comfortCtrl = document.getElementById('comfort-controls');
       comfortCtrl.insertBefore(advWrap, comfortCtrl.children[0]);
     } else {
-      // Move back into line-controls (after histogram-options-divider)
       const anchor = document.getElementById('histogram-options-divider');
       anchor.parentNode.insertBefore(advWrap, anchor.nextSibling);
     }
-    advWrap.style.display = showAdvanced ? '' : 'none';
+    advWrap.style.display = '';
+    document.querySelectorAll('.substrat-only').forEach(el => { el.style.display = showSubstrat ? '' : 'none'; });
     const advBody = document.getElementById('advanced-settings-body');
-    advBody.style.display = (showAdvanced && advBody.dataset.open === '1') ? 'block' : 'none';
-    if (!showAdvanced) {
+    advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
+    if (!showSubstrat) {
       state.substratFilters = [];
       document.getElementById('substrat-filters').innerHTML = '';
-      advBody.dataset.open = '0';
-      document.getElementById('advanced-settings-arrow').classList.remove('open');
     }
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
