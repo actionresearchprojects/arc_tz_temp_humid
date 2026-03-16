@@ -1191,6 +1191,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
+    <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
     <div class="substrat-no-data" id="substrat-no-data">No data matches the selected filter</div>
     <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
       <div style="font-size:12px;color:#555;font-family:'Ubuntu',sans-serif">Loading chart…</div>
@@ -2984,8 +2985,9 @@ function renderHistogram() {
         marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.55 : 0.85},
         legendgroup: loggerId,
         showlegend: firstMetric,
-        meta: {loggerId},
-        hovertemplate: `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
+        meta: {loggerId, unit},
+        hovertemplate: state.histogramBarmode === 'overlay' ? undefined : `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
+        hoverinfo: state.histogramBarmode === 'overlay' ? 'none' : undefined,
       });
       firstMetric = false;
     }
@@ -3008,7 +3010,8 @@ function renderHistogram() {
         marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.45 : 0.75, line: {width: 1.5, color}},
         legendgroup: 'climate-' + s.id,
         meta: {loggerId: 'climate-' + s.id},
-        hovertemplate: `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
+        hovertemplate: state.histogramBarmode === 'overlay' ? undefined : `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
+        hoverinfo: state.histogramBarmode === 'overlay' ? 'none' : undefined,
       });
     });
   }
@@ -4200,7 +4203,51 @@ function _doRender() {
   const hasActiveFilters = getActiveSubstratFilters().length > 0;
   noDataEl.style.display = (hasActiveFilters && result._noData) ? 'block' : 'none';
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
-  document.getElementById('chart').on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
+  const chartEl_ = document.getElementById('chart');
+  chartEl_.on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
+
+  // Custom histogram overlay hover: show count of overlapping series at hovered bin
+  const tip = document.getElementById('hist-hover-tip');
+  chartEl_.removeAllListeners('plotly_hover');
+  chartEl_.removeAllListeners('plotly_unhover');
+  if (state.chartType === 'histogram' && state.histogramBarmode === 'overlay') {
+    chartEl_.on('plotly_hover', function(evData) {
+      if (!evData.points || !evData.points.length) return;
+      const pt = evData.points[0];
+      const binCenter = pt.x;
+      const binLo = binCenter - 0.5, binHi = binCenter + 0.5;
+      // Count how many visible traces have data in this bin
+      const names = [];
+      for (const tr of traces) {
+        if (tr.type !== 'histogram' || !tr.x) continue;
+        const inBin = tr.x.some(v => v >= binLo && v < binHi);
+        if (inBin) {
+          const clean = (tr.name || '').replace(/<[^>]*>/g, '');
+          names.push(clean);
+        }
+      }
+      const hoveredName = (pt.data.name || '').replace(/<[^>]*>/g, '');
+      const unit = (pt.data.meta && pt.data.meta.unit) || '\u00b0C';
+      const pct = (pt.y * 100).toFixed(1);
+      let text = '<b>' + hoveredName + '</b><br>' + binCenter.toFixed(1) + unit + ': ' + pct + '% of readings';
+      if (names.length > 1) {
+        const others = names.length - 1;
+        text += '<br><span style="color:#aaa">' + names.length + ' series at this bin' + (others > 0 ? ' (' + others + ' other' + (others > 1 ? 's' : '') + ')' : '') + '</span>';
+      }
+      tip.innerHTML = text;
+      // Position near cursor
+      const bbox = chartEl_.getBoundingClientRect();
+      const evtX = evData.event ? evData.event.clientX : (bbox.left + bbox.width / 2);
+      const evtY = evData.event ? evData.event.clientY : (bbox.top + bbox.height / 2);
+      tip.style.left = (evtX - bbox.left + 15) + 'px';
+      tip.style.top = (evtY - bbox.top - 10) + 'px';
+      tip.style.display = 'block';
+    });
+    chartEl_.on('plotly_unhover', function() { tip.style.display = 'none'; });
+  } else {
+    tip.style.display = 'none';
+  }
+
   requestAnimationFrame(setupLegendTooltips);
   requestAnimationFrame(() => {
     const chartEl = document.getElementById('chart');
@@ -4259,7 +4306,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
-    histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked' : 'overlaid') + ' \u2014 hover to see individual logger values.',
+    histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked \u2014 hover to see individual logger values.' : 'overlaid \u2014 hover to see how many series share each bin.'),
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
     periodic: 'Averages readings into periodic buckets. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
   };

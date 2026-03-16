@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 00:45:00 CST
+- **Histogram overlay hover: show overlapping series count**: In overlay mode, the default Plotly hover (which only shows one random series) is replaced with a custom tooltip that shows the hovered series name, its value, and how many total series overlap at that bin (e.g. "5 series at this bin (4 others)"). Stacked mode hover is unchanged.
+
 ### 2026-03-17 00:15:00 CST (3)
 - **Advanced Settings on Adaptive Comfort**: Moved Advanced Settings out of `#line-controls` into a shared sidebar position (between line-controls and comfort-controls) so it appears for Adaptive Comfort charts too. Applied `applySubstratFilter` to both the scatter plot data and the comfort stats calculations. Filters now work identically on comfort as on periodic/histogram.
 
