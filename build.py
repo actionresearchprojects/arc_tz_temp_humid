@@ -630,8 +630,10 @@ def load_dataset(key):
 # ── Running mean ───────────────────────────────────────────────────────────────
 def compute_exponential_running_mean(df, primary_logger, fallback_loggers, alpha=0.8):
     """EN 15251 exponential running mean of daily external temperatures.
-    Uses primary_logger for daily means, falling back to fallback_loggers for missing days."""
-    
+    Uses primary_logger for daily means, falling back to fallback_loggers for missing days.
+    Returns (hourly_running_mean_series, source_spans) where source_spans is a list of
+    {"source": logger_id, "from": "YYYY-MM-DD", "to": "YYYY-MM-DD"} dicts."""
+
     # Get primary daily means
     prim_df = df[df["logger_id"] == primary_logger]
     if prim_df.empty:
@@ -648,32 +650,60 @@ def compute_exponential_running_mean(df, primary_logger, fallback_loggers, alpha
         fb_daily = fb_df["temperature"].resample("D").mean().dropna()
 
     if prim_daily.empty and fb_daily.empty:
-        return pd.Series(dtype=float)
+        return pd.Series(dtype=float), []
 
     # Combine: use primary if available, else fallback
-    # Join on index to ensure we have all possible days
+    # Track which source each day came from
     if prim_daily.empty:
         combined = fb_daily
+        day_sources = pd.Series("fallback", index=fb_daily.index)
     elif fb_daily.empty:
         combined = prim_daily
+        day_sources = pd.Series("primary", index=prim_daily.index)
     else:
         all_days = prim_daily.index.union(fb_daily.index)
         combined = pd.Series(index=all_days, dtype=float)
+        day_sources = pd.Series(index=all_days, dtype=object)
         # Fill with fallback first, then overwrite with primary where available
         combined.update(fb_daily)
+        day_sources.update(pd.Series("fallback", index=fb_daily.index))
         combined.update(prim_daily)
-    
+        day_sources.update(pd.Series("primary", index=prim_daily.index))
+
     combined = combined.dropna()
+    day_sources = day_sources.reindex(combined.index).dropna()
 
     if len(combined) == 0:
-        return pd.Series(dtype=float)
+        return pd.Series(dtype=float), []
 
     trm = [combined.iloc[0]]
     for i in range(1, len(combined)):
         trm.append((1 - alpha) * combined.iloc[i - 1] + alpha * trm[-1])
 
     trm_series = pd.Series(trm, index=combined.index, name="running_mean")
-    return trm_series.resample("h").ffill()
+
+    # Build source spans: consecutive runs of same source
+    source_spans = []
+    fb_label = fallback_loggers[0] if fallback_loggers else "fallback"
+    if len(day_sources) > 0:
+        cur_src = day_sources.iloc[0]
+        cur_start = day_sources.index[0]
+        for i in range(1, len(day_sources)):
+            if day_sources.iloc[i] != cur_src:
+                source_spans.append({
+                    "source": primary_logger if cur_src == "primary" else fb_label,
+                    "from": cur_start.strftime("%Y-%m-%d"),
+                    "to": day_sources.index[i - 1].strftime("%Y-%m-%d"),
+                })
+                cur_src = day_sources.iloc[i]
+                cur_start = day_sources.index[i]
+        source_spans.append({
+            "source": primary_logger if cur_src == "primary" else fb_label,
+            "from": cur_start.strftime("%Y-%m-%d"),
+            "to": day_sources.index[-1].strftime("%Y-%m-%d"),
+        })
+
+    return trm_series.resample("h").ffill(), source_spans
 
 
 # ── JSON builder ───────────────────────────────────────────────────────────────
@@ -776,7 +806,7 @@ def build_dataset_json(key, df, logger_overrides=None):
                 if source_id not in running_mean_cache:
                     running_mean_cache[source_id] = compute_exponential_running_mean(df, source_id, fallback_loggers)
 
-                rm = running_mean_cache[source_id]
+                rm, src_spans = running_mean_cache[source_id]
                 if not rm.empty:
                     merged = pd.merge_asof(
                         ldf[[]].reset_index().rename(columns={"datetime": "dt"}),
@@ -785,6 +815,7 @@ def build_dataset_json(key, df, logger_overrides=None):
                     )
                     entry["extTemp"] = merged["ext"].round(2).tolist()
                     entry["extSource"] = source_id
+                    entry["extSourceSpans"] = src_spans
 
         series[logger_id] = entry
 
