@@ -1687,8 +1687,8 @@ function setupStaticListeners() {
     }
 
     setTimeout(() => {
-    if (state.chartType === 'line') {
-      // No relayout for line graph - inject title + watermark directly into SVG.
+    if (state.chartType === 'line' || state.chartType === 'periodic') {
+      // No relayout for line/periodic graph - inject title + watermark directly into SVG.
       Plotly.toImage('chart', {format: 'svg', width: W, height: H}).then(svgDataUrl => {
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGTitle(doc, W);
