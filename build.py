@@ -2561,7 +2561,6 @@ function setupStaticListeners() {
       // Histogram / adaptive comfort: add title via relayout, capture as SVG,
       // inject watermark into SVG DOM, render to canvas, restore.
       const isComfort = state.chartType === 'comfort';
-      const isPeriodic = state.chartType === 'periodic';
       const pngTopMargin = isComfort ? (sm ? 36 : 60) : (sm ? 55 : 85);
       const origAnnotations = _currentLayout.annotations || [];
       const origImages = _currentLayout.images || [];
@@ -2572,24 +2571,24 @@ function setupStaticListeners() {
           images: origImages, annotations: origAnnotations,
         }).then(() => unlockLegendScroll(chartEl));
       }
-      // For comfort / periodic charts: temporarily embed IDs into trace names so Plotly
+      // For comfort chart: temporarily embed IDs into trace names so Plotly
       // computes proper horizontal legend spacing before we capture the SVG.
       const liveData = chartEl.data || [];
-      const embedIdxs = [], embedOrigNames = [], embedNewNames = [];
-      if (isComfort || isPeriodic) {
+      const comfortIdxs = [], comfortOrigNames = [], comfortNewNames = [];
+      if (isComfort) {
         liveData.forEach((trace, i) => {
           if (trace.showlegend && trace.meta && trace.meta.loggerId) {
             const lid = trace.meta.loggerId;
             if (!isOpenMeteo(lid) && lid !== 'govee' && !lid.startsWith('climate-')) {
-              embedIdxs.push(i);
-              embedOrigNames.push(trace.name);
-              embedNewNames.push(trace.name + ' \u00B7 ' + lid);
+              comfortIdxs.push(i);
+              comfortOrigNames.push(trace.name);
+              comfortNewNames.push(trace.name + ' \u00B7 ' + lid);
             }
           }
         });
       }
-      (embedIdxs.length > 0
-        ? Plotly.restyle('chart', {name: embedNewNames}, embedIdxs)
+      (isComfort && comfortIdxs.length > 0
+        ? Plotly.restyle('chart', {name: comfortNewNames}, comfortIdxs)
         : Promise.resolve()
       ).then(() => Plotly.relayout('chart', {
         'title.text': `<b>${_currentTitle}</b>`,
@@ -2599,8 +2598,8 @@ function setupStaticListeners() {
         return Plotly.toImage('chart', {format: 'svg', width: W, height: H});
       }).then(svgDataUrl => {
         doRestore();
-        if (embedIdxs.length > 0) {
-          Plotly.restyle('chart', {name: embedOrigNames}, embedIdxs);
+        if (isComfort && comfortIdxs.length > 0) {
+          Plotly.restyle('chart', {name: comfortOrigNames}, comfortIdxs);
         }
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGWatermark(doc, W, H, isComfort ? 0.8 : 1.0);
