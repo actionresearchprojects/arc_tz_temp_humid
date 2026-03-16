@@ -799,6 +799,10 @@ def build_dataset_json(key, df, logger_overrides=None):
     available_months = sorted({(int(y), int(m)) for y, m in zip(df.index.year, df.index.month)})
     available_weeks  = sorted({(int(y), int(w)) for y, w in zip(df["iso_year"], df["iso_week"])})
     available_days   = sorted(df.index.normalize().unique())
+    # Tanzanian seasons: 0=Kiangazi(Jan-Feb), 1=Masika(Mar-May), 2=Kiangazi(Jun-Oct), 3=Vuli(Nov-Dec)
+    _tz_season_idx = [0,0,1,1,1,2,2,2,2,2,3,3]
+    _tz_season_names = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)']
+    available_seasons = sorted({(int(y), _tz_season_idx[int(m)-1]) for y, m in zip(df.index.year, df.index.month)})
 
     series = {}
     for logger_id in unique_loggers:
@@ -857,6 +861,10 @@ def build_dataset_json(key, df, logger_overrides=None):
             "availableMonths": [
                 {"label": f"{MONTH_NAMES[m-1]} {y}", "year": y, "month": m}
                 for y, m in available_months
+            ],
+            "availableSeasons": [
+                {"label": f"{_tz_season_names[s]} {y}", "year": y, "season": s}
+                for y, s in available_seasons
             ],
             "availableWeeks": [
                 {"label": f"Week {w}, {y}", "year": y, "week": w}
@@ -1192,6 +1200,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
               <option value="all">All time</option>
               <option value="between">Between dates</option>
               <option value="year">Year</option>
+              <option value="season">Season</option>
               <option value="month">Month</option>
               <option value="week">Week</option>
               <option value="day">Day</option>
@@ -1202,6 +1211,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <label>To <input type="date" id="date-end"></label>
           </div>
           <div id="year-input"  class="hidden"><select id="year-select"></select></div>
+          <div id="season-input" class="hidden"><select id="season-select"></select></div>
           <div id="month-input" class="hidden"><select id="month-select"></select></div>
           <div id="week-input"  class="hidden"><select id="week-select"></select></div>
           <div id="day-input"   class="hidden"><select id="day-select"></select></div>
@@ -1844,12 +1854,14 @@ function loadDataset(key) {
 
   // Rebuild time dropdowns
   const ysel = document.getElementById('year-select');
+  const ssel = document.getElementById('season-select');
   const mosel = document.getElementById('month-select');
   const wsel = document.getElementById('week-select');
   const dsel = document.getElementById('day-select');
-  ysel.innerHTML = ''; mosel.innerHTML = ''; wsel.innerHTML = ''; dsel.innerHTML = '';
+  ysel.innerHTML = ''; ssel.innerHTML = ''; mosel.innerHTML = ''; wsel.innerHTML = ''; dsel.innerHTML = '';
 
   m.availableYears.forEach(y => ysel.add(new Option(y, y)));
+  m.availableSeasons.forEach(({label, year, season}) => ssel.add(new Option(label, `${year}-${season}`)));
   m.availableMonths.forEach(({label, year, month}) => mosel.add(new Option(label, `${year}-${month}`)));
   m.availableWeeks.forEach(({label, year, week}) => wsel.add(new Option(label, `${year}-${week}`)));
   m.availableDays.forEach(({label, ts}) => dsel.add(new Option(label, ts)));
@@ -1868,6 +1880,11 @@ function loadDataset(key) {
   if (m.availableYears.length) {
     state.selectedYear = m.availableYears[m.availableYears.length - 1];
     ysel.value = state.selectedYear;
+  }
+  if (m.availableSeasons.length) {
+    const last = m.availableSeasons[m.availableSeasons.length - 1];
+    state.selectedSeason = {year: last.year, season: last.season};
+    ssel.value = `${last.year}-${last.season}`;
   }
   if (m.availableMonths.length) {
     const last = m.availableMonths[m.availableMonths.length - 1];
@@ -2220,9 +2237,9 @@ function setupStaticListeners() {
 
   document.getElementById('time-mode').addEventListener('change', e => {
     state.timeMode = e.target.value;
-    ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
+    ['between-inputs','year-input','season-input','month-input','week-input','day-input'].forEach(id =>
       document.getElementById(id).classList.add('hidden'));
-    const map = {between:'between-inputs',year:'year-input',month:'month-input',week:'week-input',day:'day-input'};
+    const map = {between:'between-inputs',year:'year-input',season:'season-input',month:'month-input',week:'week-input',day:'day-input'};
     if (map[state.timeMode]) document.getElementById(map[state.timeMode]).classList.remove('hidden');
     updatePlot();
   });
@@ -2235,6 +2252,10 @@ function setupStaticListeners() {
   });
   document.getElementById('year-select').addEventListener('change', e => {
     state.selectedYear = parseInt(e.target.value); updatePlot();
+  });
+  document.getElementById('season-select').addEventListener('change', e => {
+    const [y, s] = e.target.value.split('-').map(Number);
+    state.selectedSeason = {year: y, season: s}; updatePlot();
   });
   document.getElementById('month-select').addEventListener('change', e => {
     const [y, mo] = e.target.value.split('-').map(Number);
@@ -2452,9 +2473,9 @@ function setupStaticListeners() {
         state.betweenStart  = s.betweenStart;
         state.betweenEnd    = s.betweenEnd;
         document.getElementById('time-mode').value = s.timeMode;
-        ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
+        ['between-inputs','year-input','season-input','month-input','week-input','day-input'].forEach(id =>
           document.getElementById(id).classList.add('hidden'));
-        const modeInputMap = {between:'between-inputs', year:'year-input', month:'month-input', week:'week-input', day:'day-input'};
+        const modeInputMap = {between:'between-inputs', year:'year-input', season:'season-input', month:'month-input', week:'week-input', day:'day-input'};
         if (modeInputMap[s.timeMode]) document.getElementById(modeInputMap[s.timeMode]).classList.remove('hidden');
       }
       // Universal: show humidity label
@@ -2488,6 +2509,7 @@ function setupStaticListeners() {
     switch (state.timeMode) {
       case 'between': rangeStr = `${fmtDate(state.betweenStart||m.dateRange.min)}_to_${fmtDate(state.betweenEnd||m.dateRange.max)}`; break;
       case 'year': rangeStr = `${state.selectedYear}`; break;
+      case 'season': if (state.selectedSeason) { const sn = ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'][state.selectedSeason.season]; rangeStr = `${state.selectedSeason.year}-${sn}`; } break;
       case 'month': if (state.selectedMonth) rangeStr = `${state.selectedMonth.year}-${String(state.selectedMonth.month).padStart(2,'0')}`; break;
       case 'week': if (state.selectedWeek) rangeStr = `${state.selectedWeek.year}-W${String(state.selectedWeek.week).padStart(2,'0')}`; break;
       case 'day': if (state.selectedDay) rangeStr = fmtDate(state.selectedDay); break;
@@ -2736,6 +2758,12 @@ function getTimeRange() {
       const y = state.selectedYear; if (!y) return {start: min, end: max};
       return {start: Date.UTC(y, 0, 1), end: Date.UTC(y, 11, 31, 23, 59, 59, 999)};
     }
+    case 'season': {
+      if (!state.selectedSeason) return {start: min, end: max};
+      const {year: y, season: si} = state.selectedSeason;
+      const sm = [[0,1],[2,4],[5,9],[10,11]][si];
+      return {start: Date.UTC(y, sm[0], 1), end: Date.UTC(y, sm[1]+1, 0, 23, 59, 59, 999)};
+    }
     case 'month': {
       if (!state.selectedMonth) return {start: min, end: max};
       const {year: y, month: mo} = state.selectedMonth;
@@ -2970,7 +2998,7 @@ function renderLineGraph() {
     // Jan 1→Dec 31 so a single-year zoom shows a horizontal line instead of an invisible dot.
     // Wide view (all time, multi-year between): use original single-point-per-year connected line.
     const ONE_YEAR_MS = 365.25 * 24 * 3600 * 1000;
-    const narrowView = state.timeMode === 'year' || state.timeMode === 'month' ||
+    const narrowView = state.timeMode === 'year' || state.timeMode === 'season' || state.timeMode === 'month' ||
       state.timeMode === 'week' || state.timeMode === 'day' ||
       (state.timeMode === 'between' && (end - start) <= ONE_YEAR_MS);
     historicFiltered.forEach(s => {
@@ -3215,7 +3243,7 @@ function buildGapDropdown(ddId, wrapId, seriesInfo, allAvailableInfo, start, end
   }
   if (periods.secondary.length > 0) {
     const g2 = document.createElement('optgroup');
-    const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+    const gl = {year:'years',season:'seasons',month:'months',week:'weeks'}[state.timeMode] || 'periods';
     g2.label = `Other complete ${gl} (all loggers)`;
     periods.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(p); o.textContent = p.label; g2.appendChild(o); });
     dd.appendChild(g2);
@@ -3229,7 +3257,7 @@ function buildGapDropdown(ddId, wrapId, seriesInfo, allAvailableInfo, start, end
     }
     if (sg.secondary.length > 0) {
       const g = document.createElement('optgroup');
-      const gl = {year:'years',month:'months',week:'weeks'}[state.timeMode] || 'periods';
+      const gl = {year:'years',season:'seasons',month:'months',week:'weeks'}[state.timeMode] || 'periods';
       g.label = `Other ${gl} \u2013 ${sg.source} only`;
       sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
       dd.appendChild(g);
@@ -3513,6 +3541,10 @@ function gapTooltipHTML(gaps, rangeStartMs, rangeEndMs) {
 
 function periodRangeMs(gran, info) {
   if (gran === 'year') return {s: Date.UTC(info.y, 0, 1), e: Date.UTC(info.y, 11, 31, 23, 59, 59, 999)};
+  if (gran === 'season') {
+    const sm = [[0,1],[2,4],[5,9],[10,11]][info.si];
+    return {s: Date.UTC(info.y, sm[0], 1), e: Date.UTC(info.y, sm[1]+1, 0, 23, 59, 59, 999)};
+  }
   if (gran === 'month') return {s: Date.UTC(info.y, info.m-1, 1), e: Date.UTC(info.y, info.m, 0, 23, 59, 59, 999)};
   if (gran === 'week') {
     const jan4 = new Date(Date.UTC(info.y, 0, 4));
@@ -3540,6 +3572,16 @@ function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
     const ol = Math.min(r.e, rangeEnd) - Math.max(r.s, rangeStart);
     if (ol <= 0 || ol / (r.e - r.s) < 0.75) continue;
     if (allOK(r.s, r.e)) { results.push({label: String(y), gran: 'year', y, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
+  }
+  if (!found) {
+    const SN = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)'];
+    for (const as of (m.availableSeasons || [])) {
+      const r = periodRangeMs('season', {y: as.year, si: as.season});
+      if (r.s > rangeEnd || r.e < rangeStart) continue;
+      const ol = Math.min(r.e, rangeEnd) - Math.max(r.s, rangeStart);
+      if (ol <= 0 || ol / (r.e - r.s) < 0.75) continue;
+      if (allOK(r.s, r.e)) { results.push({label: `${SN[as.season]} ${as.year}`, gran: 'season', y: as.year, si: as.season, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
+    }
   }
   if (!found) {
     for (let y = sY; y <= eY; y++) {
@@ -3586,6 +3628,12 @@ function _searchSecondary(tsArrays) {
       if (y === state.selectedYear) continue;
       const r = periodRangeMs('year', {y});
       if (allOK(r.s, r.e)) results.push({label: String(y), gran: 'year', y});
+    }
+  } else if (state.timeMode === 'season' && state.selectedSeason) {
+    for (const as of (m.availableSeasons || [])) {
+      if (as.year === state.selectedSeason.year && as.season === state.selectedSeason.season) continue;
+      const r = periodRangeMs('season', {y: as.year, si: as.season});
+      if (allOK(r.s, r.e)) results.push({label: as.label, gran: 'season', y: as.year, si: as.season});
     }
   } else if (state.timeMode === 'month' && state.selectedMonth) {
     for (const am of (m.availableMonths || [])) {
@@ -3635,13 +3683,18 @@ function navigateToPeriod(p, context) {
   document.getElementById('gap-tip').style.display = 'none';
   document.getElementById('hist-gap-tip').style.display = 'none';
   document.getElementById('periodic-comp-tip').style.display = 'none';
-  ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
+  ['between-inputs','year-input','season-input','month-input','week-input','day-input'].forEach(id =>
     document.getElementById(id).classList.add('hidden'));
   if (p.gran === 'year') {
     state.timeMode = 'year'; state.selectedYear = p.y;
     document.getElementById('time-mode').value = 'year';
     document.getElementById('year-select').value = String(p.y);
     document.getElementById('year-input').classList.remove('hidden');
+  } else if (p.gran === 'season') {
+    state.timeMode = 'season'; state.selectedSeason = {year: p.y, season: p.si};
+    document.getElementById('time-mode').value = 'season';
+    document.getElementById('season-select').value = `${p.y}-${p.si}`;
+    document.getElementById('season-input').classList.remove('hidden');
   } else if (p.gran === 'month') {
     state.timeMode = 'month'; state.selectedMonth = {year: p.y, month: p.m};
     document.getElementById('time-mode').value = 'month';

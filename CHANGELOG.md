@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 03:15:00 CST
+- **Add Season to data completeness hierarchy**: The auto-recommend feature for adaptive comfort, histogram, and average profiles now checks Year → Season → Month → Week → Day (previously Year → Month → Week → Day). Seasons use Tanzanian seasons: Kiangazi (Jan–Feb), Masika (Mar–May), Kiangazi (Jun–Oct), Vuli (Nov–Dec). Also added Season as a time range option in the Range dropdown, with its own select populated from available data.
+
 ### 2026-03-16 19:32:24 CST
 - **Add anomalous data filter**: "Exclude anomalous data" checkbox inside Advanced Settings (unchecked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. A ⚠ warning symbol next to the Bedroom 4 checkbox shows the anomaly reason on hover via fixed-position tooltip.
 - **Advanced Settings on all chart types**: Visible on line graph, histogram, average profiles, and adaptive comfort. On line graph, only the anomalous checkbox is shown (substratification controls hidden via `substrat-only` class). Placed after "Histogram Settings" / "Period Settings" respectively; dynamically moved into comfort-controls for Adaptive Comfort.
