@@ -2986,9 +2986,7 @@ function renderHistogram() {
         legendgroup: loggerId,
         showlegend: firstMetric,
         meta: {loggerId, unit},
-        hovertemplate: state.histogramBarmode === 'overlay'
-          ? `%{y:.1%}<extra></extra>`
-          : `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
+        hovertemplate: `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
       });
       firstMetric = false;
     }
@@ -3011,9 +3009,7 @@ function renderHistogram() {
         marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.45 : 0.75, line: {width: 1.5, color}},
         legendgroup: 'climate-' + s.id,
         meta: {loggerId: 'climate-' + s.id},
-        hovertemplate: state.histogramBarmode === 'overlay'
-          ? `%{y:.1%}<extra></extra>`
-          : `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
+        hovertemplate: `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
       });
     });
   }
@@ -3076,7 +3072,7 @@ function renderHistogram() {
     barmode: state.histogramBarmode, shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white',
-    hovermode: state.histogramBarmode === 'overlay' ? 'x unified' : 'closest',
+    hovermode:'closest',
     hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
 }
@@ -4211,18 +4207,42 @@ function _doRender() {
   chartEl_.on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
   document.getElementById('hist-hover-tip').style.display = 'none';
 
-  // In overlay mode, append series count to the unified hover header
+  // In overlay mode, append overlapping series count to the Plotly hover tooltip
   if (state.chartType === 'histogram' && state.histogramBarmode === 'overlay') {
     chartEl_.on('plotly_hover', function(evData) {
-      if (!evData.points || evData.points.length < 2) return;
-      requestAnimationFrame(() => {
-        const hdr = chartEl_.querySelector('.hoverlayer .hovertext .axistext-0, .hoverlayer .unified-hovertext tspan:first-child');
-        if (!hdr) return;
-        const n = evData.points.length;
-        if (!hdr.textContent.includes('series')) {
-          hdr.textContent += '  (' + n + ' series)';
-        }
-      });
+      if (!evData.points || !evData.points.length) return;
+      const pt = evData.points[0];
+      const binCenter = pt.x;
+      const binLo = binCenter - 0.5, binHi = binCenter + 0.5;
+      let count = 0;
+      for (const tr of traces) {
+        if (tr.type !== 'histogram' || !tr.x) continue;
+        if (tr.x.some(v => v >= binLo && v < binHi)) count++;
+      }
+      if (count > 1) {
+        requestAnimationFrame(() => {
+          const tspans = chartEl_.querySelectorAll('.hoverlayer .hovertext text tspan');
+          if (!tspans.length) return;
+          const last = tspans[tspans.length - 1];
+          if (last && !last.textContent.includes('series')) {
+            const extra = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            extra.setAttribute('x', last.getAttribute('x') || '0');
+            extra.setAttribute('dy', '1.3em');
+            extra.style.fill = '#aaa';
+            extra.style.fontSize = '11px';
+            extra.textContent = count + ' series at this bin';
+            last.parentNode.appendChild(extra);
+            // Expand the tooltip background rect to fit the new line
+            const rect = chartEl_.querySelector('.hoverlayer .hovertext rect, .hoverlayer .hovertext path');
+            if (rect) {
+              const h = parseFloat(rect.getAttribute('height') || rect.getAttribute('d'));
+              if (rect.tagName === 'rect') {
+                rect.setAttribute('height', parseFloat(rect.getAttribute('height')) + 18);
+              }
+            }
+          }
+        });
+      }
     });
   }
 
