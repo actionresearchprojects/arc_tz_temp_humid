@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-16 16:45:00 CST
+- **Adaptive comfort source label on chart**: The Adaptive Comfort chart now shows the comfort model source (e.g. "Adaptive comfort: EN 15251 · RH>60% (Vellei et al.)") alongside the date range annotation in the bottom-right corner. This also appears in PNG/image downloads.
+
 ### 2026-03-16 16:30:00 CST
 - **Remove structural loggers from Adaptive Comfort**: Changed `build.py` to exclude structural loggers from `comfortLoggers`, so only room loggers appear in the adaptive comfort sidebar.
 

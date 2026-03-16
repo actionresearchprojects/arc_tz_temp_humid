@@ -1804,6 +1804,12 @@ function getComfortParams() {
   };
   return models[state.comfortModel] || null;
 }
+function comfortSourceLabel() {
+  const sel = document.getElementById('comfort-model');
+  if (!sel || state.comfortModel === 'none') return '';
+  const label = sel.options[sel.selectedIndex].text;
+  return `Adaptive comfort: EN 15251 · ${label}`;
+}
 
 // Returns grey "(OmniSense)" HTML suffix for Omnisense sensors, empty string otherwise.
 function omniSuffix(source) {
@@ -1993,12 +1999,14 @@ function fmtDateEAT(ms, isStart) {
   if (!isStart && hour < 1) d = new Date(d.getTime() - 24 * 3600 * 1000);
   return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
 }
-function dateRangeAnnotation(actualStartMs, actualEndMs, atTop) {
+function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
+  let text = `Data ranges from ${fmtDateEAT(actualStartMs, true)} to ${fmtDateEAT(actualEndMs, false)}`;
+  if (extraLine) text += `<br>${extraLine}`;
   return {
     xref: 'paper', yref: 'paper',
     x: 1, y: atTop ? 1 : 0,
     xanchor: 'right', yanchor: atTop ? 'top' : 'bottom',
-    text: `Data ranges from ${fmtDateEAT(actualStartMs, true)} to ${fmtDateEAT(actualEndMs, false)}`,
+    text,
     showarrow: false,
     font: {size: 10, color: '#888'},
     bgcolor: 'rgba(255,255,255,0.75)',
@@ -2349,7 +2357,7 @@ function renderAdaptiveComfort() {
     xaxis:{title:'Running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
     yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
-    annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false)] : [],
+    annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel())] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: `${dsl} \u2013 Adaptive Comfort`, _noData: allExtTemps.length === 0};
 }
