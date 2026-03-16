@@ -2986,8 +2986,9 @@ function renderHistogram() {
         legendgroup: loggerId,
         showlegend: firstMetric,
         meta: {loggerId, unit},
-        hovertemplate: state.histogramBarmode === 'overlay' ? undefined : `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
-        hoverinfo: state.histogramBarmode === 'overlay' ? 'none' : undefined,
+        hovertemplate: state.histogramBarmode === 'overlay'
+          ? `%{y:.1%}<extra></extra>`
+          : `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
       });
       firstMetric = false;
     }
@@ -3010,8 +3011,9 @@ function renderHistogram() {
         marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.45 : 0.75, line: {width: 1.5, color}},
         legendgroup: 'climate-' + s.id,
         meta: {loggerId: 'climate-' + s.id},
-        hovertemplate: state.histogramBarmode === 'overlay' ? undefined : `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
-        hoverinfo: state.histogramBarmode === 'overlay' ? 'none' : undefined,
+        hovertemplate: state.histogramBarmode === 'overlay'
+          ? `%{y:.1%}<extra></extra>`
+          : `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
       });
     });
   }
@@ -3073,7 +3075,9 @@ function renderHistogram() {
     yaxis:{title: state.histogramBarmode === 'overlay' ? 'Proportion of readings per sensor' : 'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
     barmode: state.histogramBarmode, shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
-    plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
+    plot_bgcolor:'white', paper_bgcolor:'white',
+    hovermode: state.histogramBarmode === 'overlay' ? 'x unified' : 'closest',
+    hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
 }
 
@@ -4205,47 +4209,21 @@ function _doRender() {
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   const chartEl_ = document.getElementById('chart');
   chartEl_.on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
+  document.getElementById('hist-hover-tip').style.display = 'none';
 
-  // Custom histogram overlay hover: show count of overlapping series at hovered bin
-  const tip = document.getElementById('hist-hover-tip');
-  chartEl_.removeAllListeners('plotly_hover');
-  chartEl_.removeAllListeners('plotly_unhover');
+  // In overlay mode, append series count to the unified hover header
   if (state.chartType === 'histogram' && state.histogramBarmode === 'overlay') {
     chartEl_.on('plotly_hover', function(evData) {
-      if (!evData.points || !evData.points.length) return;
-      const pt = evData.points[0];
-      const binCenter = pt.x;
-      const binLo = binCenter - 0.5, binHi = binCenter + 0.5;
-      // Count how many visible traces have data in this bin
-      const names = [];
-      for (const tr of traces) {
-        if (tr.type !== 'histogram' || !tr.x) continue;
-        const inBin = tr.x.some(v => v >= binLo && v < binHi);
-        if (inBin) {
-          const clean = (tr.name || '').replace(/<[^>]*>/g, '');
-          names.push(clean);
+      if (!evData.points || evData.points.length < 2) return;
+      requestAnimationFrame(() => {
+        const hdr = chartEl_.querySelector('.hoverlayer .hovertext .axistext-0, .hoverlayer .unified-hovertext tspan:first-child');
+        if (!hdr) return;
+        const n = evData.points.length;
+        if (!hdr.textContent.includes('series')) {
+          hdr.textContent += '  (' + n + ' series)';
         }
-      }
-      const hoveredName = (pt.data.name || '').replace(/<[^>]*>/g, '');
-      const unit = (pt.data.meta && pt.data.meta.unit) || '\u00b0C';
-      const pct = (pt.y * 100).toFixed(1);
-      let text = '<b>' + hoveredName + '</b><br>' + binCenter.toFixed(1) + unit + ': ' + pct + '% of readings';
-      if (names.length > 1) {
-        const others = names.length - 1;
-        text += '<br><span style="color:#aaa">' + names.length + ' series at this bin' + (others > 0 ? ' (' + others + ' other' + (others > 1 ? 's' : '') + ')' : '') + '</span>';
-      }
-      tip.innerHTML = text;
-      // Position near cursor
-      const bbox = chartEl_.getBoundingClientRect();
-      const evtX = evData.event ? evData.event.clientX : (bbox.left + bbox.width / 2);
-      const evtY = evData.event ? evData.event.clientY : (bbox.top + bbox.height / 2);
-      tip.style.left = (evtX - bbox.left + 15) + 'px';
-      tip.style.top = (evtY - bbox.top - 10) + 'px';
-      tip.style.display = 'block';
+      });
     });
-    chartEl_.on('plotly_unhover', function() { tip.style.display = 'none'; });
-  } else {
-    tip.style.display = 'none';
   }
 
   requestAnimationFrame(setupLegendTooltips);
