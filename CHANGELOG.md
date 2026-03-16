@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-16 16:00:00 CST
+- **Fix sticky gap tooltip on period switch**: Gap detail tooltips (on orange completeness boxes) now hide immediately when the stats grid is rebuilt — previously they could remain stuck on screen after switching to a complete period because destroying the DOM element removed the `mouseleave` listener before it could fire. Fixed in all three stat box functions (adaptive comfort, histogram, periodic averages).
+
 ### 2026-03-13 12:10:50 CST
 - **Reset to default respects Long-Term Mode**: When historic mode is on, "Reset to default" now resets to the default historic mode settings (Open-Meteo loggers only, temperature only, threshold/seasons off, all historic series checked) instead of turning historic mode off.
 - **Logo files moved to `logo/` folder**: Header uses `logo/logotrim.png`, PNG export watermark uses `logo/logo.png`.
