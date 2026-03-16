@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 02:00:00 CST
+- **Rename UI labels and internal variables for Average Profiles**: Renamed chart type "Periodic Averages" → "Average Profiles", sidebar label "Natural Cycles" → "Cycle", sidebar label "Granularity" → "Group By". Updated all corresponding internal variable names (`periodRange` → `periodCycle`, `periodGranularity` → `periodGroupBy`, `granularityOptions` → `groupByOptions`, etc.), HTML element IDs (`period-granularity` → `period-group-by`), and code comments throughout build.py.
+
 ### 2026-03-17 01:15:00 CST
 - **Periodic average PNG export: fix legend clipping + add datalogger IDs**: Moved periodic chart to the same no-relayout SVG export path as line graphs. After injecting legend IDs and unlocking scroll, the export now measures the actual legend bottom and expands the SVG height (+ viewBox) if the legend overflows, adding 40px padding for the watermark text. Watermark is injected at the new expanded height so it always appears below the legend with a clean gap.
 

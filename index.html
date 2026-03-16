@@ -148,14 +148,14 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <div class="section" id="periodic-options" style="display:none">
         <div class="section-title">Period Settings</div>
         <label class="cb-label" style="margin-bottom:6px;">
-          Granularity
-          <select id="period-granularity" style="margin-left:6px;font-size:12px;">
+          Group By
+          <select id="period-group-by" style="margin-left:6px;font-size:12px;">
             <option value="hour">Hour</option>
             <option value="synoptic">Synoptic Hours</option>
           </select>
         </label>
         <label class="cb-label" style="margin-bottom:6px;">
-          Natural Cycles
+          Cycle
           <select id="natural-cycles" style="margin-left:6px;font-size:12px;">
             <option value="day">Day</option>
             <option value="year">Year</option>
@@ -296,7 +296,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="line">Line Graph</option>
             <option value="comfort">Adaptive Comfort</option>
             <option value="histogram">Histogram</option>
-            <option value="periodic">Periodic Averages</option>
+            <option value="periodic">Average Profiles</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -373,8 +373,8 @@ const state = {
   selectedHistoricSeries: new Set(),
   comfortModel: 'rh_gt_60',
   comfortPctMode: 'below_upper',
-  periodRange: 'day',
-  periodGranularity: 'hour',
+  periodCycle: 'day',
+  periodGroupBy: 'hour',
   showSectionAvg: {external: true, room: true, structural: true},
   lockedAvg: {external: null, room: null, structural: null}, // null=unlocked, Set=locked logger IDs
   betweenStart: null,
@@ -412,7 +412,7 @@ function toggleAdvancedSettings() {
 }
 
 function addSubstratFilter() {
-  const f = { id: ++_substratIdCounter, cycle: 'none', granularity: null, from: null, to: null, phases: new Set() };
+  const f = { id: ++_substratIdCounter, cycle: 'none', groupBy: null, from: null, to: null, phases: new Set() };
   state.substratFilters.push(f);
   renderSubstratFilterBlock(f);
 }
@@ -453,7 +453,7 @@ function substratCycleChanged(id, cycle) {
   const f = state.substratFilters.find(x => x.id === id);
   if (!f) return;
   f.cycle = cycle;
-  f.granularity = null;
+  f.groupBy = null;
   f.from = null;
   f.to = null;
   f.phases = new Set();
@@ -468,18 +468,18 @@ function substratCycleChanged(id, cycle) {
   if (cycle === 'none') { updatePlot(); return; }
 
   if (cycle === 'day' || cycle === 'year') {
-    // Tier 2: granularity dropdown
+    // Tier 2: group-by dropdown
     let opts = '';
     if (cycle === 'day') {
       opts = '<option value="hour">Hour</option><option value="synoptic">Synoptic Hours</option>';
     } else {
       opts = '<option value="day">Day of Month</option><option value="week">Week</option><option value="month">Month</option><option value="season">Season</option>';
     }
-    tier2.innerHTML = '<div class="substrat-row"><label>Granularity</label>' +
-      '<select class="substrat-gran" onchange="substratGranChanged(' + id + ', this.value)">' + opts + '</select></div>';
+    tier2.innerHTML = '<div class="substrat-row"><label>Group By</label>' +
+      '<select class="substrat-group-by" onchange="substratGroupByChanged(' + id + ', this.value)">' + opts + '</select></div>';
     // Auto-select first option
     const firstVal = tier2.querySelector('select').value;
-    substratGranChanged(id, firstVal);
+    substratGroupByChanged(id, firstVal);
   } else {
     // Oscillation: show phase checkboxes directly
     let labels, nPhases;
@@ -493,15 +493,15 @@ function substratCycleChanged(id, cycle) {
     }
     html += '</div>';
     tier3.innerHTML = html;
-    f.granularity = 'phase';
+    f.groupBy = 'phase';
     updatePlot();
   }
 }
 
-function substratGranChanged(id, gran) {
+function substratGroupByChanged(id, gran) {
   const f = state.substratFilters.find(x => x.id === id);
   if (!f) return;
-  f.granularity = gran;
+  f.groupBy = gran;
   f.from = null;
   f.to = null;
   f._rangeMode = false;
@@ -608,7 +608,7 @@ function substratRangeChanged(id) {
   f.to = parseInt(block.querySelector('.substrat-to').value);
 
   // Validate: Day of Month and Week are NOT cyclic — invalid if from > to
-  const nonCyclic = (f.cycle === 'year' && (f.granularity === 'day' || f.granularity === 'week'));
+  const nonCyclic = (f.cycle === 'year' && (f.groupBy === 'day' || f.groupBy === 'week'));
   if (nonCyclic && f.from > f.to) {
     block.classList.add('invalid');
   } else {
@@ -637,7 +637,7 @@ function isSubstratFilterActive(f) {
   }
   if (f.from == null || f.to == null) return false;
   // Non-cyclic ranges invalid when from > to
-  const nonCyclic = (f.cycle === 'year' && (f.granularity === 'day' || f.granularity === 'week'));
+  const nonCyclic = (f.cycle === 'year' && (f.groupBy === 'day' || f.groupBy === 'week'));
   if (nonCyclic && f.from > f.to) return false;
   return true;
 }
@@ -651,20 +651,20 @@ function passesFilter(ms, f) {
   const d = eatDate(ms);
   if (f.cycle === 'day') {
     const h = d.getUTCHours();
-    if (f.granularity === 'hour') return inCyclicRange(h, f.from, f.to, 24);
-    if (f.granularity === 'synoptic') {
+    if (f.groupBy === 'hour') return inCyclicRange(h, f.from, f.to, 24);
+    if (f.groupBy === 'synoptic') {
       const syn = h < 6 ? 0 : h < 12 ? 1 : h < 18 ? 2 : 3;
       return inCyclicRange(syn, f.from, f.to, 4);
     }
   } else if (f.cycle === 'year') {
-    if (f.granularity === 'month') return inCyclicRange(d.getUTCMonth(), f.from, f.to, 12);
-    if (f.granularity === 'season') return inCyclicRange(TZ_SEASON_IDX_GLOBAL[d.getUTCMonth()], f.from, f.to, 4);
-    if (f.granularity === 'week') {
+    if (f.groupBy === 'month') return inCyclicRange(d.getUTCMonth(), f.from, f.to, 12);
+    if (f.groupBy === 'season') return inCyclicRange(TZ_SEASON_IDX_GLOBAL[d.getUTCMonth()], f.from, f.to, 4);
+    if (f.groupBy === 'week') {
       const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
       const wk = Math.min(53, Math.floor((d - jan1) / (7 * 86400000)) + 1);
       return wk >= f.from && wk <= f.to;
     }
-    if (f.granularity === 'day') {
+    if (f.groupBy === 'day') {
       const dom = d.getUTCDate();
       return dom >= f.from && dom <= f.to;
     }
@@ -958,7 +958,7 @@ function loadDataset(key) {
   state.betweenStart = m.dateRange.min;
   state.betweenEnd = m.dateRange.max;
 
-  // Initialize custom natural cycles defaults
+  // Initialize custom cycle defaults
   const fmtMonth = ms => new Date(ms).toISOString().slice(0, 7);
   document.getElementById('periodic-warnings').innerHTML = '';
 
@@ -1079,10 +1079,10 @@ function resetLineDefaults() {
   }
 
   // Periodic settings
-  state.periodRange = 'day';
-  state.periodGranularity = 'hour';
+  state.periodCycle = 'day';
+  state.periodGroupBy = 'hour';
   document.getElementById('natural-cycles').value = 'day';
-  document.getElementById('period-granularity').value = 'hour';
+  document.getElementById('period-group-by').value = 'hour';
   const ncTip = document.getElementById('natural-cycles-tip');
   if (ncTip) { ncTip.style.display = 'none'; ncTip.innerHTML = ''; }
   const ncInfo = document.getElementById('natural-cycles-info');
@@ -1251,12 +1251,12 @@ function setupStaticListeners() {
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isPeriodic) {
-      document.getElementById('line-options-section').style.display = state.periodRange === 'year' ? '' : 'none';
-      document.getElementById('line-options-divider').style.display = state.periodRange === 'year' ? '' : 'none';
+      document.getElementById('line-options-section').style.display = state.periodCycle === 'year' ? '' : 'none';
+      document.getElementById('line-options-divider').style.display = state.periodCycle === 'year' ? '' : 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
       document.getElementById('humidity-label').style.display = '';
       document.getElementById('cb-threshold').parentElement.style.display = 'none';
-      document.getElementById('cb-seasons').parentElement.style.display = state.periodRange === 'year' ? '' : 'none';
+      document.getElementById('cb-seasons').parentElement.style.display = state.periodCycle === 'year' ? '' : 'none';
     } else if (isHistogram) {
       // Show options but hide season lines checkbox (not applicable to histogram)
       document.getElementById('line-options-section').style.display = '';
@@ -1351,8 +1351,8 @@ function setupStaticListeners() {
     state.showDensity = e.target.checked; updatePlot();
   });
 
-  // Periodic averages controls
-  const granularityOptions = {
+  // Average profiles controls
+  const groupByOptions = {
     day:  [{value:'hour', label:'Hour'}, {value:'synoptic', label:'Synoptic Hours'}],
     year: [{value:'day', label:'Day'}, {value:'week', label:'Week'}, {value:'month', label:'Month'}, {value:'season', label:'Season'}],
     mjo:  [{value:'phase', label:'Phase (1–8)'}],
@@ -1364,40 +1364,40 @@ function setupStaticListeners() {
     iod: 'Indian Ocean Dipole: a sea-surface temperature gradient between the western and eastern Indian Ocean. Positive IOD brings wetter conditions to East Africa; Negative IOD brings drier conditions. Monthly DMI-based phases: Positive, Negative, or Neutral.',
     enso: 'El Ni\u00f1o\u2013Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
   };
-  function updatePeriodRangeInfo() {
+  function updatePeriodCycleInfo() {
     const infoIcon = document.getElementById('natural-cycles-info');
     const infoTip = document.getElementById('natural-cycles-tip');
-    const isOsc = state.periodRange === 'mjo' || state.periodRange === 'iod' || state.periodRange === 'enso';
+    const isOsc = state.periodCycle === 'mjo' || state.periodCycle === 'iod' || state.periodCycle === 'enso';
     infoIcon.style.display = isOsc ? '' : 'none';
     infoTip.style.display = 'none';
-    infoTip.textContent = oscInfoTexts[state.periodRange] || '';
+    infoTip.textContent = oscInfoTexts[state.periodCycle] || '';
     if (isOsc) {
       infoIcon.onmouseenter = () => { infoTip.style.display = ''; };
       infoIcon.onmouseleave = () => { infoTip.style.display = 'none'; };
     }
   }
-  function updateGranularityDropdown() {
-    const gsel = document.getElementById('period-granularity');
+  function updateGroupByDropdown() {
+    const gsel = document.getElementById('period-group-by');
     gsel.innerHTML = '';
-    const opts = granularityOptions[state.periodRange] || [];
+    const opts = groupByOptions[state.periodCycle] || [];
     opts.forEach(o => gsel.add(new Option(o.label, o.value)));
     // Default: month for year, hour for day, phase for oscillations
     const defaults = {year:'month', day:'hour', mjo:'phase', iod:'phase', enso:'phase'};
-    state.periodGranularity = defaults[state.periodRange] || (opts.length ? opts[0].value : 'hour');
-    gsel.value = state.periodGranularity;
-    // Hide granularity row when only one option (climate oscillations)
+    state.periodGroupBy = defaults[state.periodCycle] || (opts.length ? opts[0].value : 'hour');
+    gsel.value = state.periodGroupBy;
+    // Hide group-by row when only one option (climate oscillations)
     gsel.parentElement.style.display = opts.length <= 1 ? 'none' : '';
     // Show/hide oscillation info icon + tip
-    updatePeriodRangeInfo();
-    // Show/hide options based on natural cycles selected in periodic mode
+    updatePeriodCycleInfo();
+    // Show/hide options based on cycle selected in periodic mode
     if (state.chartType === 'periodic') {
-      const isYear = state.periodRange === 'year';
+      const isYear = state.periodCycle === 'year';
       document.getElementById('cb-seasons').parentElement.style.display = isYear ? '' : 'none';
       document.getElementById('line-options-section').style.display = isYear ? '' : 'none';
       document.getElementById('line-options-divider').style.display = isYear ? '' : 'none';
     }
   }
-  function fitPeriodRangeWidth() {
+  function fitPeriodCycleWidth() {
     const sel = document.getElementById('natural-cycles');
     const isOsc = sel.value === 'mjo' || sel.value === 'iod' || sel.value === 'enso';
     const fs = isOsc ? '10px' : '12px';
@@ -1410,14 +1410,14 @@ function setupStaticListeners() {
     document.body.removeChild(tmp);
   }
   document.getElementById('natural-cycles').addEventListener('change', e => {
-    state.periodRange = e.target.value;
-    fitPeriodRangeWidth();
-    updateGranularityDropdown();
+    state.periodCycle = e.target.value;
+    fitPeriodCycleWidth();
+    updateGroupByDropdown();
     updatePlot();
   });
-  fitPeriodRangeWidth();
-  document.getElementById('period-granularity').addEventListener('change', e => {
-    state.periodGranularity = e.target.value;
+  fitPeriodCycleWidth();
+  document.getElementById('period-group-by').addEventListener('change', e => {
+    state.periodGroupBy = e.target.value;
     updatePlot();
   });
 
@@ -1580,7 +1580,7 @@ function setupStaticListeners() {
       modelStr = '_' + modelSel.options[modelSel.selectedIndex].text.replace(/\(Vellei et al\.\)/gi,'').replace(/[^a-zA-Z0-9%<>≤]/g,'').slice(0,20);
     }
     if (state.chartType === 'periodic') {
-      modelStr = '_' + state.periodRange + '_' + state.periodGranularity;
+      modelStr = '_' + state.periodCycle + '_' + state.periodGroupBy;
     }
     let metricStr = '';
     if (state.chartType === 'line' || state.chartType === 'histogram' || state.chartType === 'periodic') {
@@ -2572,7 +2572,7 @@ function periodRangeMs(gran, info) {
 }
 
 function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
-  // Returns array of complete period objects at the coarsest granularity found
+  // Returns array of complete period objects at the coarsest grouping found
   const m = dataset().meta;
   const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   function allOK(s, e) {
@@ -2621,7 +2621,7 @@ function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
 }
 
 function _searchSecondary(tsArrays) {
-  // Find complete periods of the same granularity as the user's selection, across the full data range
+  // Find complete periods of the same grouping as the user's selection, across the full data range
   const m = dataset().meta;
   function allOK(s, e) {
     for (const ts of tsArrays) { if (hasGapsInRange(ts, s, e)) return false; }
@@ -2884,7 +2884,7 @@ function expandHorizontalLegendSpacing(root, extraGap) {
   });
 }
 
-// ── Periodic Averages ─────────────────────────────────────────────────────────
+// ── Average Profiles ──────────────────────────────────────────────────────────
 function eatDate(ms) { return new Date(ms + 3 * 3600 * 1000); }
 
 // Climate oscillation phase lookup tables (auto-generated from cycle data files)
@@ -3482,7 +3482,7 @@ function emptyPeriodicResult(msg) {
       annotations: [{text: msg || 'No data in selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
     },
-    title: dsLabel() + ' \u2013 Periodic Averages',
+    title: dsLabel() + ' \u2013 Average Profiles',
     _noData: true,
   };
 }
@@ -3493,7 +3493,7 @@ function renderPeriodicAverages() {
   const traces = [];
   const lineSet = new Set(m.lineLoggers || m.loggers);
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const pr = state.periodRange, pg = state.periodGranularity;
+  const pr = state.periodCycle, pg = state.periodGroupBy;
 
   // Tanzanian seasons: month → season index
   // 0=Kiangazi (Jan-Feb), 1=Masika (Mar-May), 2=Kiangazi (Jun-Oct), 3=Vuli (Nov-Dec)
@@ -3750,12 +3750,12 @@ function renderPeriodicAverages() {
     }
   }
 
-  // Season boundary lines for year granularity (all sub-granularities)
+  // Season boundary lines for year cycle (all sub-groupings)
   const shapes = [], annotations = [];
   if (pr === 'year' && state.showSeasonLines) {
     const seasonBounds = [{ci:0, name:'Kiangazi'},{ci:2, name:'Masika'},{ci:5, name:'Kiangazi'},{ci:10, name:'Vuli'}];
     seasonBounds.forEach(s => {
-      // Convert month index to x position based on granularity
+      // Convert month index to x position based on grouping
       let xPos;
       if (pg === 'day') xPos = s.ci * 30.5;
       else if (pg === 'week') xPos = s.ci * (53/12);
@@ -3777,11 +3777,11 @@ function renderPeriodicAverages() {
   const ySuffix = hasTemp && hasHum ? '' : hasTemp ? '\u00b0C' : '%RH';
   const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
 
-  const rangeLabels = {day:'Day', year:'Year', mjo:'MJO', iod:'IOD', enso:'ENSO'};
+  const cycleLabels = {day:'Day', year:'Year', mjo:'MJO', iod:'IOD', enso:'ENSO'};
   const rangeFullLabels = {day:'Day', year:'Year', mjo:'Madden\u2013Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o\u2013Southern Oscillation (ENSO)'};
-  const granLabels = {hour:'Hour', synoptic:'Synoptic', month:'Month', week:'Week', day:'Day', season:'Season', phase:'Phase'};
+  const groupByLabels = {hour:'Hour', synoptic:'Synoptic', month:'Month', week:'Week', day:'Day', season:'Season', phase:'Phase'};
   const isOsc = pr === 'mjo' || pr === 'iod' || pr === 'enso';
-  const periodLabel = isOsc ? (rangeLabels[pr] || pr) + ' Phase' : (rangeLabels[pr] || pr) + ' / ' + (granLabels[pg] || pg);
+  const periodLabel = isOsc ? (cycleLabels[pr] || pr) + ' Phase' : (cycleLabels[pr] || pr) + ' / ' + (groupByLabels[pg] || pg);
   const periodFullLabel = isOsc ? (rangeFullLabels[pr] || pr) : periodLabel;
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
@@ -3996,7 +3996,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
     histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked \u2014 hover to see individual logger values.' : 'overlaid \u2014 hover to see how many series share each bin.'),
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
-    periodic: 'Averages readings into periodic buckets. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
+    periodic: 'Averages readings by position within a cycle. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
   };
   icon.addEventListener('mouseenter', () => {
     const t = texts[state.chartType];
