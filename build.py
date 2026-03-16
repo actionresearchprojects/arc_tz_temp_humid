@@ -1063,17 +1063,17 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         </label>
       </div>
       <hr class="divider" id="histogram-options-divider" style="display:none">
-      <div id="advanced-settings-wrap" style="display:none">
+      <div id="advanced-settings-wrap">
         <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
           <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
         </div>
         <div id="advanced-settings-body">
-          <div class="substrat-combine substrat-only">
+          <div class="substrat-combine substrat-only" style="display:none">
             <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
             <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
           </div>
-          <div id="substrat-filters" class="substrat-only"></div>
-          <button id="substrat-add-btn" class="substrat-only" onclick="addSubstratFilter()">+ Add Filter</button>
+          <div id="substrat-filters" class="substrat-only" style="display:none"></div>
+          <button id="substrat-add-btn" class="substrat-only" style="display:none" onclick="addSubstratFilter()">+ Add Filter</button>
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
         </div>
         <hr class="divider">
