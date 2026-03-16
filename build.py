@@ -921,7 +921,8 @@ select:focus { outline: none; border-color: #4a90d9; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, 'Times New Roman', serif; }
 .info-i:hover { background: #666; }
-.anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; }
+.anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; position: relative; }
+.anomalous-warn:hover::after { content: attr(data-anom-tip); position: absolute; left: 50%; top: 100%; transform: translateX(-50%); background: #5a4000; color: white; padding: 6px 10px; border-radius: 4px; font-size: 10px; white-space: normal; width: 240px; z-index: 200; pointer-events: none; line-height: 1.4; margin-top: 4px; }
 #info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1026,22 +1027,22 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 
 <div id="main">
   <div id="sidebar">
-    <div id="line-controls">
-      <div id="advanced-settings-wrap" style="display:none">
-        <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
-          <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
-        </div>
-        <div id="advanced-settings-body">
-          <div class="substrat-combine">
-            <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
-            <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
-          </div>
-          <div id="substrat-filters"></div>
-          <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
-          <label class="cb-label" id="anomalous-label" style="margin-top:8px;display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
-        </div>
-        <hr class="divider">
+    <div id="advanced-settings-wrap" style="display:none">
+      <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
+        <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
       </div>
+      <div id="advanced-settings-body">
+        <div class="substrat-combine">
+          <label><input type="radio" name="substrat-combine" value="all" checked> Match ALL</label>
+          <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
+        </div>
+        <div id="substrat-filters"></div>
+        <button id="substrat-add-btn" onclick="addSubstratFilter()">+ Add Filter</button>
+        <label class="cb-label" id="anomalous-label" style="margin-top:8px;display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
+      </div>
+      <hr class="divider">
+    </div>
+    <div id="line-controls">
       <div class="section" id="periodic-options" style="display:none">
         <div class="section-title">Period Settings</div>
         <label class="cb-label" style="margin-bottom:6px;">
@@ -1702,7 +1703,7 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    const anomSuffix = anomRanges[id] ? ` <span class="anomalous-warn" title="${(anomRanges[id].reason || 'Anomalous data').replace(/"/g, '&quot;')}">&#9888;</span>` : '';
+    const anomSuffix = anomRanges[id] ? ` <span class="anomalous-warn" data-anom-tip="${(anomRanges[id].reason || 'Anomalous data').replace(/"/g, '&quot;')}">&#9888;</span>` : '';
     lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? stateSet.add(id) : stateSet.delete(id);
@@ -2125,18 +2126,10 @@ function setupStaticListeners() {
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
     document.getElementById('histogram-options').style.display = isHistogram ? '' : 'none';
     document.getElementById('histogram-options-divider').style.display = isHistogram ? '' : 'none';
-    // Advanced Settings for periodic, histogram & comfort
-    const showAdvanced = isPeriodic || isHistogram || isComfort;
-    document.getElementById('advanced-settings-wrap').style.display = showAdvanced ? '' : 'none';
+    // Advanced Settings for all chart types
+    document.getElementById('advanced-settings-wrap').style.display = '';
     const advBody = document.getElementById('advanced-settings-body');
-    advBody.style.display = (showAdvanced && advBody.dataset.open === '1') ? 'block' : 'none';
-    if (!showAdvanced) {
-      // Clear filters when leaving supported chart types
-      state.substratFilters = [];
-      document.getElementById('substrat-filters').innerHTML = '';
-      advBody.dataset.open = '0';
-      document.getElementById('advanced-settings-arrow').classList.remove('open');
-    }
+    advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isPeriodic) {
@@ -2866,6 +2859,8 @@ function renderLineGraph() {
     if (!filtered) continue;
     filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
+    if (!filtered) continue;
 
     // Track actual data bounds
     if (filtered.timestamps.length) {
@@ -3281,6 +3276,8 @@ function updateHistogramStats(start, end) {
     let filtered = filterSeries(series, start, end);
     if (!filtered) continue; // no data in range — skip
     filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
     let below = 0, count = 0;
     for (let i = 0; i < filtered.temperature.length; i++) {
@@ -3869,6 +3866,8 @@ function updatePeriodicCompleteness(start, end) {
     let filtered = filterSeries(series, start, end);
     if (!filtered) continue; // no data in range — skip
     filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
