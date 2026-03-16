@@ -1,8 +1,8 @@
 ## Changelog
 
-### 2026-03-16 19:11:54 CST
-- **Add anomalous data filter**: "Exclude anomalous data" checkbox in Advanced Settings (unchecked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. A ⚠ warning symbol next to the Bedroom 4 checkbox shows the anomaly reason on hover via custom tooltip.
-- **Advanced Settings on all chart types**: Moved Advanced Settings out of `#line-controls` into the sidebar root so it appears for line graphs and adaptive comfort too (previously only periodic/histogram/comfort). Applied `applySubstratFilter` to line chart rendering, line chart stats, and histogram stats so substratification filters work across all chart types.
+### 2026-03-16 19:16:45 CST
+- **Add anomalous data filter**: "Exclude anomalous data" checkbox in Advanced Settings (unchecked by default) filters out anomalous readings from Omnisense sensor 3276012B (Bedroom 4) before 12 Feb 2026. A ⚠ warning symbol next to the Bedroom 4 checkbox shows the anomaly reason on hover via fixed-position tooltip (avoids sidebar overflow clipping).
+- **Advanced Settings on all chart types**: Moved `#advanced-settings-wrap` out of `#line-controls` into sidebar root and removed initial `display:none` so it's visible on all chart types including line graph and adaptive comfort on first load. Applied `applySubstratFilter` to line chart rendering, line chart stats, and histogram stats so substratification filters work across all chart types.
 
 ### 2026-03-17 02:30:00 CST
 - **Move Advanced Settings to top of sidebar**: In Histogram and Average Profiles modes, the Advanced Settings (substratification filters) now appears at the top of the sidebar instead of at the bottom, making it more discoverable.

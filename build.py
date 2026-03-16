@@ -921,8 +921,8 @@ select:focus { outline: none; border-color: #4a90d9; }
 [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 16px; top: 100%; background: #333; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; white-space: nowrap; z-index: 100; pointer-events: none; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, 'Times New Roman', serif; }
 .info-i:hover { background: #666; }
-.anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; position: relative; }
-.anomalous-warn:hover::after { content: attr(data-anom-tip); position: absolute; left: 50%; top: 100%; transform: translateX(-50%); background: #5a4000; color: white; padding: 6px 10px; border-radius: 4px; font-size: 10px; white-space: normal; width: 240px; z-index: 200; pointer-events: none; line-height: 1.4; margin-top: 4px; }
+.anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; }
+#anomalous-fixed-tip { display:none; position:fixed; background:#5a4000; color:white; padding:6px 10px; border-radius:4px; font-size:10px; width:260px; z-index:200; pointer-events:none; line-height:1.4; }
 #info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1027,7 +1027,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 
 <div id="main">
   <div id="sidebar">
-    <div id="advanced-settings-wrap" style="display:none">
+    <div id="advanced-settings-wrap">
       <div id="advanced-settings-toggle" onclick="toggleAdvancedSettings()">
         <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
       </div>
@@ -1223,6 +1223,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
     </div>
     <div id="legend-tooltip" style="display:none;position:fixed;background:#333;color:white;padding:3px 8px;border-radius:3px;font-size:10px;white-space:nowrap;z-index:200;pointer-events:none;"></div>
+    <div id="anomalous-fixed-tip"></div>
   </div>
 </div>
 
@@ -1703,12 +1704,28 @@ function loadDataset(key) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label';
     lbl.dataset.tooltip = loggerTooltip(id, m);
-    const anomSuffix = anomRanges[id] ? ` <span class="anomalous-warn" data-anom-tip="${(anomRanges[id].reason || 'Anomalous data').replace(/"/g, '&quot;')}">&#9888;</span>` : '';
+    const hasAnom = !!anomRanges[id];
+    const anomSuffix = hasAnom ? ' <span class="anomalous-warn">&#9888;</span>' : '';
     lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? stateSet.add(id) : stateSet.delete(id);
       updatePlot();
     });
+    if (hasAnom) {
+      const warn = lbl.querySelector('.anomalous-warn');
+      const tip = document.getElementById('anomalous-fixed-tip');
+      const reason = anomRanges[id].reason || 'Anomalous data';
+      warn.addEventListener('mouseenter', () => {
+        const r = warn.getBoundingClientRect();
+        tip.textContent = reason;
+        tip.style.display = 'block';
+        let left = r.right + 8;
+        if (left + 268 > window.innerWidth - 8) left = r.left - 268;
+        tip.style.left = left + 'px';
+        tip.style.top = r.top + 'px';
+      });
+      warn.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    }
     container.appendChild(lbl);
   }
   function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey) {
