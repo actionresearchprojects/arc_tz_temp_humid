@@ -174,7 +174,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label" style="margin-bottom:6px;">
           Bar Mode
           <select id="histogram-barmode" style="margin-left:6px;font-size:12px;">
-            <option value="stack">Stacked (additive)</option>
+            <option value="stack">Stacked</option>
             <option value="overlay">Overlay</option>
           </select>
         </label>
@@ -3855,45 +3855,39 @@ function _doRender() {
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   const chartEl_ = document.getElementById('chart');
   chartEl_.on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
-  document.getElementById('hist-hover-tip').style.display = 'none';
+  const histTip = document.getElementById('hist-hover-tip');
+  histTip.style.display = 'none';
 
-  // In overlay mode, append overlapping series count to the Plotly hover tooltip
+  // In overlay mode, show a small secondary label with overlapping series count
   if (state.chartType === 'histogram' && state.histogramBarmode === 'overlay') {
+    // Pre-compute bin counts: for each integer bin, how many traces have data there
+    const binCounts = {};
+    for (const tr of traces) {
+      if (tr.type !== 'histogram' || !tr.x) continue;
+      const seen = new Set();
+      for (const v of tr.x) {
+        const bin = Math.floor(v);
+        if (!seen.has(bin)) { seen.add(bin); binCounts[bin] = (binCounts[bin] || 0) + 1; }
+      }
+    }
     chartEl_.on('plotly_hover', function(evData) {
       if (!evData.points || !evData.points.length) return;
       const pt = evData.points[0];
-      const binCenter = pt.x;
-      const binLo = binCenter - 0.5, binHi = binCenter + 0.5;
-      let count = 0;
-      for (const tr of traces) {
-        if (tr.type !== 'histogram' || !tr.x) continue;
-        if (tr.x.some(v => v >= binLo && v < binHi)) count++;
-      }
+      const bin = Math.floor(pt.x);
+      const count = binCounts[bin] || 1;
       if (count > 1) {
-        requestAnimationFrame(() => {
-          const tspans = chartEl_.querySelectorAll('.hoverlayer .hovertext text tspan');
-          if (!tspans.length) return;
-          const last = tspans[tspans.length - 1];
-          if (last && !last.textContent.includes('series')) {
-            const extra = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
-            extra.setAttribute('x', last.getAttribute('x') || '0');
-            extra.setAttribute('dy', '1.3em');
-            extra.style.fill = '#aaa';
-            extra.style.fontSize = '11px';
-            extra.textContent = count + ' series at this bin';
-            last.parentNode.appendChild(extra);
-            // Expand the tooltip background rect to fit the new line
-            const rect = chartEl_.querySelector('.hoverlayer .hovertext rect, .hoverlayer .hovertext path');
-            if (rect) {
-              const h = parseFloat(rect.getAttribute('height') || rect.getAttribute('d'));
-              if (rect.tagName === 'rect') {
-                rect.setAttribute('height', parseFloat(rect.getAttribute('height')) + 18);
-              }
-            }
-          }
-        });
+        histTip.textContent = count + ' series at this bin';
+        const bbox = chartEl_.getBoundingClientRect();
+        const ex = evData.event ? evData.event.clientX : 0;
+        const ey = evData.event ? evData.event.clientY : 0;
+        histTip.style.left = (ex - bbox.left + 12) + 'px';
+        histTip.style.top = (ey - bbox.top + 18) + 'px';
+        histTip.style.display = 'block';
+      } else {
+        histTip.style.display = 'none';
       }
     });
+    chartEl_.on('plotly_unhover', function() { histTip.style.display = 'none'; });
   }
 
   requestAnimationFrame(setupLegendTooltips);
