@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-16 16:25:00 CST
+- **Faster hover on Adaptive Comfort chart**: Switched scatter traces from `scatter` to `scattergl` (WebGL-accelerated) for dramatically faster hover/tooltip response when many data points are displayed.
+
 ### 2026-03-16 16:10:00 CST
 - **Orange boxes now show source/ID on hover**: Orange (has-gap) completeness boxes in the sidebar now swap to show the monitor type and ID on hover, matching the behaviour of non-orange boxes. The gap detail tooltip still appears alongside.
 

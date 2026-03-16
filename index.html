@@ -2299,12 +2299,12 @@ function renderAdaptiveComfort() {
     const cSource = m.loggerSources[loggerId] || '';
     const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
     const cName = m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
-    traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
+    traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scattergl', mode:'markers',
       name:cName, marker:{color:m.colors[loggerId], size:4, opacity:0.2},
       legendgroup:loggerId, showlegend:false, meta:{loggerId},
       hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Source: ${cSource}${cIdLabel}<extra></extra>`});
     // Legend-only trace with larger, visible marker
-    traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
+    traces.push({x:[null], y:[null], type:'scattergl', mode:'markers',
       name:cName, marker:{color:m.colors[loggerId], size:10, opacity:0.8, symbol:'square', line:{width:0}},
       legendgroup:loggerId, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
   }
