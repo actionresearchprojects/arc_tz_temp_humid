@@ -1027,6 +1027,17 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div id="periodic-warnings" style="margin-top:6px;"></div>
       </div>
       <hr class="divider" id="periodic-divider" style="display:none">
+      <div class="section" id="histogram-options" style="display:none">
+        <div class="section-title">Histogram Settings</div>
+        <label class="cb-label" style="margin-bottom:6px;">
+          Bar Mode
+          <select id="histogram-barmode" style="margin-left:6px;font-size:12px;">
+            <option value="stack">Stacked (additive)</option>
+            <option value="overlay">Overlay</option>
+          </select>
+        </label>
+      </div>
+      <hr class="divider" id="histogram-options-divider" style="display:none">
       <div id="advanced-settings-toggle" style="display:none" onclick="toggleAdvancedSettings()">
         <span id="advanced-settings-arrow">&#9654;</span> Advanced Settings
       </div>
@@ -1228,6 +1239,7 @@ const state = {
   selectedDay: null,
   substratFilters: [],
   substratCombine: 'all',
+  histogramBarmode: 'stack',
 };
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
@@ -1892,6 +1904,10 @@ function resetLineDefaults() {
   const ncInfo = document.getElementById('natural-cycles-info');
   if (ncInfo) ncInfo.style.display = 'none';
 
+  // Histogram settings
+  state.histogramBarmode = 'stack';
+  document.getElementById('histogram-barmode').value = 'stack';
+
   // Section averages: all on, all unlocked
   state.showSectionAvg = {external: true, room: true, structural: true};
   state.lockedAvg = {external: null, room: null, structural: null};
@@ -2034,6 +2050,8 @@ function setupStaticListeners() {
     if (!isPeriodic) document.getElementById('periodic-completeness').classList.add('hidden');
     document.getElementById('periodic-options').style.display = isPeriodic ? '' : 'none';
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
+    document.getElementById('histogram-options').style.display = isHistogram ? '' : 'none';
+    document.getElementById('histogram-options-divider').style.display = isHistogram ? '' : 'none';
     // Advanced Settings only for periodic & histogram
     const showAdvanced = isPeriodic || isHistogram;
     document.getElementById('advanced-settings-toggle').style.display = showAdvanced ? '' : 'none';
@@ -2217,6 +2235,11 @@ function setupStaticListeners() {
   fitPeriodRangeWidth();
   document.getElementById('period-granularity').addEventListener('change', e => {
     state.periodGranularity = e.target.value;
+    updatePlot();
+  });
+
+  document.getElementById('histogram-barmode').addEventListener('change', e => {
+    state.histogramBarmode = e.target.value;
     updatePlot();
   });
 
@@ -2916,7 +2939,7 @@ function renderHistogram() {
         histnorm: 'probability',
         name: name + meteoSuffix(loggerId) + omniSuffix(source),
         xbins: {size: 1},
-        marker: {color, opacity: 0.85},
+        marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.55 : 0.85},
         legendgroup: loggerId,
         showlegend: firstMetric,
         meta: {loggerId},
@@ -2940,7 +2963,7 @@ function renderHistogram() {
         histnorm: 'probability',
         name: s.label + ' (annual avg.)',
         xbins: {size: 1},
-        marker: {color, opacity: 0.75, line: {width: 1.5, color}},
+        marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.45 : 0.75, line: {width: 1.5, color}},
         legendgroup: 'climate-' + s.id,
         meta: {loggerId: 'climate-' + s.id},
         hovertemplate: `${s.label}<br>%{x:.1f}\u00b0C: %{y:.1%} of years<extra></extra>`,
@@ -3002,8 +3025,8 @@ function renderHistogram() {
       tickmode: tickvals.length ? 'array' : undefined,
       tickvals: tickvals.length ? tickvals : undefined,
       ticktext: tickvals.length ? ticktext : undefined},
-    yaxis:{title:'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
-    barmode:'stack', shapes, annotations: histAnnotations,
+    yaxis:{title: state.histogramBarmode === 'overlay' ? 'Proportion of readings per sensor' : 'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
+    barmode: state.histogramBarmode, shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
@@ -4191,12 +4214,13 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
-    histogram: 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are stacked \u2014 hover to see individual logger values.',
+    histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked' : 'overlaid') + ' \u2014 hover to see individual logger values.',
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
     periodic: 'Averages readings into periodic buckets. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
   };
   icon.addEventListener('mouseenter', () => {
-    tip.textContent = texts[state.chartType] || '';
+    const t = texts[state.chartType];
+    tip.textContent = (typeof t === 'function' ? t() : t) || '';
     const r = icon.getBoundingClientRect();
     tip.style.display = 'block';
     let left = r.left;
