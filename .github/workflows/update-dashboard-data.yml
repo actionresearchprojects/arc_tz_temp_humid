@@ -24,6 +24,7 @@ jobs:
         run: pip install pandas pytz requests
 
       - name: Fetch Open-Meteo data
+        continue-on-error: true
         run: python fetch_openmeteo.py
 
       - name: Fetch Omnisense data

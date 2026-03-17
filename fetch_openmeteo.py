@@ -15,6 +15,7 @@ import json
 import os
 import shutil
 import sys
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,14 +35,23 @@ META_ROWS = [
 DATA_HEADERS = ["time", "temperature_2m (°C)", "relative_humidity_2m (%)"]
 
 
-def fetch_json(url: str) -> dict:
-    """Fetch a URL and parse the JSON response."""
+def fetch_json(url: str, retries: int = 3, backoff: int = 60) -> dict:
+    """Fetch a URL and parse the JSON response, retrying on 5xx errors."""
     print(f"  Fetching {url[:120]}...")
     req = urllib.request.Request(url, headers={"User-Agent": "arc-tz-temp-humid/1.0"})
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        if resp.status != 200:
-            raise RuntimeError(f"HTTP {resp.status} from {url}")
-        return json.loads(resp.read().decode("utf-8"))
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                if resp.status != 200:
+                    raise RuntimeError(f"HTTP {resp.status} from {url}")
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code >= 500 and attempt < retries - 1:
+                wait = backoff * (attempt + 1)
+                print(f"  Server error (HTTP {e.code}), retrying in {wait}s (attempt {attempt + 1}/{retries})...")
+                time.sleep(wait)
+                continue
+            raise
 
 
 def write_csv(path: Path, times: list, temps: list, humids: list):
@@ -88,8 +98,7 @@ def fetch_historical(yesterday: str, now_tag: str):
     humids = hourly.get("relative_humidity_2m", [])
 
     if not times:
-        print("ERROR: Historical API returned no data.", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError("Historical API returned no data")
 
     # Warn if fewer rows than expected (~24 per day)
     expected_days = (datetime.strptime(yesterday, "%Y-%m-%d") - datetime.strptime(START_DATE, "%Y-%m-%d")).days + 1
@@ -118,15 +127,13 @@ def fetch_forecast(today: str, now_tag: str):
     humids = hourly.get("relative_humidity_2m", [])
 
     if not times:
-        print("ERROR: Forecast API returned no data.", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError("Forecast API returned no data")
 
     # Filter to only future hours (from today 00:00 onwards)
     # The API may return some past hours; keep only today onwards
     filtered = [(t, te, h) for t, te, h in zip(times, temps, humids) if t >= today]
     if not filtered:
-        print("ERROR: Forecast API returned no future data.", file=sys.stderr)
-        sys.exit(1)
+        raise RuntimeError("Forecast API returned no future data")
 
     f_times, f_temps, f_humids = zip(*filtered)
 
@@ -152,13 +159,28 @@ def main():
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
 
+    ok = True
+
     print("\n[1/2] Historical data...")
-    fetch_historical(yesterday_str, now_tag)
+    try:
+        fetch_historical(yesterday_str, now_tag)
+    except Exception as e:
+        print(f"  FAILED: {e}", file=sys.stderr)
+        print("  Skipping historical — previous data files (if any) are still in place.")
+        ok = False
 
     print("\n[2/2] Forecast data...")
-    fetch_forecast(today_str, now_tag)
+    try:
+        fetch_forecast(today_str, now_tag)
+    except Exception as e:
+        print(f"  FAILED: {e}", file=sys.stderr)
+        print("  Skipping forecast — previous data files (if any) are still in place.")
+        ok = False
 
-    print("\nDone.")
+    if ok:
+        print("\nDone.")
+    else:
+        print("\nDone (with errors — some fetches failed, pipeline will continue).")
 
 
 if __name__ == "__main__":
