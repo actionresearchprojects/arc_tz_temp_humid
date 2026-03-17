@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-17 15:45:00 CST
+- **Replace 32°C threshold line with 32–35°C shaded range**: On line graph, histogram, and average profiles, the single red dotted 32°C threshold line is now a diffuse shaded band spanning 32–35°C (`rgba(231,76,60,0.12)`). Checkbox label updated to "32–35°C Threshold". Info tooltip updated accordingly.
+
 ### 2026-03-17 03:15:00 CST
 - **Add Season to data completeness hierarchy**: The auto-recommend feature for adaptive comfort, histogram, and average profiles now checks Year → Season → Month → Week → Day (previously Year → Month → Week → Day). Seasons use Tanzanian seasons: Kiangazi (Jan–Feb), Masika (Mar–May), Kiangazi (Jun–Oct), Vuli (Nov–Dec). Also added Season as a time range option in the Range dropdown, with its own select populated from available data.
 

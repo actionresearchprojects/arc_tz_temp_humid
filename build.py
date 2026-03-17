@@ -1099,7 +1099,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <hr class="divider">
       <div class="section" id="line-options-section">
         <div class="section-title">Options</div>
-        <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32°C Threshold</label>
+        <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32–35°C Threshold</label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
       </div>
       <hr class="divider" id="line-options-divider">
@@ -2979,9 +2979,12 @@ function renderLineGraph() {
   const rangeMinMs = state.timeMode === 'all' ? dataMinMs : start;
   const rangeMaxMs = state.timeMode === 'all' ? dataMaxMs : end;
   if (state.showThreshold) {
-    traces.push({x:[new Date(rangeMinMs),new Date(rangeMaxMs)], y:[32,32], type:'scatter', mode:'lines',
-      name:'32°C Threshold', line:{color:'#e74c3c', width:1.5, dash:'dot'},
-      hovertemplate:'32°C Threshold<extra></extra>'});
+    shapes.push({type:'rect', xref:'x', yref:'y',
+      x0:new Date(rangeMinMs), x1:new Date(rangeMaxMs), y0:32, y1:35,
+      fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
+    traces.push({x:[null], y:[null], type:'scatter', mode:'lines',
+      name:'32–35°C Threshold', line:{color:'rgba(231,76,60,0.35)', width:8},
+      hoverinfo:'skip', showlegend:true});
   }
 
   if (state.showSeasonLines) {
@@ -3198,11 +3201,11 @@ function renderHistogram() {
     }
   }
 
-  // 32°C threshold vertical line
+  // 32–35°C threshold range
   const shapes = [];
   if (state.showThreshold && hasTemp) {
-    shapes.push({type:'line', xref:'x', yref:'paper', x0:32, x1:32, y0:0, y1:1,
-      line:{color:'#e74c3c', width:1.5, dash:'dot'}});
+    shapes.push({type:'rect', xref:'x', yref:'paper', x0:32, x1:35, y0:0, y1:1,
+      fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
   }
 
   updateHistogramStats(start, end);
@@ -4270,6 +4273,12 @@ function renderPeriodicAverages() {
     });
   }
 
+  // 32–35°C threshold range for periodic averages
+  if (state.showThreshold && state.selectedMetrics.has('temperature')) {
+    shapes.push({type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:32, y1:35,
+      fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
+  }
+
   updatePeriodicWarnings(warningInfos);
   updatePeriodicCompleteness(start, end);
   if (!hasAnyData) return emptyPeriodicResult();
@@ -4496,7 +4505,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const icon = document.getElementById('chart-info-icon');
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
-    line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; red dotted line is the 32\u00b0C overheating threshold.',
+    line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; shaded red band is the 32\u201335\u00b0C heatwave threshold range.',
     histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked \u2014 hover to see individual logger values.' : 'overlaid \u2014 hover to see how many series share each bin.'),
     comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
     periodic: 'Averages readings by position within a cycle. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
