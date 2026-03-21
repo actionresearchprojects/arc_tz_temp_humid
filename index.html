@@ -4693,6 +4693,7 @@ function _doRender() {
     : renderAdaptiveComfort();
   // Replace with empty message if no actual data
   if (result._noData) {
+    _zoomReset = true; // prevent stale axis range from persisting into next render with data
     const sm = window.innerWidth < 680;
     result = {
       traces: [],
@@ -4717,10 +4718,12 @@ function _doRender() {
   noDataEl.style.display = (hasActiveFilters && result._noData) ? 'block' : 'none';
   // Preserve user zoom: read current axis state before re-rendering
   const chartEl_ = document.getElementById('chart');
-  if (!_zoomReset && chartEl_._fullLayout) {
+  if (!_zoomReset && chartEl_._fullLayout && traces.length > 0) {
     const fl = chartEl_._fullLayout;
     // autorange===false means the user (or we) set an explicit range via drag-zoom
-    if (fl.xaxis && fl.xaxis.autorange === false && fl.xaxis.range) {
+    // Skip preserving zoom if the current range looks like a garbage default (e.g. 1970 epoch)
+    const xRangeValid = fl.xaxis && fl.xaxis.range && !(typeof fl.xaxis.range[0] === 'string' && fl.xaxis.range[0].startsWith('1970'));
+    if (fl.xaxis && fl.xaxis.autorange === false && fl.xaxis.range && xRangeValid) {
       layout.xaxis = Object.assign(layout.xaxis || {}, {range: fl.xaxis.range.slice(), autorange: false});
     }
     if (fl.yaxis && fl.yaxis.autorange === false && fl.yaxis.range) {
