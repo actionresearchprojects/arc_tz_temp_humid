@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-22 01:00:00 CST
+- **Preserve user zoom across setting changes**: When the user zooms into a graph via click-and-drag, changing settings (toggling loggers, threshold, etc.) no longer resets the viewport. Zoom is captured via `plotly_relayout` events and reapplied on re-render. Zoom resets naturally on double-click, chart type switch, or dataset change.
+
 ### 2026-03-22 00:15:00 CST
 - **Fix stuck gap tooltips on period switch**: When selecting a complete period from the data completeness dropdown, the gap-detail tooltip could get permanently stuck if hovering over a percentage box during the transition. Fixed by explicitly hiding gap-tip elements when the stats grids are cleared in all three sections (adaptive comfort, histogram, average profiles).
 

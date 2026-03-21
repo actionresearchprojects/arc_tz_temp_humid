@@ -4042,9 +4042,27 @@ function _doRender() {
   const noDataEl = document.getElementById('substrat-no-data');
   const hasActiveFilters = getActiveSubstratFilters().length > 0;
   noDataEl.style.display = (hasActiveFilters && result._noData) ? 'block' : 'none';
+  // Preserve user zoom when toggling loggers or other non-structural settings
+  if (_userZoom) {
+    if (_userZoom.xRange) layout.xaxis = Object.assign(layout.xaxis || {}, {range: _userZoom.xRange.slice(), autorange: false});
+    if (_userZoom.yRange) layout.yaxis = Object.assign(layout.yaxis || {}, {range: _userZoom.yRange.slice(), autorange: false});
+  }
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   const chartEl_ = document.getElementById('chart');
-  chartEl_.on('plotly_doubleclick', () => { setTimeout(updatePlot, 0); });
+  chartEl_.on('plotly_relayout', (ed) => {
+    const hasXRange = ed['xaxis.range[0]'] !== undefined && ed['xaxis.range[1]'] !== undefined;
+    const hasYRange = ed['yaxis.range[0]'] !== undefined && ed['yaxis.range[1]'] !== undefined;
+    if (hasXRange || hasYRange) {
+      const fl = chartEl_._fullLayout;
+      _userZoom = {
+        xRange: hasXRange ? [ed['xaxis.range[0]'], ed['xaxis.range[1]']] : (fl.xaxis ? fl.xaxis.range.slice() : null),
+        yRange: hasYRange ? [ed['yaxis.range[0]'], ed['yaxis.range[1]']] : (fl.yaxis ? fl.yaxis.range.slice() : null),
+      };
+    } else if (ed['xaxis.autorange'] || ed['yaxis.autorange']) {
+      _userZoom = null;
+    }
+  });
+  chartEl_.on('plotly_doubleclick', () => { _userZoom = null; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';
 
@@ -4113,11 +4131,13 @@ function _doRender() {
 
 // Tracks last rendered chart type + dataset to detect slow transitions
 let _lastRenderKey = null;
+let _userZoom = null; // {xRange, yRange} when user has zoomed via drag
 let _currentTitle = '';
 let _currentLayout = {};
 function updatePlot(forceLoader) {
   const renderKey = state.chartType + '|' + state.datasetKey;
   const isSlowOp = forceLoader || renderKey !== _lastRenderKey;
+  if (renderKey !== _lastRenderKey) _userZoom = null; // reset zoom on chart/dataset switch
   _lastRenderKey = renderKey;
   // Always show loading bar - slower estimate for chart/dataset switches, short for other updates
   const ms = isSlowOp ? (state.chartType === 'comfort' ? 1500 : 800) : 350;
