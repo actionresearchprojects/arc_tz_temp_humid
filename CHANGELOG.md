@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-21 13:59:07 CST
+- **Data freshness validation with stale-data warnings**: Build now computes last datapoint timestamps per source category (Open-Meteo, Omnisense, TinyTag) and embeds them as `DATA_FRESHNESS`. At runtime, the sidebar footer checks whether actual data extends to the expected date: Open-Meteo and Omnisense data should reach the day before last fetch (2-day tolerance), TinyTag data should be no more than 7 days old. Warning triangles (⚠) appear next to the "last updated" line when data is stale. TinyTag shows a separate "last recorded" line with warning when data exceeds 1 week old.
+
 ### 2026-03-22 01:00:00 CST
 - **Preserve user zoom across setting changes**: When the user zooms into a graph via click-and-drag, changing settings (toggling loggers, threshold, etc.) no longer resets the viewport. Zoom is captured via `plotly_relayout` events and reapplied on re-render. Zoom resets naturally on double-click, chart type switch, or dataset change.
 

@@ -304,8 +304,34 @@
   "schoolteacher": {
     "label": "Schoolteacher's House",
     "hasCategories": true,
-    "externalLoggers": [],
+    "externalLoggers": [
+      {
+        "id": "External Historical (Open-Meteo)",
+        "label": "Historical Temperature (Open-Meteo)"
+      }
+    ],
     "loggers": [
+      {
+        "id": "External Historical (Open-Meteo)",
+        "name": "Historical Temperature",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
+      {
+        "id": "External Forecast (Open-Meteo)",
+        "name": "Forecast Temperature",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
+      },
       {
         "id": "759498",
         "name": "Bedroom 1",
@@ -315,7 +341,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "861011"
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "govee",
@@ -326,7 +352,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "861011"
+        "external_source": "External Historical (Open-Meteo)"
       }
     ]
   }

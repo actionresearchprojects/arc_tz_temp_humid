@@ -582,7 +582,7 @@ def load_dataset(key):
     if not dfs:
         raise ValueError(f"No valid data loaded from {folder}")
 
-    # For House 5: also load Omnisense CSV sensors + Open-Meteo external temp
+    # Load Omnisense CSV sensors (House 5 only)
     if key == "house5":
         omnisense_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
         if not omnisense_files:
@@ -597,6 +597,10 @@ def load_dataset(key):
                 os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
                 dfs.append(os_df)
                 print(f"  Omnisense: {len(os_df):,} records")
+
+    # Load Open-Meteo external data for any dataset that uses it
+    ext_sensors = set(cfg.get("external_sensors", []))
+    if ext_sensors & OPENMETEO_IDS:
         ext_df = load_external_temperature()
         if not ext_df.empty:
             dfs.append(ext_df)
@@ -940,6 +944,7 @@ select:focus { outline: none; border-color: #4a90d9; }
 .info-i { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #999; color: white; font-size: 9px; font-style: italic; font-weight: 700; cursor: help; flex-shrink: 0; line-height: 1; font-family: Georgia, 'Times New Roman', serif; }
 .info-i:hover { background: #666; }
 .anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; }
+.stale-warn { color: #d4880f; font-size: 11px; cursor: help; }
 #anomalous-fixed-tip { display:none; position:fixed; background:#5a4000; color:white; padding:6px 10px; border-radius:4px; font-size:10px; width:260px; z-index:200; pointer-events:none; line-height:1.4; }
 #info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
@@ -1251,6 +1256,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 const ALL_DATA = __DATA__;
 const HISTORIC = __HISTORIC__;
 const FETCH_TIMES = __FETCH_TIMES__;
+const DATA_FRESHNESS = __DATA_FRESHNESS__;
 const LOGO_B64 = '__LOGO_B64__';
 const LOGO_ASPECT = __LOGO_ASPECT__;
 const CLIMATE_COLORS = {
@@ -1685,13 +1691,41 @@ async function init() {
   const userConfig = await loadUserConfig();
   applyUserConfig(userConfig);
 
-  // Populate data freshness notes
+  // Populate data freshness notes with stale-data warnings
   const ftDiv = document.getElementById('fetch-time-notes');
   if (ftDiv && (FETCH_TIMES.openmeteo || FETCH_TIMES.omnisense || FETCH_TIMES.cycles)) {
+    const DAY_MS = 86400000;
+    const df = DATA_FRESHNESS;
+    function staleCheck(fetchMs, lastMs, toleranceDays) {
+      // Data should extend to at least (fetch_date - toleranceDays days)
+      if (!fetchMs || !lastMs) return null;
+      const expectedMs = fetchMs - toleranceDays * DAY_MS;
+      if (lastMs < expectedMs) {
+        const lastDate = toEATString(lastMs).split(',')[0].trim();
+        return `Data only extends to ${lastDate} — expected up to day before last update`;
+      }
+      return null;
+    }
     const lines = [];
-    if (FETCH_TIMES.openmeteo) lines.push(`Open-Meteo last updated: ${FETCH_TIMES.openmeteo}`);
-    if (FETCH_TIMES.omnisense) lines.push(`Omnisense last updated: ${FETCH_TIMES.omnisense}`);
+    if (FETCH_TIMES.openmeteo) {
+      const warn = staleCheck(df.openmeteo_fetch_ms, df.openmeteo_last_ms, 2);
+      const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
+      lines.push(`Open-Meteo last updated: ${FETCH_TIMES.openmeteo}${warnHtml}`);
+    }
+    if (FETCH_TIMES.omnisense) {
+      const warn = staleCheck(df.omnisense_fetch_ms, df.omnisense_last_ms, 2);
+      const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
+      lines.push(`Omnisense last updated: ${FETCH_TIMES.omnisense}${warnHtml}`);
+    }
     if (FETCH_TIMES.cycles) lines.push(`Cycles (ENSO/IOD/MJO) last updated: ${FETCH_TIMES.cycles}`);
+    // TinyTag weekly freshness check: warn if last datapoint > 7 days old
+    if (df.tinytag_last_ms) {
+      const age = Date.now() - df.tinytag_last_ms;
+      if (age > 7 * DAY_MS) {
+        const lastDate = toEATString(df.tinytag_last_ms).split(',')[0].trim();
+        lines.push(`TinyTag data last recorded: ${lastDate} <span class="stale-warn" title="TinyTag data is over a week old — manual download may be needed">&#9888;</span>`);
+      }
+    }
     ftDiv.innerHTML = lines.join('<br>');
   }
   setupStaticListeners();
@@ -4832,16 +4866,23 @@ def main():
 
     # Determine fetch timestamps from filenames
     fetch_times = {}
+    data_freshness = {}
     om_hist_files = sorted(OPENMETEO_DIR.glob("historical_*.csv"))
     om_fc_files = sorted(OPENMETEO_DIR.glob("forecast_*.csv"))
     om_file = om_hist_files[-1] if om_hist_files else (om_fc_files[-1] if om_fc_files else None)
     if om_file:
-        fetch_times["openmeteo"] = format_fetch_time(parse_fetch_time(om_file))
+        om_dt = parse_fetch_time(om_file)
+        fetch_times["openmeteo"] = format_fetch_time(om_dt)
+        if om_dt:
+            data_freshness["openmeteo_fetch_ms"] = int(om_dt.timestamp() * 1000)
     os_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
     if not os_files:
         os_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
     if os_files:
-        fetch_times["omnisense"] = format_fetch_time(parse_fetch_time(os_files[-1]))
+        os_dt = parse_fetch_time(os_files[-1])
+        fetch_times["omnisense"] = format_fetch_time(os_dt)
+        if os_dt:
+            data_freshness["omnisense_fetch_ms"] = int(os_dt.timestamp() * 1000)
     # Cycle data fetch timestamp
     cycle_ts_files = sorted(CYCLES_DIR.glob("cycles_fetched_*.txt"))
     if cycle_ts_files:
@@ -4849,6 +4890,23 @@ def main():
         if m:
             cycle_dt = datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M")
             fetch_times["cycles"] = format_fetch_time(cycle_dt)
+
+    # Compute last datapoint timestamps per source category from house5 data
+    if "house5" in all_data:
+        h5_series = all_data["house5"]["series"]
+        omnisense_ids = [lid for lid in h5_series if LOGGER_SOURCES.get(lid) == "Omnisense"]
+        tinytag_ids = [lid for lid in h5_series if LOGGER_SOURCES.get(lid) == "TinyTag"]
+        om_hist_id = OPENMETEO_HISTORICAL_ID
+        if omnisense_ids:
+            data_freshness["omnisense_last_ms"] = max(
+                h5_series[lid]["timestamps"][-1] for lid in omnisense_ids if h5_series[lid]["timestamps"]
+            )
+        if om_hist_id in h5_series and h5_series[om_hist_id]["timestamps"]:
+            data_freshness["openmeteo_last_ms"] = h5_series[om_hist_id]["timestamps"][-1]
+        if tinytag_ids:
+            data_freshness["tinytag_last_ms"] = max(
+                h5_series[lid]["timestamps"][-1] for lid in tinytag_ids if h5_series[lid]["timestamps"]
+            )
 
     # Generate cycle phase lookup tables from data files
     cycle_phases_js = generate_cycle_phases_js()
@@ -4868,10 +4926,12 @@ def main():
 
     json_str = json.dumps(all_data, separators=(',', ':'))
     fetch_times_str = json.dumps(fetch_times)
+    data_freshness_str = json.dumps(data_freshness)
     html = (HTML_TEMPLATE
             .replace('__DATA__', json_str)
             .replace('__HISTORIC__', historic_str)
             .replace('__FETCH_TIMES__', fetch_times_str)
+            .replace('__DATA_FRESHNESS__', data_freshness_str)
             .replace('__CYCLE_PHASES__', cycle_phases_js)
             .replace('__LOGO_B64__', logo_b64)
             .replace('__LOGO_ASPECT__', str(logo_aspect)))
