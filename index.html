@@ -94,6 +94,25 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 #substrat-add-btn { font-size:11px; padding:3px 8px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer; color:#555; }
 #substrat-add-btn:hover { background:#e8e8e8; }
 .substrat-no-data { display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:14px; color:#999; font-style:italic; z-index:5; pointer-events:none; background:rgba(248,249,250,0.9); padding:8px 16px; border-radius:6px; }
+/* ── Compare Mode ─────────────────────────────────────────────────────── */
+#compare-body { margin-top:6px; }
+.compare-set { border-left:3px solid #999; padding-left:8px; margin-bottom:8px; }
+.compare-set-header { cursor:pointer; font-weight:600; font-size:11px; display:flex; align-items:center; gap:4px; user-select:none; padding:2px 0; }
+.compare-set-header:hover { filter:brightness(0.8); }
+.compare-arrow { transition:transform 0.2s; display:inline-block; font-size:9px; }
+.compare-arrow.open { transform:rotate(90deg); }
+.compare-set-body { margin-top:4px; }
+.compare-set-body .sub-section-title { font-size:9px; }
+.compare-set-body .cb-label { font-size:10px; }
+.compare-set-body .sel-btn { font-size:9px; padding:0 4px; }
+.compare-set-body .substrat-combine { font-size:10px; margin-bottom:4px; }
+.compare-set-body .substrat-filter { padding:6px; margin-bottom:4px; }
+.compare-set-body .substrat-row select { font-size:10px; }
+.compare-add-filter-btn { font-size:10px; padding:2px 6px; border:1px solid #ccc; border-radius:3px; background:#f5f5f5; cursor:pointer; color:#555; margin-top:2px; }
+.compare-add-filter-btn:hover { background:#e8e8e8; }
+#compare-set-count { font-size:11px; margin-left:4px; padding:1px 3px; }
+.compare-loggers-wrap { max-height:180px; overflow-y:auto; border:1px solid #eee; border-radius:3px; padding:2px 4px; margin-bottom:4px; }
+.compare-hide-main { display:none !important; }
 .sel-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
 .sel-btn:hover { background: #e8e8e8; }
 .lock-btn { font-size: 10px; padding: 1px 6px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; color: #555; }
@@ -195,6 +214,20 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <div id="substrat-filters" class="substrat-only" style="display:none"></div>
           <button id="substrat-add-btn" class="substrat-only" style="display:none" onclick="addSubstratFilter()">+ Add Filter</button>
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
+          <hr class="divider" id="compare-divider">
+          <label class="cb-label"><input type="checkbox" id="cb-compare"> <b>Compare Mode</b></label>
+          <div id="compare-body" style="display:none">
+            <div style="margin:4px 0 6px">
+              <label style="font-size:11px;">Number of sets:
+                <select id="compare-set-count">
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </label>
+            </div>
+            <div id="compare-sets"></div>
+          </div>
         </div>
         <hr class="divider">
       </div>
@@ -365,6 +398,29 @@ const CLIMATE_COLORS = {
   'SSP5-8.5': '#d73027',
 };
 
+// ── Compare mode color utilities ──────────────────────────────────────────────
+const COMPARE_HUES = {
+  2: [0, 220],
+  3: [0, 50, 220],
+  4: [0, 50, 140, 220],
+};
+const COMPARE_SET_NAMES = ['Set A', 'Set B', 'Set C', 'Set D'];
+function compareShades(setIndex, setCount, loggerCount) {
+  const hue = COMPARE_HUES[setCount][setIndex];
+  const shades = [];
+  for (let i = 0; i < loggerCount; i++) {
+    const t = loggerCount === 1 ? 0.4 : i / (loggerCount - 1);
+    const lightness = 30 + t * 30;
+    const saturation = 85 - t * 15;
+    shades.push('hsl(' + hue + ', ' + saturation + '%, ' + lightness + '%)');
+  }
+  return shades;
+}
+function compareBaseColor(setIndex, setCount) {
+  const hue = COMPARE_HUES[setCount][setIndex];
+  return 'hsl(' + hue + ', 75%, 45%)';
+}
+
 // ── State ─────────────────────────────────────────────────────────────────────
 const state = {
   datasetKey: 'house5',
@@ -394,6 +450,9 @@ const state = {
   substratCombine: 'all',
   histogramBarmode: 'stack',
   excludeAnomalous: false,
+  compareEnabled: false,
+  compareSetCount: 2,
+  compareSets: [],
 };
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
@@ -412,9 +471,14 @@ function toggleAdvancedSettings() {
   body.style.display = isOpen ? 'block' : 'none';
   arrow.classList.toggle('open', isOpen);
   if (!isOpen) {
-    // Collapse = clear all filters
+    // Collapse = clear all filters and disable compare
     state.substratFilters = [];
     document.getElementById('substrat-filters').innerHTML = '';
+    state.compareEnabled = false;
+    document.getElementById('cb-compare').checked = false;
+    document.getElementById('compare-body').style.display = 'none';
+    document.getElementById('logger-checkboxes').parentElement.classList.remove('compare-hide-main');
+    document.getElementById('room-logger-checkboxes').parentElement.classList.remove('compare-hide-main');
     updatePlot();
   }
 }
@@ -727,6 +791,379 @@ function applySubstratFilter(filtered) {
   return { timestamps: ts, temperature: temp, humidity: hum, extTemp };
 }
 
+// ── Compare Mode ──────────────────────────────────────────────────────────────
+function initCompareSets() {
+  const m = dataset().meta;
+  state.compareSets = [];
+  for (let i = 0; i < 4; i++) {
+    state.compareSets.push({
+      selectedLoggers: new Set(m.lineLoggers || m.loggers),
+      selectedRoomLoggers: new Set(m.roomLoggers || []),
+      substratFilters: [],
+      substratCombine: 'all',
+    });
+  }
+}
+let _compareSubstratIdCounter = 0;
+
+function renderCompareSets() {
+  const container = document.getElementById('compare-sets');
+  container.innerHTML = '';
+  const m = dataset().meta;
+  const hues = COMPARE_HUES[state.compareSetCount];
+  // Ensure enough sets exist
+  while (state.compareSets.length < state.compareSetCount) {
+    state.compareSets.push({
+      selectedLoggers: new Set(m.lineLoggers || m.loggers),
+      selectedRoomLoggers: new Set(m.roomLoggers || []),
+      substratFilters: [],
+      substratCombine: 'all',
+    });
+  }
+  const anomRanges = m.anomalousRanges || {};
+  const extSet = new Set(m.externalLoggers || []);
+  const roomSet = new Set(m.roomLoggers || []);
+  const lineSet = new Set(m.lineLoggers || m.loggers);
+  const isComfort = state.chartType === 'comfort';
+  // Determine which loggers to show based on chart type
+  const loggerPool = isComfort ? (m.comfortLoggers || m.roomLoggers || []) : m.loggers;
+
+  for (let si = 0; si < state.compareSetCount; si++) {
+    const cs = state.compareSets[si];
+    const baseColor = compareBaseColor(si, state.compareSetCount);
+    const setDiv = document.createElement('div');
+    setDiv.className = 'compare-set';
+    setDiv.style.borderLeftColor = baseColor;
+
+    const header = document.createElement('div');
+    header.className = 'compare-set-header';
+    header.style.color = baseColor;
+    header.innerHTML = '<span class="compare-arrow">&#9654;</span> ' + COMPARE_SET_NAMES[si];
+
+    const body = document.createElement('div');
+    body.className = 'compare-set-body';
+    body.style.display = 'none';
+    header.addEventListener('click', () => {
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      header.querySelector('.compare-arrow').classList.toggle('open', !open);
+    });
+
+    // Logger checkboxes in a scrollable wrapper
+    const loggerWrap = document.createElement('div');
+    loggerWrap.className = 'compare-loggers-wrap';
+    const stateSet = isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers;
+
+    // Select All / None buttons
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:3px;';
+    const allBtn = document.createElement('button');
+    allBtn.className = 'sel-btn';
+    allBtn.textContent = 'All';
+    allBtn.addEventListener('click', () => {
+      loggerPool.forEach(id => { stateSet.add(id); });
+      loggerWrap.querySelectorAll('input[data-cmp-logger]').forEach(cb => { cb.checked = true; });
+      updatePlot();
+    });
+    const noneBtn = document.createElement('button');
+    noneBtn.className = 'sel-btn';
+    noneBtn.textContent = 'None';
+    noneBtn.addEventListener('click', () => {
+      loggerPool.forEach(id => { stateSet.delete(id); });
+      loggerWrap.querySelectorAll('input[data-cmp-logger]').forEach(cb => { cb.checked = false; });
+      updatePlot();
+    });
+    btnRow.appendChild(allBtn);
+    btnRow.appendChild(noneBtn);
+    body.appendChild(btnRow);
+
+    // Add sections (external, room, structural)
+    function addCmpSection(title, ids) {
+      if (ids.length === 0) return;
+      const titleEl = document.createElement('div');
+      titleEl.className = 'sub-section-title';
+      titleEl.textContent = title;
+      loggerWrap.appendChild(titleEl);
+      for (const id of ids) {
+        const lbl = document.createElement('label');
+        lbl.className = 'cb-label';
+        const isExtTT = extSet.has(id) && m.loggerSources[id] === 'TinyTag';
+        const ttSuffix = isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '';
+        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> ' + m.loggerNames[id] + ttSuffix;
+        lbl.querySelector('input').addEventListener('change', e => {
+          e.target.checked ? stateSet.add(id) : stateSet.delete(id);
+          updatePlot();
+        });
+        loggerWrap.appendChild(lbl);
+      }
+    }
+    if (isComfort) {
+      const comfortRoomIds = (m.comfortLoggers || m.roomLoggers || []).filter(id => (m.roomLoggers || []).includes(id));
+      const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
+      addCmpSection('Room', comfortRoomIds);
+      addCmpSection('Structural', comfortStructIds);
+    } else {
+      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection('External', m.externalLoggers);
+      const roomLoggers = m.loggers.filter(id => !extSet.has(id) && roomSet.has(id) && lineSet.has(id));
+      const midLoggers = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
+      addCmpSection('Room', roomLoggers);
+      addCmpSection('Structural', midLoggers);
+    }
+    body.appendChild(loggerWrap);
+
+    // Match ALL/ANY + filters
+    const showFilters = state.chartType !== 'line';
+    if (showFilters) {
+      const combineWrap = document.createElement('div');
+      combineWrap.className = 'substrat-combine';
+      combineWrap.style.marginTop = '4px';
+      combineWrap.innerHTML =
+        '<label><input type="radio" name="cmp-combine-' + si + '" value="all" ' + (cs.substratCombine === 'all' ? 'checked' : '') + '> Match ALL</label>' +
+        '<label><input type="radio" name="cmp-combine-' + si + '" value="any" ' + (cs.substratCombine === 'any' ? 'checked' : '') + '> Match ANY</label>';
+      combineWrap.querySelectorAll('input').forEach(r => {
+        r.addEventListener('change', () => { cs.substratCombine = r.value; updatePlot(); });
+      });
+      body.appendChild(combineWrap);
+
+      const filterWrap = document.createElement('div');
+      filterWrap.id = 'cmp-substrat-filters-' + si;
+      body.appendChild(filterWrap);
+
+      // Render existing filters
+      for (const f of cs.substratFilters) {
+        renderCompareSubstratBlock(si, f, filterWrap);
+      }
+
+      const addBtn = document.createElement('button');
+      addBtn.className = 'compare-add-filter-btn';
+      addBtn.textContent = '+ Add Filter';
+      addBtn.addEventListener('click', () => addCompareSubstratFilter(si));
+      body.appendChild(addBtn);
+    }
+
+    setDiv.appendChild(header);
+    setDiv.appendChild(body);
+    container.appendChild(setDiv);
+  }
+}
+
+function addCompareSubstratFilter(si) {
+  const cs = state.compareSets[si];
+  const f = { id: ++_compareSubstratIdCounter, cycle: 'none', groupBy: null, from: null, to: null, phases: new Set() };
+  cs.substratFilters.push(f);
+  const filterWrap = document.getElementById('cmp-substrat-filters-' + si);
+  renderCompareSubstratBlock(si, f, filterWrap);
+}
+
+function removeCompareSubstratFilter(si, fid) {
+  const cs = state.compareSets[si];
+  cs.substratFilters = cs.substratFilters.filter(f => f.id !== fid);
+  const el = document.getElementById('cmp-substrat-f-' + fid);
+  if (el) el.remove();
+  updatePlot();
+}
+
+function renderCompareSubstratBlock(si, f, container) {
+  const block = document.createElement('div');
+  block.className = 'substrat-filter';
+  block.id = 'cmp-substrat-f-' + f.id;
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'substrat-remove';
+  removeBtn.innerHTML = '&times;';
+  removeBtn.addEventListener('click', () => removeCompareSubstratFilter(si, f.id));
+  block.appendChild(removeBtn);
+
+  const row = document.createElement('div');
+  row.className = 'substrat-row';
+  row.innerHTML = '<label>Filter by</label>' +
+    '<select class="substrat-cycle">' +
+    '<option value="none">None</option>' +
+    '<option value="day">Day</option>' +
+    '<option value="year">Year</option>' +
+    '<option value="mjo">MJO</option>' +
+    '<option value="iod">IOD</option>' +
+    '<option value="enso">ENSO</option>' +
+    '</select>';
+  row.querySelector('select').value = f.cycle;
+  row.querySelector('select').addEventListener('change', function() {
+    cmpSubstratCycleChanged(si, f.id, this.value);
+  });
+  block.appendChild(row);
+
+  const tier2 = document.createElement('div');
+  tier2.className = 'substrat-tier2';
+  block.appendChild(tier2);
+  const tier3 = document.createElement('div');
+  tier3.className = 'substrat-tier3';
+  block.appendChild(tier3);
+
+  container.appendChild(block);
+}
+
+function cmpSubstratCycleChanged(si, fid, cycle) {
+  const cs = state.compareSets[si];
+  const f = cs.substratFilters.find(x => x.id === fid);
+  if (!f) return;
+  f.cycle = cycle;
+  f.groupBy = null;
+  f.from = null;
+  f.to = null;
+  f.phases = new Set();
+
+  const block = document.getElementById('cmp-substrat-f-' + fid);
+  block.classList.remove('invalid');
+  const tier2 = block.querySelector('.substrat-tier2');
+  const tier3 = block.querySelector('.substrat-tier3');
+  tier2.innerHTML = '';
+  tier3.innerHTML = '';
+
+  if (cycle === 'none') { updatePlot(); return; }
+
+  if (cycle === 'day' || cycle === 'year') {
+    let opts = '';
+    if (cycle === 'day') {
+      opts = '<option value="hour">Hour</option><option value="synoptic">Synoptic Hours</option>';
+    } else {
+      opts = '<option value="day">Day of Month</option><option value="week">Week</option><option value="month">Month</option><option value="season">Season</option>';
+    }
+    tier2.innerHTML = '<div class="substrat-row"><label>Group By</label>' +
+      '<select class="substrat-group-by">' + opts + '</select></div>';
+    const sel = tier2.querySelector('select');
+    sel.addEventListener('change', function() {
+      cmpSubstratGroupByChanged(si, fid, this.value);
+    });
+    cmpSubstratGroupByChanged(si, fid, sel.value);
+  } else {
+    let labels, nPhases;
+    if (cycle === 'mjo') { labels = MJO_LABELS; nPhases = 8; }
+    else if (cycle === 'iod') { labels = IOD_LABELS; nPhases = 3; }
+    else { labels = ENSO_LABELS; nPhases = 3; }
+
+    let html = '<div class="substrat-phases">';
+    for (let i = 0; i < nPhases; i++) {
+      html += '<label><input type="checkbox" data-phase="' + i + '"> ' + labels[i] + '</label>';
+    }
+    html += '</div>';
+    tier3.innerHTML = html;
+    tier3.querySelectorAll('input[data-phase]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        f.phases.clear();
+        tier3.querySelectorAll('input[data-phase]:checked').forEach(c => f.phases.add(parseInt(c.dataset.phase)));
+        updatePlot();
+      });
+    });
+    f.groupBy = 'phase';
+    updatePlot();
+  }
+}
+
+function cmpSubstratGroupByChanged(si, fid, gran) {
+  const cs = state.compareSets[si];
+  const f = cs.substratFilters.find(x => x.id === fid);
+  if (!f) return;
+  f.groupBy = gran;
+  f.from = null;
+  f.to = null;
+  f._rangeMode = false;
+
+  const block = document.getElementById('cmp-substrat-f-' + fid);
+  block.classList.remove('invalid');
+  const tier3 = block.querySelector('.substrat-tier3');
+
+  const opts = substratBuildOptions(f.cycle, gran);
+  f.from = opts.defaultVal;
+  f.to = opts.defaultVal;
+
+  tier3.innerHTML = '<div class="substrat-row">' +
+    '<select class="substrat-single">' + opts.html + '</select>' +
+    '<span class="substrat-range-toggle">range</span>' +
+    '</div>' +
+    '<div class="substrat-range-row substrat-row" style="display:none">' +
+    '<label>From</label><select class="substrat-from">' + opts.html + '</select>' +
+    '<label>To</label><select class="substrat-to">' + opts.html + '</select>' +
+    '</div>';
+  tier3.querySelector('.substrat-to').value = String(opts.lastVal);
+
+  // Wire up events
+  tier3.querySelector('.substrat-single').addEventListener('change', function() {
+    f.from = parseInt(this.value);
+    f.to = f.from;
+    block.classList.remove('invalid');
+    updatePlot();
+  });
+  tier3.querySelector('.substrat-range-toggle').addEventListener('click', function() {
+    f._rangeMode = !f._rangeMode;
+    const singleRow = tier3.querySelector('.substrat-row:first-child');
+    const rangeRow = tier3.querySelector('.substrat-range-row');
+    if (f._rangeMode) {
+      singleRow.style.display = 'none';
+      rangeRow.style.display = '';
+      this.textContent = 'single';
+      tier3.querySelector('.substrat-from').value = String(f.from);
+      tier3.querySelector('.substrat-to').value = String(f.to);
+      rangeRow.appendChild(this);
+    } else {
+      singleRow.style.display = '';
+      rangeRow.style.display = 'none';
+      this.textContent = 'range';
+      f.to = f.from;
+      tier3.querySelector('.substrat-single').value = String(f.from);
+      block.classList.remove('invalid');
+      singleRow.appendChild(this);
+      updatePlot();
+    }
+  });
+  tier3.querySelector('.substrat-from').addEventListener('change', function() {
+    f.from = parseInt(this.value);
+    const nonCyclic = (f.cycle === 'year' && (f.groupBy === 'day' || f.groupBy === 'week'));
+    if (nonCyclic && f.from > f.to) block.classList.add('invalid');
+    else block.classList.remove('invalid');
+    updatePlot();
+  });
+  tier3.querySelector('.substrat-to').addEventListener('change', function() {
+    f.to = parseInt(this.value);
+    const nonCyclic = (f.cycle === 'year' && (f.groupBy === 'day' || f.groupBy === 'week'));
+    if (nonCyclic && f.from > f.to) block.classList.add('invalid');
+    else block.classList.remove('invalid');
+    updatePlot();
+  });
+
+  updatePlot();
+}
+
+function getCompareIterations() {
+  if (!state.compareEnabled) {
+    return [{
+      selectedLoggers: state.chartType === 'comfort' ? state.selectedRoomLoggers : state.selectedLoggers,
+      substratFilters: state.substratFilters,
+      substratCombine: state.substratCombine,
+      colorMap: dataset().meta.colors,
+      setLabel: null,
+      setIndex: -1,
+    }];
+  }
+  const m = dataset().meta;
+  const isComfort = state.chartType === 'comfort';
+  const iterations = [];
+  for (let si = 0; si < state.compareSetCount; si++) {
+    const cs = state.compareSets[si];
+    const loggerList = [...(isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers)];
+    const shades = compareShades(si, state.compareSetCount, loggerList.length);
+    const colorMap = {};
+    loggerList.forEach((lid, i) => { colorMap[lid] = shades[i]; });
+    iterations.push({
+      selectedLoggers: isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers,
+      substratFilters: cs.substratFilters,
+      substratCombine: cs.substratCombine,
+      colorMap,
+      setLabel: COMPARE_SET_NAMES[si],
+      setIndex: si,
+    });
+  }
+  return iterations;
+}
+
 function isOpenMeteo(id) { return id && id.indexOf('(Open-Meteo)') !== -1; }
 function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMeteo(id); }
 
@@ -859,6 +1296,9 @@ function loadDataset(key) {
   // Reset selections
   state.selectedLoggers = new Set(m.lineLoggers || m.loggers);
   state.selectedRoomLoggers = new Set(m.roomLoggers);
+  // Reinitialize compare sets for new dataset
+  initCompareSets();
+  if (state.compareEnabled) renderCompareSets();
   state.timeMode = 'all';
   document.getElementById('time-mode').value = 'all';
   ['between-inputs','year-input','month-input','week-input','day-input'].forEach(id =>
@@ -1338,8 +1778,8 @@ function setupStaticListeners() {
       anchor.parentNode.insertBefore(advWrap, anchor.nextSibling);
     }
     const hasAnomalousData = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
-    advWrap.style.display = (showSubstrat || hasAnomalousData) ? '' : 'none';
-    document.querySelectorAll('.substrat-only').forEach(el => { el.style.display = showSubstrat ? '' : 'none'; });
+    advWrap.style.display = ''; // always show — compare mode is available for all chart types
+    document.querySelectorAll('.substrat-only').forEach(el => { el.style.display = (showSubstrat && !state.compareEnabled) ? '' : 'none'; });
     const advBody = document.getElementById('advanced-settings-body');
     advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
     if (!showSubstrat) {
@@ -1392,6 +1832,8 @@ function setupStaticListeners() {
     }
     document.getElementById('anomalous-label').style.display =
       (dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0) ? '' : 'none';
+    // Re-render compare sets when chart type changes (logger pool differs for comfort)
+    if (state.compareEnabled) renderCompareSets();
     updatePlot();
   });
 
@@ -1453,6 +1895,27 @@ function setupStaticListeners() {
   });
   document.getElementById('cb-exclude-anomalous').addEventListener('change', e => {
     state.excludeAnomalous = e.target.checked; updatePlot();
+  });
+  document.getElementById('cb-compare').addEventListener('change', e => {
+    state.compareEnabled = e.target.checked;
+    document.getElementById('compare-body').style.display = state.compareEnabled ? 'block' : 'none';
+    // Hide/show main logger checkboxes and comfort room checkboxes
+    document.getElementById('logger-checkboxes').parentElement.classList.toggle('compare-hide-main', state.compareEnabled);
+    document.getElementById('room-logger-checkboxes').parentElement.classList.toggle('compare-hide-main', state.compareEnabled);
+    // Hide main substrat controls in compare mode
+    document.querySelectorAll('.substrat-only').forEach(el => {
+      el.style.display = state.compareEnabled ? 'none' : (state.chartType !== 'line' ? '' : 'none');
+    });
+    if (state.compareEnabled) {
+      if (state.compareSets.length === 0) initCompareSets();
+      renderCompareSets();
+    }
+    updatePlot();
+  });
+  document.getElementById('compare-set-count').addEventListener('change', e => {
+    state.compareSetCount = parseInt(e.target.value);
+    renderCompareSets();
+    updatePlot();
   });
   document.getElementById('cb-density').addEventListener('change', e => {
     state.showDensity = e.target.checked; updatePlot();
@@ -2128,44 +2591,57 @@ function renderLineGraph() {
   const lineSet = new Set(m.lineLoggers || m.loggers);
   const extSet = new Set(m.externalLoggers || []);
 
-  for (const loggerId of m.loggers) {
-    if (!state.selectedLoggers.has(loggerId)) continue;
-    if (!lineSet.has(loggerId)) continue;
-    const series = dataset().series[loggerId];
-    if (!series) continue;
-    let filtered = filterSeries(series, start, end);
-    if (!filtered) continue;
-    filtered = applyAnomalousFilter(filtered, loggerId);
-    if (!filtered) continue;
+  const iterations = getCompareIterations();
+  for (const iter of iterations) {
+    const savedFilters = state.substratFilters;
+    const savedCombine = state.substratCombine;
+    state.substratFilters = iter.substratFilters;
+    state.substratCombine = iter.substratCombine;
+    const namePrefix = iter.setLabel ? '[' + iter.setLabel + '] ' : '';
 
-    // Track actual data bounds
-    if (filtered.timestamps.length) {
-      const first = filtered.timestamps[0], last = filtered.timestamps[filtered.timestamps.length - 1];
-      if (first < dataMinMs) dataMinMs = first;
-      if (last > dataMaxMs) dataMaxMs = last;
+    for (const loggerId of m.loggers) {
+      if (!iter.selectedLoggers.has(loggerId)) continue;
+      if (!lineSet.has(loggerId)) continue;
+      const series = dataset().series[loggerId];
+      if (!series) continue;
+      let filtered = filterSeries(series, start, end);
+      if (!filtered) continue;
+      filtered = applyAnomalousFilter(filtered, loggerId);
+      if (!filtered) continue;
+
+      // Track actual data bounds
+      if (filtered.timestamps.length) {
+        const first = filtered.timestamps[0], last = filtered.timestamps[filtered.timestamps.length - 1];
+        if (first < dataMinMs) dataMinMs = first;
+        if (last > dataMaxMs) dataMaxMs = last;
+      }
+
+      const color = iter.colorMap[loggerId] || m.colors[loggerId];
+      const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
+      const name = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+      const source = m.loggerSources[loggerId] || '';
+      const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
+      const freqLabel = state.historicMode
+        ? (isOpenMeteo(loggerId) ? ' <span style="color:#aaa">(hourly avg.)</span>'
+          : source === 'TinyTag' ? ' <span style="color:#aaa">(hourly avg.)</span>'
+          : source === 'Omnisense' ? ' <span style="color:#aaa">(5-min avg.)</span>'
+          : '') : '';
+      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      let firstMetric = true;
+      for (const metric of ['temperature','humidity']) {
+        if (!state.selectedMetrics.has(metric)) continue;
+        const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
+        for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
+        const unit = metric === 'temperature' ? '°C' : '%RH';
+        traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel, line:{color, width:1.4},
+          opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:firstMetric, meta:{loggerId},
+          hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?'Temp':'Humidity'}: %{y:.1f}${unit}<br>Source: ${source}${idLabel}<extra></extra>`});
+        firstMetric = false;
+      }
     }
 
-    const color = m.colors[loggerId];
-    const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
-    const name = m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
-    const source = m.loggerSources[loggerId] || '';
-    const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
-    const freqLabel = state.historicMode
-      ? (isOpenMeteo(loggerId) ? ' <span style="color:#aaa">(hourly avg.)</span>'
-        : source === 'TinyTag' ? ' <span style="color:#aaa">(hourly avg.)</span>'
-        : source === 'Omnisense' ? ' <span style="color:#aaa">(5-min avg.)</span>'
-        : '') : '';
-    let firstMetric = true;
-    for (const metric of ['temperature','humidity']) {
-      if (!state.selectedMetrics.has(metric)) continue;
-      const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
-      for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
-      const unit = metric === 'temperature' ? '°C' : '%RH';
-      traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel, line:{color, width:1.4},
-        opacity:0.35, connectgaps:false, legendgroup:loggerId, showlegend:firstMetric, meta:{loggerId},
-        hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?'Temp':'Humidity'}: %{y:.1f}${unit}<br>Source: ${source}${idLabel}<extra></extra>`});
-      firstMetric = false;
-    }
+    state.substratFilters = savedFilters;
+    state.substratCombine = savedCombine;
   }
 
   // Fall back to time filter range if no data traces
@@ -2322,46 +2798,59 @@ function renderHistogram() {
   let actualStartMs = Infinity, actualEndMs = -Infinity;
   const histSet = new Set(m.histogramLoggers || m.loggers);
 
-  for (const loggerId of m.loggers) {
-    if (!state.selectedLoggers.has(loggerId)) continue;
-    if (!histSet.has(loggerId)) continue;
-    const series = dataset().series[loggerId];
-    if (!series) continue;
-    let filtered = filterSeries(series, start, end);
-    if (!filtered) continue;
-    filtered = applyAnomalousFilter(filtered, loggerId);
-    if (!filtered) continue;
-    filtered = applySubstratFilter(filtered);
-    if (!filtered) continue;
-    const range = actualDataRange(series.timestamps, start, end);
-    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
+  const iterations = getCompareIterations();
+  for (const iter of iterations) {
+    const savedFilters = state.substratFilters;
+    const savedCombine = state.substratCombine;
+    state.substratFilters = iter.substratFilters;
+    state.substratCombine = iter.substratCombine;
+    const namePrefix = iter.setLabel ? '[' + iter.setLabel + '] ' : '';
 
-    const color = m.colors[loggerId];
-    const source = m.loggerSources[loggerId] || '';
-    const isExtTT = (m.externalLoggers || []).includes(loggerId) && source === 'TinyTag';
-    const name = m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
-    let firstMetric = true;
+    for (const loggerId of m.loggers) {
+      if (!iter.selectedLoggers.has(loggerId)) continue;
+      if (!histSet.has(loggerId)) continue;
+      const series = dataset().series[loggerId];
+      if (!series) continue;
+      let filtered = filterSeries(series, start, end);
+      if (!filtered) continue;
+      filtered = applyAnomalousFilter(filtered, loggerId);
+      if (!filtered) continue;
+      filtered = applySubstratFilter(filtered);
+      if (!filtered) continue;
+      const range = actualDataRange(series.timestamps, start, end);
+      if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
 
-    for (const metric of ['temperature', 'humidity']) {
-      if (!state.selectedMetrics.has(metric)) continue;
-      const values = filtered[metric].filter(v => v != null);
-      if (values.length === 0) continue;
-      for (const v of values) { if (v < globalMin) globalMin = v; if (v > globalMax) globalMax = v; }
-      const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
-      traces.push({
-        x: values,
-        type: 'histogram',
-        histnorm: 'probability',
-        name: name + meteoSuffix(loggerId) + omniSuffix(source),
-        xbins: {size: 1},
-        marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.55 : 0.85},
-        legendgroup: loggerId,
-        showlegend: firstMetric,
-        meta: {loggerId, unit},
-        hovertemplate: `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
-      });
-      firstMetric = false;
+      const color = iter.colorMap[loggerId] || m.colors[loggerId];
+      const source = m.loggerSources[loggerId] || '';
+      const isExtTT = (m.externalLoggers || []).includes(loggerId) && source === 'TinyTag';
+      const name = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      let firstMetric = true;
+
+      for (const metric of ['temperature', 'humidity']) {
+        if (!state.selectedMetrics.has(metric)) continue;
+        const values = filtered[metric].filter(v => v != null);
+        if (values.length === 0) continue;
+        for (const v of values) { if (v < globalMin) globalMin = v; if (v > globalMax) globalMax = v; }
+        const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
+        traces.push({
+          x: values,
+          type: 'histogram',
+          histnorm: 'probability',
+          name: name + meteoSuffix(loggerId) + omniSuffix(source),
+          xbins: {size: 1},
+          marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.55 : 0.85},
+          legendgroup: lgGroup,
+          showlegend: firstMetric,
+          meta: {loggerId, unit},
+          hovertemplate: `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
+        });
+        firstMetric = false;
+      }
     }
+
+    state.substratFilters = savedFilters;
+    state.substratCombine = savedCombine;
   }
 
   // Climate series traces (only when historic mode is active and temperature metric selected)
@@ -2637,49 +3126,63 @@ function renderAdaptiveComfort() {
     const type = m.loggerSources[id];
     return type ? `${name} [${type}]` : name;
   };
-  for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
-    if (!state.selectedRoomLoggers.has(loggerId)) continue;
-    const series = dataset().series[loggerId];
-    if (!series || !series.extTemp) continue;
-    let filtered = filterSeries(series, start, end);
-    if (!filtered || !filtered.extTemp) continue;
-    filtered = applyAnomalousFilter(filtered, loggerId);
-    if (!filtered || !filtered.extTemp) continue;
-    filtered = applySubstratFilter(filtered);
-    if (!filtered || !filtered.extTemp) continue;
-    const range = actualDataRange(series.timestamps, start, end);
-    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
-    const loggerSrcSet = new Set();
-    if (series.extSourceSpans) {
-      for (const sp of series.extSourceSpans) {
-        loggerSrcSet.add(srcLabel(sp.source));
-        const prev = seenSpans.get(sp.source);
-        if (!prev) seenSpans.set(sp.source, {from: sp.from, to: sp.to});
-        else { if (sp.from < prev.from) prev.from = sp.from; if (sp.to > prev.to) prev.to = sp.to; }
+  const iterations = getCompareIterations();
+  for (const iter of iterations) {
+    const savedFilters = state.substratFilters;
+    const savedCombine = state.substratCombine;
+    state.substratFilters = iter.substratFilters;
+    state.substratCombine = iter.substratCombine;
+    const namePrefix = iter.setLabel ? '[' + iter.setLabel + '] ' : '';
+
+    for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
+      if (!iter.selectedLoggers.has(loggerId)) continue;
+      const series = dataset().series[loggerId];
+      if (!series || !series.extTemp) continue;
+      let filtered = filterSeries(series, start, end);
+      if (!filtered || !filtered.extTemp) continue;
+      filtered = applyAnomalousFilter(filtered, loggerId);
+      if (!filtered || !filtered.extTemp) continue;
+      filtered = applySubstratFilter(filtered);
+      if (!filtered || !filtered.extTemp) continue;
+      const range = actualDataRange(series.timestamps, start, end);
+      if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
+      const loggerSrcSet = new Set();
+      if (series.extSourceSpans) {
+        for (const sp of series.extSourceSpans) {
+          loggerSrcSet.add(srcLabel(sp.source));
+          const prev = seenSpans.get(sp.source);
+          if (!prev) seenSpans.set(sp.source, {from: sp.from, to: sp.to});
+          else { if (sp.from < prev.from) prev.from = sp.from; if (sp.to > prev.to) prev.to = sp.to; }
+        }
+      } else if (series.extSource) {
+        loggerSrcSet.add(srcLabel(series.extSource));
+        if (!seenSpans.has(series.extSource)) seenSpans.set(series.extSource, null);
       }
-    } else if (series.extSource) {
-      loggerSrcSet.add(srcLabel(series.extSource));
-      if (!seenSpans.has(series.extSource)) seenSpans.set(series.extSource, null);
-    }
-    perLoggerSources[loggerId] = loggerSrcSet;
-    for (let i = 0; i < filtered.extTemp.length; i++) {
-      if (filtered.extTemp[i] != null && filtered.temperature[i] != null) {
-        allExtTemps.push(filtered.extTemp[i]);
-        allTemps.push(filtered.temperature[i]);
+      perLoggerSources[loggerId] = loggerSrcSet;
+      for (let i = 0; i < filtered.extTemp.length; i++) {
+        if (filtered.extTemp[i] != null && filtered.temperature[i] != null) {
+          allExtTemps.push(filtered.extTemp[i]);
+          allTemps.push(filtered.temperature[i]);
+        }
       }
+      const color = iter.colorMap[loggerId] || m.colors[loggerId];
+      const cSource = m.loggerSources[loggerId] || '';
+      const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
+      const cName = namePrefix + m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
+      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
+      traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
+        name:cName, marker:{color, size:4, opacity:0.2},
+        legendgroup:lgGroup, showlegend:false, meta:{loggerId}, customdata,
+        hovertemplate:`${namePrefix + m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
+      // Legend-only trace with larger, visible marker
+      traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
+        name:cName, marker:{color, size:10, opacity:0.8, symbol:'square', line:{width:0}},
+        legendgroup:lgGroup, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
     }
-    const cSource = m.loggerSources[loggerId] || '';
-    const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
-    const cName = m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
-    const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
-    traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-      name:cName, marker:{color:m.colors[loggerId], size:4, opacity:0.2},
-      legendgroup:loggerId, showlegend:false, meta:{loggerId}, customdata,
-      hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
-    // Legend-only trace with larger, visible marker
-    traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
-      name:cName, marker:{color:m.colors[loggerId], size:10, opacity:0.8, symbol:'square', line:{width:0}},
-      legendgroup:loggerId, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
+
+    state.substratFilters = savedFilters;
+    state.substratCombine = savedCombine;
   }
 
   if (params && allExtTemps.length > 0) {
@@ -2693,7 +3196,7 @@ function renderAdaptiveComfort() {
       hoverinfo:'skip', showlegend:false});
   }
 
-  if (state.showDensity && allExtTemps.length > 30) {
+  if (state.showDensity && !state.compareEnabled && allExtTemps.length > 30) {
     // Subsample for density heatmap if too many points (performance)
     let heatX = allExtTemps, heatY = allTemps;
     if (allExtTemps.length > 20000) {
@@ -3913,93 +4416,104 @@ function renderPeriodicAverages() {
     }
   }
 
-  // Pre-fill locked section averages from their frozen logger sets
-  for (const sk of ['external','room','structural']) {
-    if (state.lockedAvg[sk]) {
-      for (const lid of state.lockedAvg[sk]) {
-        if (periodicSet.has(lid)) accumulateForSection(lid);
+  // Pre-fill locked section averages from their frozen logger sets (only in non-compare mode)
+  if (!state.compareEnabled) {
+    for (const sk of ['external','room','structural']) {
+      if (state.lockedAvg[sk]) {
+        for (const lid of state.lockedAvg[sk]) {
+          if (periodicSet.has(lid)) accumulateForSection(lid);
+        }
       }
     }
   }
 
-  for (const loggerId of m.loggers) {
-    if (!state.selectedLoggers.has(loggerId)) continue;
-    if (!periodicSet.has(loggerId)) continue;
-    const series = dataset().series[loggerId];
-    if (!series) continue;
-    let filtered = filterSeries(series, start, end);
-    if (!filtered) continue;
-    filtered = applyAnomalousFilter(filtered, loggerId);
-    if (!filtered) continue;
-    filtered = applySubstratFilter(filtered);
-    if (!filtered) continue;
+  const iterations = getCompareIterations();
+  for (const iter of iterations) {
+    const savedFilters = state.substratFilters;
+    const savedCombine = state.substratCombine;
+    state.substratFilters = iter.substratFilters;
+    state.substratCombine = iter.substratCombine;
+    const namePrefix = iter.setLabel ? '[' + iter.setLabel + '] ' : '';
 
-    // Track actual data range for annotation
-    const range = actualDataRange(series.timestamps, start, end);
-    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
+    for (const loggerId of m.loggers) {
+      if (!iter.selectedLoggers.has(loggerId)) continue;
+      if (!periodicSet.has(loggerId)) continue;
+      const series = dataset().series[loggerId];
+      if (!series) continue;
+      let filtered = filterSeries(series, start, end);
+      if (!filtered) continue;
+      filtered = applyAnomalousFilter(filtered, loggerId);
+      if (!filtered) continue;
+      filtered = applySubstratFilter(filtered);
+      if (!filtered) continue;
 
-    const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
-    const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
-    const secKey = extSet.has(loggerId) ? 'external' : roomSet.has(loggerId) ? 'room' : 'structural';
-    const sec = sections[secKey];
-    const contributeToAvg = state.lockedAvg[secKey] === null; // only accumulate if unlocked
+      // Track actual data range for annotation
+      const range = actualDataRange(series.timestamps, start, end);
+      if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
 
-    for (let i = 0; i < filtered.timestamps.length; i++) {
-      const ci = getCategoryIdx(filtered.timestamps[i]);
-      if (ci < 0 || ci >= nCats) continue;
-      const t = filtered.temperature[i], h = filtered.humidity[i];
-      if (t != null) { tempSum[ci] += t; tempN[ci]++; if (contributeToAvg) { sec.tempSum[ci] += t; sec.tempN[ci]++; } }
-      if (h != null) { humSum[ci] += h; humN[ci]++; if (contributeToAvg) { sec.humSum[ci] += h; sec.humN[ci]++; } }
-    }
+      const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
+      const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
+      const secKey = extSet.has(loggerId) ? 'external' : roomSet.has(loggerId) ? 'room' : 'structural';
+      const sec = sections[secKey];
+      const contributeToAvg = !state.compareEnabled && state.lockedAvg[secKey] === null;
 
-    const color = m.colors[loggerId];
-    const source = m.loggerSources[loggerId] || '';
-    const isExtTT = extSet.has(loggerId) && source === 'TinyTag';
-    const logName = m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
-    const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
-    let firstMetric = true;
+      for (let i = 0; i < filtered.timestamps.length; i++) {
+        const ci = getCategoryIdx(filtered.timestamps[i]);
+        if (ci < 0 || ci >= nCats) continue;
+        const t = filtered.temperature[i], h = filtered.humidity[i];
+        if (t != null) { tempSum[ci] += t; tempN[ci]++; if (contributeToAvg) { sec.tempSum[ci] += t; sec.tempN[ci]++; } }
+        if (h != null) { humSum[ci] += h; humN[ci]++; if (contributeToAvg) { sec.humSum[ci] += h; sec.humN[ci]++; } }
+      }
 
-    for (const metric of ['temperature', 'humidity']) {
-      if (!state.selectedMetrics.has(metric)) continue;
-      const sums = metric === 'temperature' ? tempSum : humSum;
-      const counts = metric === 'temperature' ? tempN : humN;
-      const x = [], y = [], txt = [];
-      let singlePointCats = 0, catsWithData = 0;
+      const color = iter.colorMap[loggerId] || m.colors[loggerId];
+      const source = m.loggerSources[loggerId] || '';
+      const isExtTT = extSet.has(loggerId) && source === 'TinyTag';
+      const logName = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+      const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
+      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      let firstMetric = true;
 
-      for (let ci = 0; ci < nCats; ci++) {
-        x.push(xVal(ci));
-        txt.push(categoryLabels[ci]);
-        if (counts[ci] > 0) {
-          y.push(+(sums[ci] / counts[ci]).toFixed(2));
-          catsWithData++; hasAnyData = true;
-          if (counts[ci] === 1) singlePointCats++;
-        } else {
-          y.push(null);
+      for (const metric of ['temperature', 'humidity']) {
+        if (!state.selectedMetrics.has(metric)) continue;
+        const sums = metric === 'temperature' ? tempSum : humSum;
+        const counts = metric === 'temperature' ? tempN : humN;
+        const x = [], y = [], txt = [];
+        let singlePointCats = 0, catsWithData = 0;
+
+        for (let ci = 0; ci < nCats; ci++) {
+          x.push(xVal(ci));
+          txt.push(categoryLabels[ci]);
+          if (counts[ci] > 0) {
+            y.push(+(sums[ci] / counts[ci]).toFixed(2));
+            catsWithData++; hasAnyData = true;
+            if (counts[ci] === 1) singlePointCats++;
+          } else {
+            y.push(null);
+          }
         }
-      }
-      if (catsWithData === 0) { firstMetric = false; continue; }
+        if (catsWithData === 0) { firstMetric = false; continue; }
 
-      const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
-      const metricName = metric === 'temperature' ? 'Avg temp' : 'Avg humidity';
-      const hoverTpl = m.loggerNames[loggerId] + '<br>%{text}<br>' + metricName + ': %{y:.1f}' + unit + '<br>Source: ' + source + idLabel + '<extra></extra>';
-      const trace = {
-        x, y, text: txt, type: 'scatter',
-        name: logName + meteoSuffix(loggerId) + omniSuffix(source),
-        legendgroup: loggerId, showlegend: firstMetric,
-        meta: {loggerId},
-        hovertemplate: hoverTpl,
-      };
-      if (isClimateOsc) {
-        trace.mode = 'markers';
-        trace.marker = {color, size: 10, line: {color: 'white', width: 1}};
-      } else {
-        trace.mode = 'lines+markers';
-        trace.line = {color, width: 2};
-        trace.marker = {size: 5};
-        trace.connectgaps = false;
-      }
-      traces.push(trace);
-      firstMetric = false;
+        const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
+        const metricName = metric === 'temperature' ? 'Avg temp' : 'Avg humidity';
+        const hoverTpl = namePrefix + m.loggerNames[loggerId] + '<br>%{text}<br>' + metricName + ': %{y:.1f}' + unit + '<br>Source: ' + source + idLabel + '<extra></extra>';
+        const trace = {
+          x, y, text: txt, type: 'scatter',
+          name: logName + meteoSuffix(loggerId) + omniSuffix(source),
+          legendgroup: lgGroup, showlegend: firstMetric,
+          meta: {loggerId},
+          hovertemplate: hoverTpl,
+        };
+        if (isClimateOsc) {
+          trace.mode = 'markers';
+          trace.marker = {color, size: 10, line: {color: 'white', width: 1}};
+        } else {
+          trace.mode = 'lines+markers';
+          trace.line = {color, width: 2};
+          trace.marker = {size: 5};
+          trace.connectgaps = false;
+        }
+        traces.push(trace);
+        firstMetric = false;
 
       // Data quality warning: >50% of categories with single-point averages
       const singlePct = nCats > 0 ? singlePointCats / nCats * 100 : 0;
@@ -4009,7 +4523,12 @@ function renderPeriodicAverages() {
     }
   }
 
-  // Section average lines (External, Room, Structural) — always computed, independent of individual logger checkboxes
+    state.substratFilters = savedFilters;
+    state.substratCombine = savedCombine;
+  }
+
+  // Section average lines (External, Room, Structural) — hidden in compare mode
+  if (!state.compareEnabled) {
   const sectionDefs = [
     {key: 'external', name: 'External Avg', color: '#1a1a1a'},
     {key: 'room', name: 'Room Avg', color: '#333399'},
@@ -4053,6 +4572,7 @@ function renderPeriodicAverages() {
       }
     }
   }
+  } // end if (!state.compareEnabled) for section averages
 
   // Season boundary lines for year cycle (all sub-groupings)
   const shapes = [], annotations = [];
