@@ -130,6 +130,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 #dataset-select { font-weight: 600; font-size: 13px; padding: 3px 7px; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
 #sidebar-toggle { display: none; background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 7px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; flex-shrink: 0; }
 #sidebar-toggle:hover { background: #f0f0f0; }
+#lang-select { font-size: 11px; padding: 2px 5px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5; cursor: pointer; margin-left: auto; flex-shrink: 0; }
 #sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 9; }
 @media (max-width: 900px) {
   #sidebar { width: 190px; padding: 8px; }
@@ -161,26 +162,30 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <div id="header">
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
   <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
-  <h1>ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
+  <h1 data-i18n="title">ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
+  <select id="lang-select" onchange="setLanguage(this.value)">
+    <option value="en">English</option>
+    <option value="sw">Kiswahili</option>
+  </select>
 </div>
 
 <div id="main">
   <div id="sidebar">
     <div id="line-controls">
       <div class="section" id="periodic-options" style="display:none">
-        <div class="section-title">Period Settings</div>
+        <div class="section-title" data-i18n="periodSettings">Period Settings</div>
         <label class="cb-label" style="margin-bottom:6px;">
           Group By
           <select id="period-group-by" style="margin-left:6px;font-size:12px;">
-            <option value="hour">Hour</option>
-            <option value="synoptic">Synoptic Hours</option>
+            <option value="hour" data-i18n="hour">Hour</option>
+            <option value="synoptic" data-i18n="synopticHours">Synoptic Hours</option>
           </select>
         </label>
         <label class="cb-label" style="margin-bottom:6px;">
           Cycle
           <select id="natural-cycles" style="margin-left:6px;font-size:12px;">
-            <option value="day">Day</option>
-            <option value="year">Year</option>
+            <option value="day" data-i18n="day">Day</option>
+            <option value="year" data-i18n="year">Year</option>
             <option value="mjo">Madden&ndash;Julian Oscillation (MJO)</option>
             <option value="iod">Indian Ocean Dipole (IOD)</option>
             <option value="enso">El Ni&ntilde;o&ndash;Southern Oscillation (ENSO)</option>
@@ -192,12 +197,12 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider" id="periodic-divider" style="display:none">
       <div class="section" id="histogram-options" style="display:none">
-        <div class="section-title">Histogram Settings</div>
+        <div class="section-title" data-i18n="histogramSettings">Histogram Settings</div>
         <label class="cb-label" style="margin-bottom:6px;">
           Bar Mode
           <select id="histogram-barmode" style="margin-left:6px;font-size:12px;">
-            <option value="stack">Stacked</option>
-            <option value="overlay">Overlay</option>
+            <option value="stack" data-i18n="stacked">Stacked</option>
+            <option value="overlay" data-i18n="overlay">Overlay</option>
           </select>
         </label>
       </div>
@@ -212,7 +217,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <label><input type="radio" name="substrat-combine" value="any"> Match ANY</label>
           </div>
           <div id="substrat-filters" class="substrat-only" style="display:none"></div>
-          <button id="substrat-add-btn" class="substrat-only" style="display:none" onclick="addSubstratFilter()">+ Add Filter</button>
+          <button id="substrat-add-btn" class="substrat-only" style="display:none" onclick="addSubstratFilter()" data-i18n="addFilter">+ Add Filter</button>
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
           <hr class="divider" id="compare-divider">
           <label class="cb-label"><input type="checkbox" id="cb-compare"> <b>Compare Mode</b></label>
@@ -237,13 +242,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider">
       <div class="section">
-        <div class="section-title">Metrics</div>
+        <div class="section-title" data-i18n="metrics">Metrics</div>
         <label class="cb-label"><input type="checkbox" id="cb-temperature" checked> Temperature</label>
         <label class="cb-label" id="humidity-label"><input type="checkbox" id="cb-humidity" checked> Humidity</label>
       </div>
       <hr class="divider">
       <div class="section" id="line-options-section">
-        <div class="section-title">Options</div>
+        <div class="section-title" data-i18n="options">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32–35°C Threshold</label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
       </div>
@@ -280,7 +285,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 
     <div id="comfort-controls" class="hidden">
       <div class="section">
-        <div class="section-title">Options</div>
+        <div class="section-title" data-i18n="options">Options</div>
         <label class="cb-label"><input type="checkbox" id="cb-density" checked> Density Heatmap <span class="info-i" id="density-info-icon">i</span></label>
         <div id="info-fixed-tip"></div>
         <div style="margin-top:6px;margin-bottom:4px;">
@@ -310,9 +315,9 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <div style="margin-top:8px;margin-bottom:4px;">
         <div style="font-size:11px;color:#666;margin-bottom:3px;">Percentage calculation</div>
         <select id="comfort-pct-mode" style="width:100%;font-size:12px;">
-          <option value="below_upper" selected>Below upper boundary</option>
-          <option value="within">Within comfort zone</option>
-          <option value="above_lower">Above lower boundary</option>
+          <option value="below_upper" selected data-i18n="belowUpper">Below upper boundary</option>
+          <option value="within" data-i18n="withinComfort">Within comfort zone</option>
+          <option value="above_lower" data-i18n="aboveLower">Above lower boundary</option>
         </select>
       </div>
     </div>
@@ -329,10 +334,10 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="schoolteacher">Schoolteacher's House</option>
           </select>
           <select id="chart-type">
-            <option value="line">Line Graph</option>
-            <option value="comfort">Adaptive Comfort</option>
-            <option value="histogram">Histogram</option>
-            <option value="periodic">Average Profiles</option>
+            <option value="line" data-i18n="lineGraph">Line Graph</option>
+            <option value="comfort" data-i18n="adaptiveComfort">Adaptive Comfort</option>
+            <option value="histogram" data-i18n="histogram">Histogram</option>
+            <option value="periodic" data-i18n="averageProfiles">Average Profiles</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -342,13 +347,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <div class="control-row">
             <label>Range:</label>
             <select id="time-mode">
-              <option value="all">All time</option>
-              <option value="between">Between dates</option>
-              <option value="year">Year</option>
-              <option value="season">Season</option>
-              <option value="month">Month</option>
-              <option value="week">Week</option>
-              <option value="day">Day</option>
+              <option value="all" data-i18n="allTime">All time</option>
+              <option value="between" data-i18n="betweenDates">Between dates</option>
+              <option value="year" data-i18n="year">Year</option>
+              <option value="season" data-i18n="season">Season</option>
+              <option value="month" data-i18n="month">Month</option>
+              <option value="week" data-i18n="week">Week</option>
+              <option value="day" data-i18n="day">Day</option>
             </select>
           </div>
           <div id="between-inputs" class="control-row hidden">
@@ -360,7 +365,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <div id="month-input" class="hidden"><select id="month-select"></select></div>
           <div id="week-input"  class="hidden"><select id="week-select"></select></div>
           <div id="day-input"   class="hidden"><select id="day-select"></select></div>
-          <button id="download-btn">Download PNG</button>
+          <button id="download-btn" data-i18n="downloadPng">Download PNG</button>
           <div id="dl-spinner"></div>
         </div>
       </div>
@@ -371,9 +376,9 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     <div id="chart"></div>
     <button id="annotation-toggle" title="Hide details" style="display:none;position:absolute;bottom:8px;right:8px;z-index:60;width:22px;height:22px;padding:0;border:1px solid #ccc;border-radius:4px;background:rgba(255,255,255,0.85);color:#888;font-size:13px;line-height:22px;text-align:center;cursor:pointer;font-family:sans-serif;" onclick="toggleAnnotation()">&#x25BC;</button>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
-    <div class="substrat-no-data" id="substrat-no-data">No data matches the selected filter</div>
+    <div class="substrat-no-data" id="substrat-no-data" data-i18n="noDataFilter">No data matches the selected filter</div>
     <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
-      <div style="font-size:12px;color:#555;font-family:'Ubuntu',sans-serif">Loading chart…</div>
+      <div style="font-size:12px;color:#555;font-family:'Ubuntu',sans-serif" data-i18n="loading">Loading chart…</div>
       <div style="width:160px;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden;">
         <div id="chart-loading-bar" style="height:100%;width:0%;background:#4a90d9;border-radius:3px;transition:none;"></div>
       </div>
@@ -455,6 +460,276 @@ const state = {
   compareSetCount: 2,
   compareSets: [],
 };
+
+// ── Language / i18n ────────────────────────────────────────────────────────────
+let currentLang = localStorage.getItem('arcLang') || 'en';
+const I18N = {
+  en: {
+    title: 'ARC Tanzania - Temperature & Humidity Graphs',
+    periodSettings: 'Period Settings',
+    histogramSettings: 'Histogram Settings',
+    advancedSettings: 'Advanced Settings',
+    loggers: 'Loggers',
+    metrics: 'Metrics',
+    options: 'Options',
+    roomLoggers: 'Room Loggers',
+    groupBy: 'Group By',
+    cycle: 'Cycle',
+    barMode: 'Bar Mode',
+    range: 'Range:',
+    comfortBand: 'Comfort band',
+    pctCalc: 'Percentage calculation',
+    numSets: 'Number of sets:',
+    from: 'From ',
+    to: 'To ',
+    temperature: 'Temperature',
+    humidity: 'Humidity',
+    threshold: '32\u201335\u00b0C Threshold',
+    seasonLines: 'Season Lines',
+    longTermMode: 'Long-Term Mode',
+    densityHeatmap: 'Density Heatmap',
+    compareMode: 'Compare Mode',
+    excludeAnomalous: 'Exclude anomalous data',
+    downloadPng: 'Download PNG',
+    resetDefault: 'Reset to default',
+    addFilter: '+ Add Filter',
+    matchAll: 'Match ALL',
+    matchAny: 'Match ANY',
+    loading: 'Loading chart\u2026',
+    noDataFilter: 'No data matches the selected filter',
+    btnAll: 'All',
+    btnNone: 'None',
+    lockAvg: 'Lock Avg',
+    unlockAvg: 'Unlock Avg',
+    hour: 'Hour',
+    synopticHours: 'Synoptic Hours',
+    day: 'Day',
+    week: 'Week',
+    month: 'Month',
+    year: 'Year',
+    season: 'Season',
+    allTime: 'All time',
+    betweenDates: 'Between dates',
+    lineGraph: 'Line Graph',
+    histogram: 'Histogram',
+    adaptiveComfort: 'Adaptive Comfort',
+    averageProfiles: 'Average Profiles',
+    stacked: 'Stacked',
+    overlay: 'Overlay',
+    belowUpper: 'Below upper boundary',
+    withinComfort: 'Within comfort zone',
+    aboveLower: 'Above lower boundary',
+  },
+  sw: {
+    title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
+    periodSettings: 'Mipangilio ya Kipindi',
+    histogramSettings: 'Mipangilio ya Histogramu',
+    advancedSettings: 'Mipangilio ya Juu',
+    loggers: 'Loggers',
+    metrics: 'Vipimo',
+    options: 'Chaguo',
+    roomLoggers: 'Room Loggers',
+    groupBy: 'Panga kwa',
+    cycle: 'Mzunguko',
+    barMode: 'Bar Mode',
+    range: 'Kipindi:',
+    comfortBand: 'Comfort band',
+    pctCalc: 'Hesabu ya asilimia',
+    numSets: 'Idadi ya seti:',
+    from: 'Kutoka ',
+    to: 'Hadi ',
+    temperature: 'Joto',
+    humidity: 'Unyevunyevu',
+    threshold: 'Kiwango cha 32\u201335\u00b0C',
+    seasonLines: 'Mistari ya Msimu',
+    longTermMode: 'Hali ya Muda Mrefu',
+    densityHeatmap: 'Density Heatmap',
+    compareMode: 'Hali ya Kulinganisha',
+    excludeAnomalous: 'Ondoa data isiyo ya kawaida',
+    downloadPng: 'Pakua PNG',
+    resetDefault: 'Rejesha chaguo-msingi',
+    addFilter: '+ Ongeza Chujio',
+    matchAll: 'Lingana ZOTE',
+    matchAny: 'Lingana YOYOTE',
+    loading: 'Inapakia grafu\u2026',
+    noDataFilter: 'Hakuna data inayolingana na chujio',
+    btnAll: 'Zote',
+    btnNone: 'Hakuna',
+    lockAvg: 'Lock Avg',
+    unlockAvg: 'Unlock Avg',
+    hour: 'Saa',
+    synopticHours: 'Synoptic Hours',
+    day: 'Siku',
+    week: 'Wiki',
+    month: 'Mwezi',
+    year: 'Mwaka',
+    season: 'Msimu',
+    allTime: 'Wakati wote',
+    betweenDates: 'Kati ya tarehe',
+    lineGraph: 'Grafu ya Mstari',
+    histogram: 'Histogramu',
+    adaptiveComfort: 'Adaptive Comfort',
+    averageProfiles: 'Wastani wa Profaili',
+    stacked: 'Stacked',
+    overlay: 'Overlay',
+    belowUpper: 'Chini ya mpaka wa juu',
+    withinComfort: 'Ndani ya eneo la starehe',
+    aboveLower: 'Juu ya mpaka wa chini',
+  }
+};
+function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
+
+function setLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('arcLang', lang);
+  const sel = document.getElementById('lang-select');
+  if (sel) sel.value = lang;
+  document.documentElement.lang = lang === 'sw' ? 'sw' : 'en';
+  applyLanguage();
+}
+
+function applyLanguage() {
+  // All elements with data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+
+  // Checkbox labels: text node after checkbox input
+  const cbMap = {
+    'cb-temperature': 'temperature', 'cb-humidity': 'humidity',
+    'cb-threshold': 'threshold', 'cb-seasons': 'seasonLines',
+    'cb-exclude-anomalous': 'excludeAnomalous',
+  };
+  for (const [id, key] of Object.entries(cbMap)) {
+    const cb = document.getElementById(id);
+    if (!cb) continue;
+    const lbl = cb.closest('label');
+    if (!lbl) continue;
+    let found = false;
+    for (const node of lbl.childNodes) {
+      if (node === cb) { found = true; continue; }
+      if (found && node.nodeType === 3 && node.textContent.trim()) {
+        node.textContent = ' ' + t(key); break;
+      }
+    }
+  }
+
+  // Checkbox labels with <b> wrapper
+  const boldCbMap = { 'cb-historic-mode': 'longTermMode', 'cb-compare': 'compareMode' };
+  for (const [id, key] of Object.entries(boldCbMap)) {
+    const cb = document.getElementById(id);
+    if (!cb) continue;
+    const bold = cb.parentElement.querySelector('b');
+    if (bold) bold.textContent = t(key);
+  }
+
+  // Density heatmap checkbox (text before info icon)
+  const densityCb = document.getElementById('cb-density');
+  if (densityCb) {
+    const lbl = densityCb.closest('label');
+    if (lbl) {
+      let found = false;
+      for (const node of lbl.childNodes) {
+        if (node === densityCb) { found = true; continue; }
+        if (found && node.nodeType === 3 && node.textContent.trim()) {
+          node.textContent = ' ' + t('densityHeatmap') + ' '; break;
+        }
+      }
+    }
+  }
+
+  // Labels wrapping a select element
+  function setSelectLabel(selId, text) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const lbl = sel.closest('label');
+    if (!lbl) return;
+    for (const node of lbl.childNodes) {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        node.textContent = '\n          ' + text + '\n          '; break;
+      }
+    }
+  }
+  setSelectLabel('period-group-by', t('groupBy'));
+  setSelectLabel('natural-cycles', t('cycle'));
+  setSelectLabel('histogram-barmode', t('barMode'));
+  setSelectLabel('compare-set-count', t('numSets'));
+
+  // From/To input labels
+  ['date-start', 'date-end'].forEach((id, i) => {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    const lbl = inp.closest('label');
+    if (!lbl) return;
+    for (const node of lbl.childNodes) {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        node.textContent = t(i === 0 ? 'from' : 'to'); break;
+      }
+    }
+  });
+
+  // Range: label
+  const tmSel = document.getElementById('time-mode');
+  if (tmSel) {
+    const row = tmSel.closest('.control-row');
+    if (row) {
+      const lbl = row.querySelector('label');
+      if (lbl && !lbl.querySelector('input')) lbl.textContent = t('range');
+    }
+  }
+
+  // Div labels before select elements
+  function setDivLabel(selId, text) {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    const prev = sel.previousElementSibling;
+    if (prev && prev.tagName === 'DIV') prev.textContent = text;
+  }
+  setDivLabel('comfort-model', t('comfortBand'));
+  setDivLabel('comfort-pct-mode', t('pctCalc'));
+
+  // Section titles with adjacent buttons
+  function setTitleWithBtn(btnId, titleKey, btnKey) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.textContent = t(btnKey);
+    const parent = btn.parentElement;
+    for (const node of parent.childNodes) {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        node.textContent = t(titleKey); break;
+      }
+    }
+  }
+  setTitleWithBtn('reset-line-btn', 'loggers', 'resetDefault');
+  setTitleWithBtn('reset-comfort-btn', 'roomLoggers', 'resetDefault');
+
+  // Advanced Settings toggle text
+  const advToggle = document.getElementById('advanced-settings-toggle');
+  if (advToggle) {
+    for (const node of advToggle.childNodes) {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        node.textContent = ' ' + t('advancedSettings'); break;
+      }
+    }
+  }
+
+  // Match ALL/ANY radio labels
+  document.querySelectorAll('input[name="substrat-combine"]').forEach(radio => {
+    const lbl = radio.closest('label');
+    if (!lbl) return;
+    for (const node of lbl.childNodes) {
+      if (node.nodeType === 3 && node.textContent.trim()) {
+        node.textContent = ' ' + t(radio.value === 'all' ? 'matchAll' : 'matchAny'); break;
+      }
+    }
+  });
+
+  // Lock buttons
+  document.querySelectorAll('.lock-btn').forEach(btn => {
+    const locked = btn.classList.contains('locked');
+    btn.textContent = t(locked ? 'unlockAvg' : 'lockAvg');
+  });
+}
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
 
@@ -856,9 +1131,10 @@ function renderCompareSets() {
     const stateSet = isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers;
 
     // Helper to make selection buttons
-    function mkCmpBtn(label, onClick) {
+    function mkCmpBtn(label, onClick, i18nKey) {
       const b = document.createElement('button');
       b.className = 'sel-btn'; b.textContent = label;
+      if (i18nKey) b.dataset.i18n = i18nKey;
       b.addEventListener('click', onClick); return b;
     }
 
@@ -872,14 +1148,14 @@ function renderCompareSets() {
       // Per-section buttons: All / None / TinyTag / Omnisense
       const secBtnRow = document.createElement('div');
       secBtnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:3px;flex-wrap:wrap;';
-      secBtnRow.appendChild(mkCmpBtn('All', () => {
+      secBtnRow.appendChild(mkCmpBtn(t('btnAll'), () => {
         ids.forEach(id => { stateSet.add(id); loggerWrap.querySelector('input[data-cmp-logger="' + id + '"]').checked = true; });
         updatePlot();
-      }));
-      secBtnRow.appendChild(mkCmpBtn('None', () => {
+      }, 'btnAll'));
+      secBtnRow.appendChild(mkCmpBtn(t('btnNone'), () => {
         ids.forEach(id => { stateSet.delete(id); loggerWrap.querySelector('input[data-cmp-logger="' + id + '"]').checked = false; });
         updatePlot();
-      }));
+      }, 'btnNone'));
       // TinyTag / Omnisense buttons only if both sources present in this section
       const hasTT = ids.some(id => m.loggerSources[id] === 'TinyTag');
       const hasOS = ids.some(id => m.loggerSources[id] === 'Omnisense');
@@ -948,7 +1224,7 @@ function renderCompareSets() {
 
       const addBtn = document.createElement('button');
       addBtn.className = 'compare-add-filter-btn';
-      addBtn.textContent = '+ Add Filter';
+      addBtn.textContent = t('addFilter'); addBtn.dataset.i18n = 'addFilter';
       addBtn.addEventListener('click', () => addCompareSubstratFilter(si));
       body.appendChild(addBtn);
     }
@@ -1398,6 +1674,11 @@ async function init() {
   }
   setupStaticListeners();
   loadDataset('house5');
+  // Apply saved language preference
+  const savedLang = localStorage.getItem('arcLang') || 'en';
+  const langSel = document.getElementById('lang-select');
+  if (langSel) langSel.value = savedLang;
+  if (savedLang !== 'en') setLanguage(savedLang);
 }
 
 function loadDataset(key) {
@@ -1418,9 +1699,10 @@ function loadDataset(key) {
   // Rebuild logger checkboxes: External / Structural / Room - each with their own buttons
   const loggerDiv = document.getElementById('logger-checkboxes');
   loggerDiv.innerHTML = '';
-  function mkSelBtn(label, onClick) {
+  function mkSelBtn(label, onClick, i18nKey) {
     const b = document.createElement('button');
     b.className = 'sel-btn'; b.textContent = label;
+    if (i18nKey) b.dataset.i18n = i18nKey;
     b.addEventListener('click', onClick); return b;
   }
   // Generic checkbox + section builder for both line/histogram and comfort sidebars
@@ -1461,34 +1743,34 @@ function loadDataset(key) {
     container.appendChild(titleEl);
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
-    btnRow.appendChild(mkSelBtn('All', () => {
+    btnRow.appendChild(mkSelBtn(t('btnAll'), () => {
       ids.forEach(id => { stateSet.add(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
       if (sectionKey) { state.showSectionAvg[sectionKey] = true; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = true; }
       updatePlot();
-    }));
-    btnRow.appendChild(mkSelBtn('None', () => {
+    }, 'btnAll'));
+    btnRow.appendChild(mkSelBtn(t('btnNone'), () => {
       ids.forEach(id => { stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
       if (sectionKey) { state.showSectionAvg[sectionKey] = false; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = false; }
       updatePlot();
-    }));
+    }, 'btnNone'));
     if (sectionKey) {
       const lockBtn = document.createElement('button');
       lockBtn.className = 'lock-btn';
       lockBtn.dataset.sectionLock = sectionKey;
       lockBtn.style.display = state.chartType === 'periodic' ? 'inline-block' : 'none';
-      lockBtn.textContent = 'Lock Avg';
+      lockBtn.textContent = t('lockAvg');
       lockBtn.title = 'Lock average: freeze which loggers contribute to this section average';
       lockBtn.addEventListener('click', function() {
         if (state.lockedAvg[sectionKey] !== null) {
           state.lockedAvg[sectionKey] = null;
-          this.textContent = 'Lock Avg';
+          this.textContent = t('lockAvg');
           this.classList.remove('locked');
           this.title = 'Lock average: freeze which loggers contribute to this section average';
           const ind = container.querySelector('.lock-indicator[data-lock-ind="' + sectionKey + '"]');
           if (ind) ind.style.display = 'none';
         } else {
           state.lockedAvg[sectionKey] = new Set(ids.filter(id => stateSet.has(id)));
-          this.textContent = 'Unlock Avg';
+          this.textContent = t('unlockAvg');
           this.classList.add('locked');
           this.title = 'Click to unlock: average will follow checkbox selections again';
           const ind = container.querySelector('.lock-indicator[data-lock-ind="' + sectionKey + '"]');
@@ -1739,7 +2021,7 @@ function resetLineDefaults() {
   state.lockedAvg = {external: null, room: null, structural: null};
   document.querySelectorAll('input[data-section-avg]').forEach(cb => { cb.checked = true; });
   document.querySelectorAll('[data-section-lock]').forEach(btn => {
-    btn.textContent = 'Lock Avg';
+    btn.textContent = t('lockAvg');
     btn.classList.remove('locked');
     btn.title = 'Lock average: freeze which loggers contribute to this section average';
   });
