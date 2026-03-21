@@ -322,17 +322,6 @@
         "showInComfort": false
       },
       {
-        "id": "External Forecast (Open-Meteo)",
-        "name": "Forecast Temperature",
-        "source": "Open-Meteo",
-        "section": "external",
-        "showInLine": true,
-        "showInHistogram": true,
-        "showInPeriodic": true,
-        "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
-      },
-      {
         "id": "759498",
         "name": "Bedroom 1",
         "source": "TinyTag",

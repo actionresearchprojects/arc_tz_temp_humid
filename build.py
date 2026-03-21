@@ -111,17 +111,14 @@ DATASETS = {
         "folder": Path("data/schoolteacher"),
         "skip_rows": 7,
         "external_logger": OPENMETEO_HISTORICAL_ID,
-        "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011"],
+        "external_sensors": [OPENMETEO_HISTORICAL_ID],
+        "exclude_loggers": {OPENMETEO_FORECAST_ID},
         "room_loggers": None,
-        # Import 861011 (TinyTag External Ambient) from House 5's data folder
-        "import_loggers": {"861011": "house5"},
-        "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "759498", "govee"],
-        # Per-logger date filters — external data scoped to the monitoring period
+        "sidebar_order": [OPENMETEO_HISTORICAL_ID, "759498", "govee"],
+        # Per-logger date filters — external data scoped to monitoring period (2 Jun 2024 – 14 Oct 2025)
         "logger_date_filters": {
             "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
-            "861011": {"from": "2024-06-02", "before": "2025-10-15"},  # TinyTag external ambient, monitoring period only
             OPENMETEO_HISTORICAL_ID: {"from": "2024-06-02", "before": "2025-10-15"},
-            OPENMETEO_FORECAST_ID: {"from": "2024-06-02", "before": "2025-10-15"},
         },
         # Per-dataset name overrides (759498 is "Bedroom 3 below metal roof" globally but "Bedroom 1" here)
         "logger_name_overrides": {"759498": "Bedroom 1"},
@@ -2248,7 +2245,8 @@ function setupStaticListeners() {
       const anchor = document.getElementById('histogram-options-divider');
       anchor.parentNode.insertBefore(advWrap, anchor.nextSibling);
     }
-    advWrap.style.display = '';
+    const hasAnomalousData = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
+    advWrap.style.display = (showSubstrat || hasAnomalousData) ? '' : 'none';
     document.querySelectorAll('.substrat-only').forEach(el => { el.style.display = showSubstrat ? '' : 'none'; });
     const advBody = document.getElementById('advanced-settings-body');
     advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
@@ -4895,6 +4893,14 @@ def main():
             exclude = cfg.get("exclude_loggers", set())
             if exclude:
                 df = df[~df["logger_id"].isin(exclude)]
+            # Apply per-logger date filters
+            for logger_id, filt in cfg.get("logger_date_filters", {}).items():
+                if "before" in filt:
+                    cutoff = pd.Timestamp(filt["before"]).tz_localize(TIMEZONE)
+                    df = df[~((df["logger_id"] == logger_id) & (df.index >= cutoff))]
+                if "from" in filt:
+                    cutoff = pd.Timestamp(filt["from"]).tz_localize(TIMEZONE)
+                    df = df[~((df["logger_id"] == logger_id) & (df.index < cutoff))]
             print(f"Processing {cfg['label']}...")
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
             logger_overrides = user_config.get(key, {}).get("loggers", {})

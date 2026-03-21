@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-21 14:12:58 CST
+- **Hide empty Advanced Settings dropdown**: The "Advanced Settings" toggle is now hidden entirely when there's nothing to show inside it (no anomalous data and no substratification controls). Fixes the Schoolteacher's House line graph showing an empty dropdown.
+
 ### 2026-03-21 13:59:07 CST
 - **Data freshness validation with stale-data warnings**: Build now computes last datapoint timestamps per source category (Open-Meteo, Omnisense) and last cycle index dates (ENSO, IOD, MJO), embedded as `DATA_FRESHNESS`. At runtime, the sidebar footer checks whether actual data extends to the expected date: Open-Meteo and Omnisense data should reach the day before last fetch (2-day tolerance); cycle indices checked against their natural update cadence (MJO within 3 weeks, ENSO/IOD within 3 months). Warning triangles (⚠) with hover tooltips appear next to "last updated" lines when data is stale.
 
