@@ -111,11 +111,9 @@ DATASETS = {
         "folder": Path("data/schoolteacher"),
         "skip_rows": 7,
         "external_logger": OPENMETEO_HISTORICAL_ID,
-        "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011"],
+        "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID],
         "room_loggers": None,
-        # Import 861011 (TinyTag External Ambient) from House 5's data folder
-        "import_loggers": {"861011": "house5"},
-        "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "759498", "govee"],
+        "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "759498", "govee"],
         # Per-logger date filters — historical Open-Meteo scoped to monitoring period
         "logger_date_filters": {
             "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
