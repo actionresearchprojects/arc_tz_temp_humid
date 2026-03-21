@@ -856,6 +856,7 @@ def build_dataset_json(key, df, logger_overrides=None):
             "comfortLoggers": comfort_loggers,
             "lineLoggers":  unique_loggers,
             "histogramLoggers": unique_loggers,
+            "periodicLoggers": unique_loggers,
             "colors":       color_map,
             "availableYears": available_years,
             "availableMonths": [
@@ -1664,6 +1665,10 @@ function applyUserConfig(config) {
       if (typeof ov.showInHistogram === 'boolean') {
         meta.histogramLoggers = (meta.histogramLoggers || [...meta.loggers]).filter(id => id !== lid);
         if (ov.showInHistogram) meta.histogramLoggers.push(lid);
+      }
+      if (typeof ov.showInPeriodic === 'boolean') {
+        meta.periodicLoggers = (meta.periodicLoggers || [...meta.loggers]).filter(id => id !== lid);
+        if (ov.showInPeriodic) meta.periodicLoggers.push(lid);
       }
     }
   }
@@ -4012,7 +4017,7 @@ function renderPeriodicAverages() {
   const {start, end} = getTimeRange();
   const m = dataset().meta;
   const traces = [];
-  const lineSet = new Set(m.lineLoggers || m.loggers);
+  const periodicSet = new Set(m.periodicLoggers || m.lineLoggers || m.loggers);
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const pr = state.periodCycle, pg = state.periodGroupBy;
 
@@ -4143,14 +4148,14 @@ function renderPeriodicAverages() {
   for (const sk of ['external','room','structural']) {
     if (state.lockedAvg[sk]) {
       for (const lid of state.lockedAvg[sk]) {
-        if (lineSet.has(lid)) accumulateForSection(lid);
+        if (periodicSet.has(lid)) accumulateForSection(lid);
       }
     }
   }
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
-    if (!lineSet.has(loggerId)) continue;
+    if (!periodicSet.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
     let filtered = filterSeries(series, start, end);
@@ -4692,6 +4697,7 @@ def generate_loggers_manifest(all_data):
                 "section":        section,
                 "showInLine":     True,
                 "showInHistogram": True,
+                "showInPeriodic": True,
                 "showInComfort":  lid in comfort_set,
             }
             

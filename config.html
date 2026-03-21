@@ -242,6 +242,7 @@ function buildUI() {
       ${hasCat ? '<th>Sidebar Section</th>' : ''}
       <th class="center">Line</th>
       <th class="center">Hist</th>
+      <th class="center">Avg Profile</th>
       <th class="center">Comfort</th>
       <th>Adaptive Source</th>
     </tr>`;
@@ -307,6 +308,7 @@ function buildUI() {
       for (const [field, defaultVal] of [
         ['showInLine', logger.showInLine],
         ['showInHistogram', logger.showInHistogram],
+        ['showInPeriodic', logger.showInPeriodic],
         ['showInComfort', logger.showInComfort],
       ]) {
         const td = document.createElement('td');
