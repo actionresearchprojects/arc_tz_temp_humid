@@ -1,8 +1,5 @@
 ## Changelog
 
-### 2026-03-22 00:00:00 CST
-- **Include Weather Station T&RH in completeness check for suggested periods**: The "Jump to a complete period" dropdown in histogram, adaptive comfort, and average profiles now includes selected external loggers (e.g. Weather Station T&RH) when determining which periods have complete data. Previously, only room loggers were checked, so the dropdown could suggest periods where the Weather Station had gaps. Periodic averages already included external loggers and was unaffected.
-
 ### 2026-03-21 19:30:00 CST
 - **Add date range annotation to line graph and periodic averages**: The small text overlay showing "Data ranges from DD/MM/YYYY to DD/MM/YYYY" (already present on histogram and comfort charts) now also appears in the top-right corner of the line graph and periodic averages graph.
 
