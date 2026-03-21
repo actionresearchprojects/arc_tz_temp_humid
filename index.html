@@ -1782,24 +1782,28 @@ function setupStaticListeners() {
         textEl.appendChild(t2);
       });
     }
-    // Inject running-mean source summary below legend for comfort chart PNG export
-    function injectSVGSourceNote(doc, svgW, svgH, text) {
-      if (!text) return;
+    // Inject per-logger ext source labels below each comfort legend item in PNG SVG
+    function injectComfortLegendSources(doc, loggerSourceMap) {
+      if (!loggerSourceMap || !Object.keys(loggerSourceMap).length) return;
+      const chartEl = document.getElementById('chart');
+      const plotData = (chartEl && chartEl.data) ? chartEl.data : [];
+      const legendTraces = plotData.filter(t => t.showlegend !== false);
       const ns = 'http://www.w3.org/2000/svg';
-      const root = doc.querySelector('.infolayer') || doc.documentElement;
-      // Position above the watermark lines (which sit at svgH - 10 and svgH - 24)
-      const y = svgH - 44;
-      const el = doc.createElementNS(ns, 'text');
-      el.setAttribute('x', String(svgW - 12));
-      el.setAttribute('y', String(y));
-      el.setAttribute('text-anchor', 'end');
-      el.setAttribute('dominant-baseline', 'auto');
-      el.setAttribute('font-family', 'Ubuntu, sans-serif');
-      el.setAttribute('font-size', '8');
-      el.setAttribute('fill', '#999');
-      el.setAttribute('opacity', '0.85');
-      el.textContent = text;
-      root.appendChild(el);
+      doc.querySelectorAll('.legendtext').forEach((textEl, idx) => {
+        const trace = legendTraces[idx];
+        if (!trace || !trace.meta || !trace.meta.loggerId) return;
+        const lid = trace.meta.loggerId;
+        const srcText = loggerSourceMap[lid];
+        if (!srcText) return;
+        // Add a second line below the legend text showing the ext source
+        const sub = doc.createElementNS(ns, 'tspan');
+        sub.setAttribute('x', textEl.getAttribute('x') || '0');
+        sub.setAttribute('dy', '1.15em');
+        sub.setAttribute('fill', '#999999');
+        sub.setAttribute('font-size', '0.7em');
+        sub.textContent = 'ext: ' + srcText;
+        textEl.appendChild(sub);
+      });
     }
     // Shared: finish canvas → PNG download
     function canvasToPNG(canvas) {
@@ -1865,12 +1869,6 @@ function setupStaticListeners() {
       const origAnnotations = _currentLayout.annotations || [];
       const origImages = _currentLayout.images || [];
       const origMarginT = (_currentLayout.margin && _currentLayout.margin.t) || 50;
-      function doRestore() {
-        Plotly.relayout('chart', {
-          'title.text': '', 'margin.t': origMarginT,
-          images: origImages, annotations: origAnnotations,
-        }).then(() => unlockLegendScroll(chartEl));
-      }
       // For comfort chart: temporarily embed IDs into trace names so Plotly
       // computes proper horizontal legend spacing before we capture the SVG.
       const liveData = chartEl.data || [];
@@ -1890,21 +1888,46 @@ function setupStaticListeners() {
       (isComfort && comfortIdxs.length > 0
         ? Plotly.restyle('chart', {name: comfortNewNames}, comfortIdxs)
         : Promise.resolve()
-      ).then(() => Plotly.relayout('chart', {
-        'title.text': `<b>${_currentTitle}</b>`,
-        'title.font.size': sm ? 12 : 14,
-        'margin.t': pngTopMargin,
-      })).then(() => {
+      ).then(() => {
+        const relayoutOpts = {
+          'title.text': `<b>${_currentTitle}</b>`,
+          'title.font.size': sm ? 12 : 14,
+          'margin.t': pngTopMargin,
+        };
+        // Switch comfort legend to vertical for PNG so per-item source labels fit
+        if (isComfort) {
+          relayoutOpts['legend.orientation'] = 'v';
+          relayoutOpts['legend.x'] = 1.02;
+          relayoutOpts['legend.y'] = 1;
+          relayoutOpts['legend.xanchor'] = 'left';
+          relayoutOpts['legend.yanchor'] = 'top';
+          relayoutOpts['margin.r'] = 220;
+        }
+        return Plotly.relayout('chart', relayoutOpts);
+      }).then(() => {
         return Plotly.toImage('chart', {format: 'svg', width: W, height: H});
       }).then(svgDataUrl => {
-        doRestore();
+        // Restore all layout changes in one call
+        const restoreOpts = {
+          'title.text': '', 'margin.t': origMarginT,
+          images: origImages, annotations: origAnnotations,
+        };
+        if (isComfort) {
+          restoreOpts['legend.orientation'] = 'h';
+          restoreOpts['legend.x'] = 0.5;
+          restoreOpts['legend.y'] = -0.22;
+          restoreOpts['legend.xanchor'] = 'center';
+          restoreOpts['legend.yanchor'] = 'auto';
+          restoreOpts['margin.r'] = sm ? 8 : 20;
+        }
+        Plotly.relayout('chart', restoreOpts).then(() => unlockLegendScroll(chartEl));
         if (isComfort && comfortIdxs.length > 0) {
           Plotly.restyle('chart', {name: comfortOrigNames}, comfortIdxs);
         }
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGWatermark(doc, W, H, isComfort ? 0.8 : 1.0);
         injectLegendIDCodes(doc);
-        if (isComfort && _comfortExtSrcText) injectSVGSourceNote(doc, W, H, _comfortExtSrcText);
+        if (isComfort) injectComfortLegendSources(doc, _comfortLoggerSources);
         if (!isComfort) unlockLegendScroll(doc.documentElement);
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
@@ -2567,18 +2590,30 @@ function updateHistogramStats(start, end) {
 
 // ── Adaptive comfort ──────────────────────────────────────────────────────────
 let _comfortExtSrcText = ''; // stored for PNG export
+let _comfortLoggerSources = {}; // per-logger ext source summary for PNG legend
 
-function extSourceForDate(spans, tsMs, m) {
+function extSourcesForPoint(spans, tsMs, m) {
   if (!spans || !spans.length) return '';
-  const d = toEATString(tsMs).slice(0, 10);
+  // The running mean at this point is influenced by the preceding ~7 days.
+  // Find all sources that contributed daily temps in that window.
+  const DAY_MS = 86400000;
+  const pointDate = toEATString(tsMs).slice(0, 10);
+  const windowStart = toEATString(tsMs - 7 * DAY_MS).slice(0, 10);
+  const srcLabel = (id) => {
+    const name = m.loggerNames[id] || id;
+    const type = m.loggerSources[id];
+    return type ? name + ' [' + type + ']' : name;
+  };
+  const sources = [];
+  const seen = new Set();
   for (const sp of spans) {
-    if (d >= sp.from && d <= sp.to) {
-      const name = m.loggerNames[sp.source] || sp.source;
-      const type = m.loggerSources[sp.source];
-      return type ? name + ' [' + type + ']' : name;
+    // Does this span overlap with [windowStart, pointDate]?
+    if (sp.to >= windowStart && sp.from <= pointDate && !seen.has(sp.source)) {
+      seen.add(sp.source);
+      sources.push(srcLabel(sp.source));
     }
   }
-  return '';
+  return sources.join(' + ') || '';
 }
 
 function renderAdaptiveComfort() {
@@ -2588,6 +2623,12 @@ function renderAdaptiveComfort() {
   const allExtTemps = [], allTemps = [];
   let actualStartMs = Infinity, actualEndMs = -Infinity;
   const seenSpans = new Map();
+  const perLoggerSources = {}; // loggerId → Set of source labels
+  const srcLabel = (id) => {
+    const name = m.loggerNames[id] || id;
+    const type = m.loggerSources[id];
+    return type ? `${name} [${type}]` : name;
+  };
   for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
@@ -2600,15 +2641,19 @@ function renderAdaptiveComfort() {
     if (!filtered || !filtered.extTemp) continue;
     const range = actualDataRange(series.timestamps, start, end);
     if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
+    const loggerSrcSet = new Set();
     if (series.extSourceSpans) {
       for (const sp of series.extSourceSpans) {
+        loggerSrcSet.add(srcLabel(sp.source));
         const prev = seenSpans.get(sp.source);
         if (!prev) seenSpans.set(sp.source, {from: sp.from, to: sp.to});
         else { if (sp.from < prev.from) prev.from = sp.from; if (sp.to > prev.to) prev.to = sp.to; }
       }
     } else if (series.extSource) {
+      loggerSrcSet.add(srcLabel(series.extSource));
       if (!seenSpans.has(series.extSource)) seenSpans.set(series.extSource, null);
     }
+    perLoggerSources[loggerId] = loggerSrcSet;
     for (let i = 0; i < filtered.extTemp.length; i++) {
       if (filtered.extTemp[i] != null && filtered.temperature[i] != null) {
         allExtTemps.push(filtered.extTemp[i]);
@@ -2618,7 +2663,7 @@ function renderAdaptiveComfort() {
     const cSource = m.loggerSources[loggerId] || '';
     const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
     const cName = m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
-    const customdata = filtered.timestamps.map(ts => extSourceForDate(series.extSourceSpans, ts, m));
+    const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
       name:cName, marker:{color:m.colors[loggerId], size:4, opacity:0.2},
       legendgroup:loggerId, showlegend:false, meta:{loggerId}, customdata,
@@ -2669,22 +2714,22 @@ function renderAdaptiveComfort() {
   // Build external source summary for annotation
   let extSrcText = '';
   if (seenSpans.size > 0) {
-    const srcLabel = (id) => {
-      const name = m.loggerNames[id] || id;
-      const type = m.loggerSources[id];
-      return type ? `${name} [${type}]` : name;
-    };
     if (seenSpans.size === 1) {
       const [sid, span] = [...seenSpans.entries()][0];
       extSrcText = `Running mean source: ${srcLabel(sid)}`;
     } else {
       const parts = [...seenSpans.entries()]
         .sort((a,b) => (a[1]&&b[1]) ? (a[1].from < b[1].from ? -1 : 1) : 0)
-        .map(([sid, span]) => span ? `${srcLabel(sid)} (${span.from} to ${span.to})` : srcLabel(sid));
-      extSrcText = `Running mean sources: ${parts.join(', ')}`;
+        .map(([sid, span]) => span ? `${srcLabel(sid)} (${span.from} → ${span.to})` : srcLabel(sid));
+      extSrcText = `Running mean sources:<br>` + parts.join('<br>');
     }
   }
   _comfortExtSrcText = extSrcText;
+  // Build per-logger source map: loggerId → short label for PNG legend
+  _comfortLoggerSources = {};
+  for (const [lid, srcSet] of Object.entries(perLoggerSources)) {
+    _comfortLoggerSources[lid] = [...srcSet].join(' + ');
+  }
 
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
