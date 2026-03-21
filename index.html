@@ -3434,7 +3434,7 @@ function renderAdaptiveComfort() {
 
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
-    xaxis:{title:'Running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
+    xaxis:{title:'7-day running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
     yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : [],
