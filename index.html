@@ -3238,6 +3238,7 @@ function extSourcesForPoint(spans, tsMs, m) {
 }
 
 function renderAdaptiveComfort() {
+  console.log('[COMFORT DEBUG] renderAdaptiveComfort called, compareEnabled=', state.compareEnabled);
   const {start, end} = getTimeRange();
   const m = dataset().meta;
   const traces = [], params = getComfortParams();
@@ -3329,7 +3330,9 @@ function renderAdaptiveComfort() {
       hoverinfo:'skip', showlegend:false});
   }
 
+  console.log('[DENSITY DEBUG] showDensity=', state.showDensity, 'allExtTemps.length=', allExtTemps.length, 'compareEnabled=', state.compareEnabled);
   if (state.showDensity && allExtTemps.length > 30) {
+    console.log('[DENSITY DEBUG] Adding density heatmap trace');
     // Subsample for density heatmap if too many points (performance)
     let heatX = allExtTemps, heatY = allTemps;
     if (allExtTemps.length > 20000) {
@@ -4833,6 +4836,7 @@ function hideLoadingBar() {
 }
 
 function _doRender() {
+  console.log('[RENDER DEBUG] _doRender called, chartType=', state.chartType, 'compareEnabled=', state.compareEnabled);
   let result = state.chartType === 'line' ? renderLineGraph()
     : state.chartType === 'histogram' ? renderHistogram()
     : state.chartType === 'periodic' ? renderPeriodicAverages()
