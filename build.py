@@ -113,6 +113,8 @@ DATASETS = {
         "external_logger": OPENMETEO_HISTORICAL_ID,
         "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011"],
         "room_loggers": None,
+        # Import 861011 (TinyTag External Ambient) from House 5's data folder
+        "import_loggers": {"861011": "house5"},
         "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "759498", "govee"],
         # Per-logger date filters
         "logger_date_filters": {
@@ -581,6 +583,17 @@ def load_dataset(key):
     dfs = [d for d in dfs if not d.empty]
     if not dfs:
         raise ValueError(f"No valid data loaded from {folder}")
+
+    # Import specific loggers from other datasets' folders
+    for logger_id, source_key in cfg.get("import_loggers", {}).items():
+        source_cfg = DATASETS[source_key]
+        source_folder = source_cfg["folder"]
+        source_file = source_folder / f"{logger_id}.xlsx"
+        if source_file.exists():
+            imported = load_logger_excel(source_file, source_cfg["skip_rows"])
+            if not imported.empty:
+                dfs.append(imported)
+                print(f"  Imported logger {logger_id} from {source_key} ({len(imported):,} records)")
 
     # Load Omnisense CSV sensors (House 5 only)
     if key == "house5":
@@ -4712,6 +4725,30 @@ def load_sensor_snapshot():
             print(f"  {DATASETS[key]['label']}: {len(df):,} sensor records · {df['logger_id'].nunique()} loggers")
         else:
             datasets_dfs[key] = pd.DataFrame()
+
+    # Import loggers across datasets (e.g. 861011 from house5 into schoolteacher)
+    for key, cfg in DATASETS.items():
+        for logger_id, source_key in cfg.get("import_loggers", {}).items():
+            if source_key not in raw or logger_id not in raw[source_key].get("loggers", {}):
+                continue
+            df = datasets_dfs.get(key, pd.DataFrame())
+            # Skip if already present
+            if not df.empty and logger_id in df["logger_id"].values:
+                continue
+            ldata = raw[source_key]["loggers"][logger_id]
+            idx = pd.DatetimeIndex(ldata["timestamps"], name="datetime")
+            if idx.tz is not None:
+                idx = idx.tz_convert(TIMEZONE)
+            imported = pd.DataFrame({
+                "temperature": ldata["temperature"],
+                "humidity": ldata["humidity"],
+                "logger_id": logger_id,
+            }, index=idx)
+            imported["iso_year"] = imported.index.isocalendar().year.astype(int)
+            imported["iso_week"] = imported.index.isocalendar().week.astype(int)
+            datasets_dfs[key] = pd.concat([df, imported]).sort_index() if not df.empty else imported
+            print(f"  Imported logger {logger_id} from {source_key} into {cfg['label']}")
+
     return datasets_dfs
 
 
