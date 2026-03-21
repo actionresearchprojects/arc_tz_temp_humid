@@ -1,4 +1,4 @@
-# Running Mean & Fallback Logic — Code Explainer
+# Running Mean & Fallback Logic - Code Explainer
 
 This document explains exactly how the adaptive comfort running mean is calculated and how the external data source fallback works, relating each part of the code to the underlying maths.
 
@@ -35,11 +35,11 @@ If you expand the recursion, the running mean is really a weighted sum of all pa
          + ...
 ```
 
-The past 7 days account for ~79% of the total weight. Days further back contribute the remaining ~21%, with rapidly diminishing influence. That's why it's often called a "7-day" running mean — it's not a strict 7-day average, but an exponential weighting where ~7 days dominate.
+The past 7 days account for ~79% of the total weight. Days further back contribute the remaining ~21%, with rapidly diminishing influence. That's why it's often called a "7-day" running mean - it's not a strict 7-day average, but an exponential weighting where ~7 days dominate.
 
 ---
 
-## 2. The Code — Step by Step
+## 2. The Code - Step by Step
 
 The function lives in `build.py` at line 649:
 
@@ -63,9 +63,9 @@ fb_df = df[df["logger_id"].isin(fallback_loggers)]
 fb_daily = fb_df["temperature"].resample("D").mean().dropna()
 ```
 
-Same thing, but for the Open-Meteo historical data. This runs regardless — the fallback data is always prepared.
+Same thing, but for the Open-Meteo historical data. This runs regardless - the fallback data is always prepared.
 
-### Step 3: Combine — chosen source takes priority, gaps filled by Open-Meteo
+### Step 3: Combine - chosen source takes priority, gaps filled by Open-Meteo
 
 ```python
 all_days = prim_daily.index.union(fb_daily.index)
@@ -94,7 +94,7 @@ for i in range(1, len(combined)):
 ```
 
 Line by line:
-- `trm[0] = combined[0]` — the very first running mean value is seeded with the first available day's temperature (standard practice; EN 15251 doesn't specify initialisation, and the seed's influence decays to near-zero within a few weeks)
+- `trm[0] = combined[0]` - the very first running mean value is seeded with the first available day's temperature (standard practice; EN 15251 doesn't specify initialisation, and the seed's influence decays to near-zero within a few weeks)
 - For every subsequent day: `trm[i] = 0.2 × combined[i-1] + 0.8 × trm[i-1]`
 
 This is exactly: **θ_rm(n) = (1 - α) × θ_ed(n-1) + α × θ_rm(n-1)** ✓
@@ -152,7 +152,7 @@ So regardless of which primary source is chosen, **Open-Meteo always serves as t
 | Chosen source has no data at all | 100% Open-Meteo used |
 | Neither source has data for a day | That day is skipped (running mean continues from next available day) |
 
-The running mean formula is applied identically regardless of which source provided each day's temperature. The blending is at the daily temperature level — the running mean doesn't "know" or care where each day's temperature came from.
+The running mean formula is applied identically regardless of which source provided each day's temperature. The blending is at the daily temperature level - the running mean doesn't "know" or care where each day's temperature came from.
 
 ---
 
