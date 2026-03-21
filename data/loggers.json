@@ -308,6 +308,10 @@
       {
         "id": "External Historical (Open-Meteo)",
         "label": "Historical Temperature (Open-Meteo)"
+      },
+      {
+        "id": "861011",
+        "label": "External Ambient (TinyTag)"
       }
     ],
     "loggers": [
@@ -320,6 +324,28 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": false
+      },
+      {
+        "id": "External Forecast (Open-Meteo)",
+        "name": "Forecast Temperature",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
+      },
+      {
+        "id": "861011",
+        "name": "External Ambient",
+        "source": "TinyTag",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": true,
+        "external_source": "External Historical (Open-Meteo)"
       },
       {
         "id": "759498",
