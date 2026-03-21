@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-22 00:15:00 CST
+- **Fix stuck gap tooltips on period switch**: When selecting a complete period from the data completeness dropdown, the gap-detail tooltip could get permanently stuck if hovering over a percentage box during the transition. Fixed by explicitly hiding gap-tip elements when the stats grids are cleared in all three sections (adaptive comfort, histogram, average profiles).
+
 ### 2026-03-21 19:30:00 CST
 - **Add date range annotation to line graph and periodic averages**: The small text overlay showing "Data ranges from DD/MM/YYYY to DD/MM/YYYY" (already present on histogram and comfort charts) now also appears in the top-right corner of the line graph and periodic averages graph.
 

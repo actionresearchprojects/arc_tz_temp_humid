@@ -2428,6 +2428,7 @@ function updateHistogramStats(start, end) {
   const dropWrap = document.getElementById('hist-gap-dropdown-wrap');
   const gapTip = document.getElementById('hist-gap-tip');
   grid.innerHTML = '';
+  gapTip.style.display = 'none';
   warnDiv.classList.add('hidden');
   dropWrap.classList.add('hidden');
   statsBox.classList.remove('has-gaps');
@@ -2879,6 +2880,7 @@ function updateComfortStats(start, end, params) {
   const dropWrap = document.getElementById('gap-dropdown-wrap');
   const gapTip = document.getElementById('gap-tip');
   grid.innerHTML = '';
+  gapTip.style.display = 'none';
   warnDiv.classList.add('hidden');
   dropWrap.classList.add('hidden');
   statsBox.classList.remove('has-gaps');
@@ -3570,6 +3572,7 @@ function updatePeriodicCompleteness(start, end) {
   const grid = document.getElementById('periodic-comp-grid');
   const gapTip = document.getElementById('periodic-comp-tip');
   grid.innerHTML = '';
+  gapTip.style.display = 'none';
   box.classList.remove('has-gaps');
   warnDiv.textContent = '';
   dropWrap.classList.add('hidden');
