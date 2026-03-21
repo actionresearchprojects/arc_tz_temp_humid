@@ -241,9 +241,9 @@ function buildUI() {
       <th>Display Name</th>
       ${hasCat ? '<th>Sidebar Section</th>' : ''}
       <th class="center">Line</th>
-      <th class="center">Hist</th>
-      <th class="center">Avg Profile</th>
-      <th class="center">Comfort</th>
+      <th class="center">Histogram</th>
+      <th class="center">AvgProfile</th>
+      <th class="center">AdaptiveComf</th>
       <th>Adaptive Source</th>
     </tr>`;
     table.appendChild(thead);
@@ -272,10 +272,7 @@ function buildUI() {
 
       // Name
       const tdName = document.createElement('td');
-      if (isExt) {
-        tdName.textContent = logger.name;
-        tdName.style.color = '#999';
-      } else {
+      {
         const inp = document.createElement('input');
         inp.type = 'text';
         inp.value = getOverride(dsKey, logger.id, 'name', logger.name);
@@ -284,23 +281,19 @@ function buildUI() {
       }
       tr.appendChild(tdName);
 
-      // Section dropdown (hasCat only, non-external)
+      // Section dropdown (hasCat only)
       if (hasCat) {
         const tdSect = document.createElement('td');
-        if (isExt) {
-          tdSect.innerHTML = '<span class="ext-note">fixed</span>';
-        } else {
-          const sel = document.createElement('select');
-          const currentSection = getOverride(dsKey, logger.id, 'section', logger.section);
-          [['room', 'Room'], ['structural', 'Structural']].forEach(([v, l]) => {
-            const opt = document.createElement('option');
-            opt.value = v; opt.textContent = l;
-            if (v === currentSection) opt.selected = true;
-            sel.appendChild(opt);
-          });
-          sel.addEventListener('change', e => setOverride(dsKey, logger.id, 'section', e.target.value, logger.section));
-          tdSect.appendChild(sel);
-        }
+        const sel = document.createElement('select');
+        const currentSection = getOverride(dsKey, logger.id, 'section', logger.section);
+        [['external', 'External'], ['room', 'Room'], ['structural', 'Structural']].forEach(([v, l]) => {
+          const opt = document.createElement('option');
+          opt.value = v; opt.textContent = l;
+          if (v === currentSection) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener('change', e => setOverride(dsKey, logger.id, 'section', e.target.value, logger.section));
+        tdSect.appendChild(sel);
         tr.appendChild(tdSect);
       }
 
@@ -313,23 +306,19 @@ function buildUI() {
       ]) {
         const td = document.createElement('td');
         td.className = 'center';
-        if (isExt) {
-          td.innerHTML = '<span class="ext-note">—</span>';
-        } else {
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = getOverride(dsKey, logger.id, field, defaultVal);
-          cb.addEventListener('change', e => {
-            const val = e.target.checked;
-            setOverride(dsKey, logger.id, field, val, defaultVal);
-            if (field === 'showInComfort') {
-              // Update source dropdown availability
-              const sourceSel = tr.querySelector('.source-select');
-              if (sourceSel) sourceSel.disabled = !val;
-            }
-          });
-          td.appendChild(cb);
-        }
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = getOverride(dsKey, logger.id, field, defaultVal);
+        cb.addEventListener('change', e => {
+          const val = e.target.checked;
+          setOverride(dsKey, logger.id, field, val, defaultVal);
+          if (field === 'showInComfort') {
+            // Update source dropdown availability
+            const sourceSel = tr.querySelector('.source-select');
+            if (sourceSel) sourceSel.disabled = !val;
+          }
+        });
+        td.appendChild(cb);
         tr.appendChild(td);
       }
 

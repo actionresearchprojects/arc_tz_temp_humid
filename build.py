@@ -110,10 +110,10 @@ DATASETS = {
         "label": "Schoolteacher's House",
         "folder": Path("data/schoolteacher"),
         "skip_rows": 7,
-        "external_logger": "861011",
-        "external_sensors": ["861011"],
+        "external_logger": OPENMETEO_HISTORICAL_ID,
+        "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011"],
         "room_loggers": None,
-        "sidebar_order": ["861011", "759498", "govee"],
+        "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "759498", "govee"],
         # Per-logger date filters
         "logger_date_filters": {
             "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
