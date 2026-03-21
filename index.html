@@ -1143,6 +1143,100 @@ function cmpSubstratGroupByChanged(si, fid, gran) {
   updatePlot();
 }
 
+// Describe what distinguishes each compare set from the others
+function describeCompareDiffs() {
+  const m = dataset().meta;
+  const isComfort = state.chartType === 'comfort';
+  const n = state.compareSetCount;
+  const sets = state.compareSets.slice(0, n);
+
+  // Gather per-set info
+  const infos = sets.map(cs => {
+    const loggerSet = isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers;
+    const loggerIds = [...loggerSet].sort();
+    const filters = (cs.substratFilters || []).filter(f => f.cycle !== 'none');
+    return { loggerIds, filters, combine: cs.substratCombine };
+  });
+
+  // Check which aspects differ between sets
+  const allSameLoggers = infos.every(info => {
+    if (info.loggerIds.length !== infos[0].loggerIds.length) return false;
+    return info.loggerIds.every((id, i) => id === infos[0].loggerIds[i]);
+  });
+  const allSameFilters = infos.every(info => describeFilters(info.filters) === describeFilters(infos[0].filters));
+
+  const descriptions = [];
+  for (let si = 0; si < n; si++) {
+    const parts = [];
+    // Logger differences
+    if (!allSameLoggers) {
+      const ids = infos[si].loggerIds;
+      if (ids.length === 0) {
+        parts.push('No loggers');
+      } else {
+        // Summarise by source type if possible
+        const ttCount = ids.filter(id => m.loggerSources[id] === 'TinyTag').length;
+        const osCount = ids.filter(id => m.loggerSources[id] === 'Omnisense').length;
+        const otherCount = ids.length - ttCount - osCount;
+        const srcParts = [];
+        if (ttCount > 0) srcParts.push(ttCount + ' TinyTag');
+        if (osCount > 0) srcParts.push(osCount + ' Omnisense');
+        if (otherCount > 0) srcParts.push(otherCount + ' other');
+        // If few loggers, list names; otherwise summarise by count
+        if (ids.length <= 3) {
+          parts.push(ids.map(id => m.loggerNames[id] || id).join(', '));
+        } else {
+          parts.push(srcParts.join(' + '));
+        }
+      }
+    }
+    // Filter differences
+    if (!allSameFilters) {
+      const desc = describeFilters(infos[si].filters);
+      if (desc) parts.push(desc);
+      else parts.push('No filter');
+    }
+    descriptions.push(parts.length > 0 ? parts.join(' · ') : '');
+  }
+  return descriptions;
+}
+
+function describeFilters(filters) {
+  if (!filters || filters.length === 0) return '';
+  const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
+  const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const seasonLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
+  const parts = [];
+  for (const f of filters) {
+    if (f.cycle === 'none') continue;
+    if (f.cycle === 'day' && f.groupBy === 'hour') {
+      const from = String(f.from).padStart(2, '0') + ':00';
+      const to = String(f.to).padStart(2, '0') + ':00';
+      parts.push(f.from === f.to ? from : from + '\u2013' + to);
+    } else if (f.cycle === 'day' && f.groupBy === 'synoptic') {
+      parts.push(f.from === f.to ? synLabels[f.from] : synLabels[f.from] + '\u2013' + synLabels[f.to]);
+    } else if (f.cycle === 'year' && f.groupBy === 'month') {
+      parts.push(f.from === f.to ? monthLabels[f.from] : monthLabels[f.from] + '\u2013' + monthLabels[f.to]);
+    } else if (f.cycle === 'year' && f.groupBy === 'season') {
+      parts.push(f.from === f.to ? seasonLabels[f.from] : seasonLabels[f.from] + ' to ' + seasonLabels[f.to]);
+    } else if (f.cycle === 'year' && f.groupBy === 'week') {
+      parts.push(f.from === f.to ? 'W' + f.from : 'W' + f.from + '\u2013W' + f.to);
+    } else if (f.cycle === 'year' && f.groupBy === 'day') {
+      parts.push(f.from === f.to ? 'Day ' + f.from : 'Day ' + f.from + '\u2013' + f.to);
+    } else if (f.cycle === 'mjo') {
+      const phases = [...(f.phases || [])].sort();
+      parts.push('MJO ' + (phases.length > 0 ? phases.map(p => MJO_LABELS[p] || ('Ph' + p)).join(', ') : 'none'));
+    } else if (f.cycle === 'iod') {
+      const phases = [...(f.phases || [])].sort();
+      parts.push('IOD ' + (phases.length > 0 ? phases.map(p => IOD_LABELS[p] || ('Ph' + p)).join(', ') : 'none'));
+    } else if (f.cycle === 'enso') {
+      const phases = [...(f.phases || [])].sort();
+      parts.push('ENSO ' + (phases.length > 0 ? phases.map(p => ENSO_LABELS[p] || ('Ph' + p)).join(', ') : 'none'));
+    }
+  }
+  return parts.join(', ');
+}
+
 function getCompareIterations() {
   if (!state.compareEnabled) {
     return [{
@@ -1156,6 +1250,7 @@ function getCompareIterations() {
   }
   const m = dataset().meta;
   const isComfort = state.chartType === 'comfort';
+  const diffs = describeCompareDiffs();
   const iterations = [];
   for (let si = 0; si < state.compareSetCount; si++) {
     const cs = state.compareSets[si];
@@ -1163,6 +1258,8 @@ function getCompareIterations() {
     const shades = compareShades(si, state.compareSetCount, loggerList.length);
     const colorMap = {};
     loggerList.forEach((lid, i) => { colorMap[lid] = shades[i]; });
+    const diffDesc = diffs[si] || '';
+    const legendName = COMPARE_SET_NAMES[si] + (diffDesc ? ': ' + diffDesc : '');
     iterations.push({
       selectedLoggers: isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers,
       substratFilters: cs.substratFilters,
@@ -1170,6 +1267,8 @@ function getCompareIterations() {
       colorMap,
       setLabel: COMPARE_SET_NAMES[si],
       setIndex: si,
+      legendName,
+      baseColor: compareBaseColor(si, state.compareSetCount),
     });
   }
   return iterations;
@@ -2637,7 +2736,7 @@ function renderLineGraph() {
           : source === 'TinyTag' ? ' <span style="color:#aaa">(hourly avg.)</span>'
           : source === 'Omnisense' ? ' <span style="color:#aaa">(5-min avg.)</span>'
           : '') : '';
-      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
       for (const metric of ['temperature','humidity']) {
         if (!state.selectedMetrics.has(metric)) continue;
@@ -2645,10 +2744,17 @@ function renderLineGraph() {
         for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
         const unit = metric === 'temperature' ? '°C' : '%RH';
         traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel, line:{color, width:1.4},
-          opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:firstMetric, meta:{loggerId},
+          opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:(!iter.setLabel && firstMetric), meta:{loggerId},
           hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?'Temp':'Humidity'}: %{y:.1f}${unit}<br>Source: ${source}${idLabel}<extra></extra>`});
         firstMetric = false;
       }
+    }
+
+    // In compare mode, add a single legend entry per set
+    if (iter.setLabel) {
+      traces.push({x:[null], y:[null], type:'scatter', mode:'lines',
+        name: iter.legendName, line:{color: iter.baseColor, width:3},
+        legendgroup:'compare_s' + iter.setIndex, showlegend:true, hoverinfo:'skip'});
     }
 
     state.substratFilters = savedFilters;
@@ -2835,7 +2941,7 @@ function renderHistogram() {
       const source = m.loggerSources[loggerId] || '';
       const isExtTT = (m.externalLoggers || []).includes(loggerId) && source === 'TinyTag';
       const name = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
-      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
 
       for (const metric of ['temperature', 'humidity']) {
@@ -2852,12 +2958,19 @@ function renderHistogram() {
           xbins: {size: 1},
           marker: {color, opacity: state.histogramBarmode === 'overlay' ? 0.55 : 0.85},
           legendgroup: lgGroup,
-          showlegend: firstMetric,
+          showlegend: (!iter.setLabel && firstMetric),
           meta: {loggerId, unit},
           hovertemplate: `${name}<br>%{x:.1f}${unit}: %{y:.1%} of readings<extra></extra>`,
         });
         firstMetric = false;
       }
+    }
+
+    // In compare mode, add a single legend entry per set
+    if (iter.setLabel) {
+      traces.push({x:[null], type:'histogram',
+        name: iter.legendName, marker:{color: iter.baseColor},
+        legendgroup:'compare_s' + iter.setIndex, showlegend:true, hoverinfo:'skip'});
     }
 
     state.substratFilters = savedFilters;
@@ -3180,16 +3293,25 @@ function renderAdaptiveComfort() {
       const cSource = m.loggerSources[loggerId] || '';
       const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
       const cName = namePrefix + m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
-      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
       traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
         name:cName, marker:{color, size:4, opacity:0.2},
         legendgroup:lgGroup, showlegend:false, meta:{loggerId}, customdata,
         hovertemplate:`${namePrefix + m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
-      // Legend-only trace with larger, visible marker
+      // Legend-only trace (only in non-compare mode)
+      if (!iter.setLabel) {
+        traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
+          name:cName, marker:{color, size:10, opacity:0.8, symbol:'square', line:{width:0}},
+          legendgroup:lgGroup, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
+      }
+    }
+
+    // In compare mode, add a single legend entry per set
+    if (iter.setLabel) {
       traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
-        name:cName, marker:{color, size:10, opacity:0.8, symbol:'square', line:{width:0}},
-        legendgroup:lgGroup, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
+        name: iter.legendName, marker:{color: iter.baseColor, size:12, opacity:0.9, symbol:'square', line:{width:0}},
+        legendgroup:'compare_s' + iter.setIndex, showlegend:true, hoverinfo:'skip'});
     }
 
     state.substratFilters = savedFilters;
@@ -4481,7 +4603,7 @@ function renderPeriodicAverages() {
       const isExtTT = extSet.has(loggerId) && source === 'TinyTag';
       const logName = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
       const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
-      const lgGroup = iter.setLabel ? loggerId + '_s' + iter.setIndex : loggerId;
+      const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
 
       for (const metric of ['temperature', 'humidity']) {
@@ -4510,7 +4632,7 @@ function renderPeriodicAverages() {
         const trace = {
           x, y, text: txt, type: 'scatter',
           name: logName + meteoSuffix(loggerId) + omniSuffix(source),
-          legendgroup: lgGroup, showlegend: firstMetric,
+          legendgroup: lgGroup, showlegend: (!iter.setLabel && firstMetric),
           meta: {loggerId},
           hovertemplate: hoverTpl,
         };
@@ -4533,6 +4655,19 @@ function renderPeriodicAverages() {
       }
     }
   }
+
+    // In compare mode, add a single legend entry per set
+    if (iter.setLabel) {
+      if (isClimateOsc) {
+        traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
+          name: iter.legendName, marker:{color: iter.baseColor, size:12, line:{color:'white', width:1}},
+          legendgroup:'compare_s' + iter.setIndex, showlegend:true, hoverinfo:'skip'});
+      } else {
+        traces.push({x:[null], y:[null], type:'scatter', mode:'lines+markers',
+          name: iter.legendName, line:{color: iter.baseColor, width:3}, marker:{size:6},
+          legendgroup:'compare_s' + iter.setIndex, showlegend:true, hoverinfo:'skip'});
+      }
+    }
 
     state.substratFilters = savedFilters;
     state.substratCombine = savedCombine;
