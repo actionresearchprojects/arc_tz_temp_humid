@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-21 19:30:00 CST
+- **Add date range annotation to line graph and periodic averages**: The small text overlay showing "Data ranges from DD/MM/YYYY to DD/MM/YYYY" (already present on histogram and comfort charts) now also appears in the top-right corner of the line graph and periodic averages graph.
+
 ### 2026-03-17 15:45:00 CST
 - **Replace 32°C threshold line with 32–35°C shaded range**: On line graph, histogram, and average profiles, the single red dotted 32°C threshold line is now a diffuse shaded band spanning 32–35°C (`rgba(231,76,60,0.12)`). Checkbox label updated to "32–35°C Threshold". Info tooltip updated accordingly.
 

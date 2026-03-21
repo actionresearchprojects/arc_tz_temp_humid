@@ -3054,7 +3054,9 @@ function renderLineGraph() {
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
-    plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
+    plot_bgcolor:'white', paper_bgcolor:'white', shapes,
+    annotations: [...annotations, ...(isFinite(dataMinMs) ? [dateRangeAnnotation(dataMinMs, dataMaxMs, true)] : [])],
+    hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: barTitle, _noData: !_lineHasData && !showingHistoric};
 }
 
@@ -4094,6 +4096,7 @@ function renderPeriodicAverages() {
   };
   const warningInfos = [];
   let hasAnyData = false;
+  let actualStartMs = Infinity, actualEndMs = -Infinity;
   const extSet = new Set(m.externalLoggers || []);
   const roomSet = new Set(m.roomLoggers || []);
   const structSet = new Set(m.structuralLoggers || []);
@@ -4139,6 +4142,10 @@ function renderPeriodicAverages() {
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
+
+    // Track actual data range for annotation
+    const range = actualDataRange(series.timestamps, start, end);
+    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
 
     const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
     const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
@@ -4333,7 +4340,7 @@ function renderPeriodicAverages() {
       legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', ...legendStyle(state.selectedLoggers.size), itemclick: false, itemdoubleclick: false},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
-      shapes, annotations,
+      shapes, annotations: [...annotations, ...(isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, true)] : [])],
     },
     title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
   };
