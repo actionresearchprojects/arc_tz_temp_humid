@@ -3054,7 +3054,9 @@ function renderLineGraph() {
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
-    plot_bgcolor:'white', paper_bgcolor:'white', shapes, annotations, hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
+    plot_bgcolor:'white', paper_bgcolor:'white', shapes,
+    annotations: [...annotations, ...(isFinite(dataMinMs) ? [dateRangeAnnotation(dataMinMs, dataMaxMs, true)] : [])],
+    hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: barTitle, _noData: !_lineHasData && !showingHistoric};
 }
 
@@ -3361,6 +3363,13 @@ function updateHistogramStats(start, end) {
     warnDiv.classList.remove('hidden');
     warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
+    // Include selected external loggers in completeness check (e.g. Weather Station T&RH)
+    const seriesIds = new Set(roomStats.map(r => r.id));
+    for (const id of (m.externalLoggers || [])) {
+      if (!seriesIds.has(id) && state.selectedLoggers.has(id) && histSet.has(id) && dataset().series[id]) {
+        seriesInfo.push({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'});
+      }
+    }
     const allAvailableInfo = m.loggers.filter(id => (!extSet.has(id) || state.selectedLoggers.has(id)) && histSet.has(id) && dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
     buildGapDropdown('hist-gap-dropdown', 'hist-gap-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'histogram');
   }
@@ -3809,6 +3818,13 @@ function updateComfortStats(start, end, params) {
     warnDiv.classList.remove('hidden');
     warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
+    // Include selected external loggers in completeness check (e.g. Weather Station T&RH)
+    const comfortSeriesIds = new Set(roomStats.map(r => r.id));
+    for (const id of (m.externalLoggers || [])) {
+      if (!comfortSeriesIds.has(id) && state.selectedLoggers.has(id) && dataset().series[id]) {
+        seriesInfo.push({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'});
+      }
+    }
     const allComfortLoggers = m.comfortLoggers || m.roomLoggers || [];
     const allAvailableInfo = allComfortLoggers.filter(id => dataset().series[id]).map(id => ({ts: dataset().series[id].timestamps, source: m.loggerSources[id] || 'Unknown'}));
     buildGapDropdown('gap-dropdown', 'gap-dropdown-wrap', seriesInfo, allAvailableInfo, start, end, 'comfort');
@@ -4094,6 +4110,7 @@ function renderPeriodicAverages() {
   };
   const warningInfos = [];
   let hasAnyData = false;
+  let actualStartMs = Infinity, actualEndMs = -Infinity;
   const extSet = new Set(m.externalLoggers || []);
   const roomSet = new Set(m.roomLoggers || []);
   const structSet = new Set(m.structuralLoggers || []);
@@ -4139,6 +4156,10 @@ function renderPeriodicAverages() {
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
     if (!filtered) continue;
+
+    // Track actual data range for annotation
+    const range = actualDataRange(series.timestamps, start, end);
+    if (range) { actualStartMs = Math.min(actualStartMs, range[0]); actualEndMs = Math.max(actualEndMs, range[1]); }
 
     const tempSum = new Float64Array(nCats), tempN = new Int32Array(nCats);
     const humSum = new Float64Array(nCats), humN = new Int32Array(nCats);
@@ -4333,7 +4354,7 @@ function renderPeriodicAverages() {
       legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', ...legendStyle(state.selectedLoggers.size), itemclick: false, itemdoubleclick: false},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
-      shapes, annotations,
+      shapes, annotations: [...annotations, ...(isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, true)] : [])],
     },
     title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
   };
