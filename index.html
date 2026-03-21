@@ -1897,11 +1897,19 @@ function setupStaticListeners() {
         // Switch comfort legend to vertical for PNG so per-item source labels fit
         if (isComfort) {
           relayoutOpts['legend.orientation'] = 'v';
-          relayoutOpts['legend.x'] = 1.02;
+          relayoutOpts['legend.x'] = 1.12;
           relayoutOpts['legend.y'] = 1;
           relayoutOpts['legend.xanchor'] = 'left';
           relayoutOpts['legend.yanchor'] = 'top';
-          relayoutOpts['margin.r'] = 220;
+          relayoutOpts['margin.r'] = 280;
+          // Strip running mean sources from annotation for PNG (shown per-legend-item instead)
+          const pngAnnotations = (origAnnotations || []).map(a => {
+            if (!a.text) return a;
+            // Remove everything from the running mean source lines onward
+            const cleaned = a.text.replace(/<br>Running mean source.*$/s, '');
+            return {...a, text: cleaned};
+          });
+          relayoutOpts['annotations'] = pngAnnotations;
         }
         return Plotly.relayout('chart', relayoutOpts);
       }).then(() => {
@@ -2725,10 +2733,16 @@ function renderAdaptiveComfort() {
     }
   }
   _comfortExtSrcText = extSrcText;
-  // Build per-logger source map: loggerId → short label for PNG legend
+  // Build per-logger source map: loggerId → short type label for PNG legend
   _comfortLoggerSources = {};
   for (const [lid, srcSet] of Object.entries(perLoggerSources)) {
-    _comfortLoggerSources[lid] = [...srcSet].join(' + ');
+    // Extract just the source types (e.g. "TinyTag", "Open-Meteo") for brevity
+    const types = new Set();
+    for (const label of srcSet) {
+      const match = label.match(/\[([^\]]+)\]$/);
+      types.add(match ? match[1] : label);
+    }
+    _comfortLoggerSources[lid] = [...types].join(' + ');
   }
 
   return {traces, layout: {
