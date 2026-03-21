@@ -854,42 +854,53 @@ function renderCompareSets() {
     loggerWrap.className = 'compare-loggers-wrap';
     const stateSet = isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers;
 
-    // Select All / None buttons
-    const btnRow = document.createElement('div');
-    btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:3px;';
-    const allBtn = document.createElement('button');
-    allBtn.className = 'sel-btn';
-    allBtn.textContent = 'All';
-    allBtn.addEventListener('click', () => {
-      loggerPool.forEach(id => { stateSet.add(id); });
-      loggerWrap.querySelectorAll('input[data-cmp-logger]').forEach(cb => { cb.checked = true; });
-      updatePlot();
-    });
-    const noneBtn = document.createElement('button');
-    noneBtn.className = 'sel-btn';
-    noneBtn.textContent = 'None';
-    noneBtn.addEventListener('click', () => {
-      loggerPool.forEach(id => { stateSet.delete(id); });
-      loggerWrap.querySelectorAll('input[data-cmp-logger]').forEach(cb => { cb.checked = false; });
-      updatePlot();
-    });
-    btnRow.appendChild(allBtn);
-    btnRow.appendChild(noneBtn);
-    body.appendChild(btnRow);
+    // Helper to make selection buttons
+    function mkCmpBtn(label, onClick) {
+      const b = document.createElement('button');
+      b.className = 'sel-btn'; b.textContent = label;
+      b.addEventListener('click', onClick); return b;
+    }
 
-    // Add sections (external, room, structural)
+    // Add sections (external, room, structural) with per-section buttons
     function addCmpSection(title, ids) {
       if (ids.length === 0) return;
       const titleEl = document.createElement('div');
       titleEl.className = 'sub-section-title';
       titleEl.textContent = title;
       loggerWrap.appendChild(titleEl);
+      // Per-section buttons: All / None / TinyTag / Omnisense
+      const secBtnRow = document.createElement('div');
+      secBtnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:3px;flex-wrap:wrap;';
+      secBtnRow.appendChild(mkCmpBtn('All', () => {
+        ids.forEach(id => { stateSet.add(id); loggerWrap.querySelector('input[data-cmp-logger="' + id + '"]').checked = true; });
+        updatePlot();
+      }));
+      secBtnRow.appendChild(mkCmpBtn('None', () => {
+        ids.forEach(id => { stateSet.delete(id); loggerWrap.querySelector('input[data-cmp-logger="' + id + '"]').checked = false; });
+        updatePlot();
+      }));
+      // TinyTag / Omnisense buttons only if both sources present in this section
+      const hasTT = ids.some(id => m.loggerSources[id] === 'TinyTag');
+      const hasOS = ids.some(id => m.loggerSources[id] === 'Omnisense');
+      if (hasTT && hasOS) {
+        secBtnRow.appendChild(mkCmpBtn('TinyTag', () => {
+          ids.forEach(id => { const is = m.loggerSources[id] === 'TinyTag'; is ? stateSet.add(id) : stateSet.delete(id); loggerWrap.querySelector('input[data-cmp-logger="' + id + '"]').checked = is; });
+          updatePlot();
+        }));
+        secBtnRow.appendChild(mkCmpBtn('Omnisense', () => {
+          ids.forEach(id => { const is = m.loggerSources[id] === 'Omnisense'; is ? stateSet.add(id) : stateSet.delete(id); loggerWrap.querySelector('input[data-cmp-logger="' + id + '"]').checked = is; });
+          updatePlot();
+        }));
+      }
+      loggerWrap.appendChild(secBtnRow);
       for (const id of ids) {
         const lbl = document.createElement('label');
         lbl.className = 'cb-label';
-        const isExtTT = extSet.has(id) && m.loggerSources[id] === 'TinyTag';
+        lbl.dataset.tooltip = loggerTooltip(id, m);
+        const source = m.loggerSources[id] || '';
+        const isExtTT = extSet.has(id) && source === 'TinyTag';
         const ttSuffix = isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '';
-        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> ' + m.loggerNames[id] + ttSuffix;
+        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> ' + m.loggerNames[id] + meteoSuffix(id) + omniSuffix(source) + ttSuffix;
         lbl.querySelector('input').addEventListener('change', e => {
           e.target.checked ? stateSet.add(id) : stateSet.delete(id);
           updatePlot();
@@ -1881,11 +1892,11 @@ function setupStaticListeners() {
 
   document.getElementById('cb-temperature').addEventListener('change', e => {
     e.target.checked ? state.selectedMetrics.add('temperature') : state.selectedMetrics.delete('temperature');
-    updatePlot();
+    _zoomReset = true; updatePlot();
   });
   document.getElementById('cb-humidity').addEventListener('change', e => {
     e.target.checked ? state.selectedMetrics.add('humidity') : state.selectedMetrics.delete('humidity');
-    updatePlot();
+    _zoomReset = true; updatePlot();
   });
   document.getElementById('cb-threshold').addEventListener('change', e => {
     state.showThreshold = e.target.checked; updatePlot();
