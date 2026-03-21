@@ -241,9 +241,9 @@ function buildUI() {
       <th>Display Name</th>
       ${hasCat ? '<th>Sidebar Section</th>' : ''}
       <th class="center">Line</th>
+      <th class="center">AdaptiveComf</th>
       <th class="center">Histogram</th>
       <th class="center">AvgProfile</th>
-      <th class="center">AdaptiveComf</th>
       <th>Adaptive Source</th>
     </tr>`;
     table.appendChild(thead);
@@ -300,9 +300,9 @@ function buildUI() {
       // Visibility checkboxes
       for (const [field, defaultVal] of [
         ['showInLine', logger.showInLine],
+        ['showInComfort', logger.showInComfort],
         ['showInHistogram', logger.showInHistogram],
         ['showInPeriodic', logger.showInPeriodic],
-        ['showInComfort', logger.showInComfort],
       ]) {
         const td = document.createElement('td');
         td.className = 'center';
