@@ -1706,6 +1706,29 @@ async function init() {
       }
       return null;
     }
+    function cycleStaleCheck(fetchMs) {
+      // Check cycle indices have data reasonably close to fetch date
+      // MJO is weekly so should be within ~3 weeks of fetch; ENSO/IOD monthly so ~3 months
+      if (!fetchMs) return null;
+      const issues = [];
+      if (df.mjo_last) {
+        // Parse "2026-W10" → approximate epoch
+        const [y, w] = df.mjo_last.replace('W','').split('-').map(Number);
+        const mjoMs = new Date(y, 0, 1 + (w - 1) * 7).getTime();
+        if (fetchMs - mjoMs > 21 * DAY_MS) issues.push(`MJO data ends at ${df.mjo_last}`);
+      }
+      if (df.enso_last) {
+        const [y, m] = df.enso_last.split('-').map(Number);
+        const ensoMs = new Date(y, m - 1, 15).getTime();
+        if (fetchMs - ensoMs > 90 * DAY_MS) issues.push(`ENSO data ends at ${df.enso_last}`);
+      }
+      if (df.iod_last) {
+        const [y, m] = df.iod_last.split('-').map(Number);
+        const iodMs = new Date(y, m - 1, 15).getTime();
+        if (fetchMs - iodMs > 90 * DAY_MS) issues.push(`IOD data ends at ${df.iod_last}`);
+      }
+      return issues.length ? issues.join('; ') : null;
+    }
     const lines = [];
     if (FETCH_TIMES.openmeteo) {
       const warn = staleCheck(df.openmeteo_fetch_ms, df.openmeteo_last_ms, 2);
@@ -1717,14 +1740,10 @@ async function init() {
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
       lines.push(`Omnisense last updated: ${FETCH_TIMES.omnisense}${warnHtml}`);
     }
-    if (FETCH_TIMES.cycles) lines.push(`Cycles (ENSO/IOD/MJO) last updated: ${FETCH_TIMES.cycles}`);
-    // TinyTag weekly freshness check: warn if last datapoint > 7 days old
-    if (df.tinytag_last_ms) {
-      const age = Date.now() - df.tinytag_last_ms;
-      if (age > 7 * DAY_MS) {
-        const lastDate = toEATString(df.tinytag_last_ms).split(',')[0].trim();
-        lines.push(`TinyTag data last recorded: ${lastDate} <span class="stale-warn" title="TinyTag data is over a week old — manual download may be needed">&#9888;</span>`);
-      }
+    if (FETCH_TIMES.cycles) {
+      const warn = cycleStaleCheck(df.openmeteo_fetch_ms || Date.now());
+      const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
+      lines.push(`Cycles (ENSO/IOD/MJO) last updated: ${FETCH_TIMES.cycles}${warnHtml}`);
     }
     ftDiv.innerHTML = lines.join('<br>');
   }
@@ -4895,7 +4914,6 @@ def main():
     if "house5" in all_data:
         h5_series = all_data["house5"]["series"]
         omnisense_ids = [lid for lid in h5_series if LOGGER_SOURCES.get(lid) == "Omnisense"]
-        tinytag_ids = [lid for lid in h5_series if LOGGER_SOURCES.get(lid) == "TinyTag"]
         om_hist_id = OPENMETEO_HISTORICAL_ID
         if omnisense_ids:
             data_freshness["omnisense_last_ms"] = max(
@@ -4903,10 +4921,23 @@ def main():
             )
         if om_hist_id in h5_series and h5_series[om_hist_id]["timestamps"]:
             data_freshness["openmeteo_last_ms"] = h5_series[om_hist_id]["timestamps"][-1]
-        if tinytag_ids:
-            data_freshness["tinytag_last_ms"] = max(
-                h5_series[lid]["timestamps"][-1] for lid in tinytag_ids if h5_series[lid]["timestamps"]
-            )
+
+    # Compute last cycle data dates from cycle phase lookup tables
+    cycle_data_files_exist = (CYCLES_DIR / "enso" / "oni.csv").exists()
+    if cycle_data_files_exist:
+        try:
+            enso_keys = sorted(parse_enso_oni(CYCLES_DIR / "enso" / "oni.csv").keys())
+            iod_keys = sorted(parse_iod_dmi(CYCLES_DIR / "iod" / "iod_1.txt").keys())
+            mjo_keys = sorted(parse_mjo_romi(CYCLES_DIR / "mjo" / "romi.cpcolr.1x.txt").keys())
+            # Store as ISO strings for JS to parse
+            if enso_keys:
+                data_freshness["enso_last"] = enso_keys[-1]  # e.g. "2026-01"
+            if iod_keys:
+                data_freshness["iod_last"] = iod_keys[-1]    # e.g. "2026-03"
+            if mjo_keys:
+                data_freshness["mjo_last"] = mjo_keys[-1]    # e.g. "2026-W10"
+        except Exception:
+            pass  # Cycle freshness is best-effort
 
     # Generate cycle phase lookup tables from data files
     cycle_phases_js = generate_cycle_phases_js()
