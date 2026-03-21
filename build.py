@@ -4243,7 +4243,7 @@ function renderAdaptiveComfort() {
       hoverinfo:'skip', showlegend:false});
   }
 
-  if (state.showDensity && !state.compareEnabled && allExtTemps.length > 30) {
+  if (state.showDensity && allExtTemps.length > 30) {
     // Subsample for density heatmap if too many points (performance)
     let heatX = allExtTemps, heatY = allTemps;
     if (allExtTemps.length > 20000) {
