@@ -1997,9 +1997,12 @@ function loadDataset(key) {
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = 'inline-block'; });
   }
 
-  // Show/hide anomalous data checkbox based on dataset
+  // Show/hide anomalous data checkbox and Advanced Settings wrap based on dataset
   const hasAnomalous = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
   document.getElementById('anomalous-label').style.display = hasAnomalous ? '' : 'none';
+  const isLineChart = state.chartType === 'line';
+  const showSubstratNow = !isLineChart;
+  document.getElementById('advanced-settings-wrap').style.display = (showSubstratNow || hasAnomalous) ? '' : 'none';
 
   updatePlot();
 }
