@@ -24,6 +24,7 @@
         "section": "external",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false
       },
       {
@@ -33,6 +34,7 @@
         "section": "external",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false
       },
       {
@@ -42,6 +44,7 @@
         "section": "external",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false
       },
       {
@@ -51,6 +54,7 @@
         "section": "external",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false
       },
       {
@@ -60,6 +64,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -70,6 +75,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -80,6 +86,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -90,6 +97,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -100,6 +108,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -110,6 +119,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -120,6 +130,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -130,6 +141,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -140,6 +152,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -150,6 +163,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -160,6 +174,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -170,6 +185,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -180,6 +196,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -190,6 +207,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -200,6 +218,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -210,6 +229,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -220,6 +240,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -230,6 +251,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -240,6 +262,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -250,6 +273,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -260,6 +284,7 @@
         "section": "structural",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": false,
         "external_source": "External Historical (Open-Meteo)"
       },
@@ -270,6 +295,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "External Historical (Open-Meteo)"
       }
@@ -287,6 +313,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "861011"
       },
@@ -297,6 +324,7 @@
         "section": "room",
         "showInLine": true,
         "showInHistogram": true,
+        "showInPeriodic": true,
         "showInComfort": true,
         "external_source": "861011"
       }

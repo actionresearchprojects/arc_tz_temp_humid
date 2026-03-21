@@ -608,3 +608,5 @@
 ### 2026-02-27 (time not recorded)
 - Created `build.py` and `index.html`: static HTML dashboard for House 5 and Schoolteacher's House TinyTag Excel loggers. Reads .xlsx files from data/house5/ and data/schoolteacher/, embeds both datasets as separate JSON blobs. Dataset switcher in header reloads all controls instantly client-side. EN 15251 exponential running mean (alpha=0.8) for adaptive comfort. All features from omnisense_t_h preserved: line graph, adaptive comfort, time range filtering, logger/metric selection, season lines, 32°C threshold, comfort stats, PNG download, full responsive layout.
 CLAUDE.md
+### 2026-03-21 23:XX:XX CST
+- Removed "Adaptive source: X" line from logger hover tooltips — not enough space in the tooltip box.

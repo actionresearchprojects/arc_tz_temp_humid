@@ -1622,10 +1622,6 @@ function loggerTooltip(id, m) {
   const src = (m.loggerSources && m.loggerSources[id]) || '';
   let tip = (id === 'govee' || isOpenMeteo(id)) ? src : (src ? `${src} · ${id}` : id);
   const series = dataset().series[id];
-  if (series && series.extSource) {
-    const sName = m.loggerNames[series.extSource] || series.extSource;
-    tip += `\nAdaptive source: ${sName}`;
-  }
   return tip;
 }
 
