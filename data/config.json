@@ -1,1 +1,48 @@
-{}
+{
+  "house5": {
+    "loggers": {
+      "639148": {
+        "external_source": "861011"
+      },
+      "759209": {
+        "external_source": "861011"
+      },
+      "759492": {
+        "external_source": "861011"
+      },
+      "759521": {
+        "external_source": "861011"
+      },
+      "759522": {
+        "external_source": "861011"
+      },
+      "780981": {
+        "external_source": "861011"
+      },
+      "32760205": {
+        "external_source": "320E02D1"
+      },
+      "32760208": {
+        "external_source": "320E02D1"
+      },
+      "32760371": {
+        "external_source": "320E02D1"
+      },
+      "327601CD": {
+        "external_source": "320E02D1"
+      },
+      "3276003D": {
+        "external_source": "320E02D1"
+      },
+      "3276028A": {
+        "external_source": "320E02D1"
+      },
+      "327601CB": {
+        "external_source": "320E02D1"
+      },
+      "3276012B": {
+        "external_source": "320E02D1"
+      }
+    }
+  }
+}
