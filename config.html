@@ -228,47 +228,6 @@ function buildUI() {
     titleEl.textContent = ds.label;
     sec.appendChild(titleEl);
 
-    // Dataset-level settings
-    const dsSettings = document.createElement('div');
-    dsSettings.style.cssText = 'margin-bottom:10px;display:flex;align-items:center;gap:12px;padding:6px 10px;background:#f5f5f5;border-radius:4px;font-size:13px';
-    {
-      const label = document.createElement('label');
-      label.textContent = 'Data Granularity: ';
-      label.style.fontWeight = '600';
-      const sel = document.createElement('select');
-      const defaultGranularity = '1h';
-      const currentGranularity = getOverride(dsKey, '__dataset__', 'granularity', defaultGranularity);
-      [
-        ['5min', '5 minutes'],
-        ['10min', '10 minutes'],
-        ['15min', '15 minutes'],
-        ['30min', '30 minutes'],
-        ['1h', '1 hour'],
-        ['2h', '2 hours'],
-        ['3h', '3 hours'],
-        ['6h', '6 hours'],
-        ['12h', '12 hours'],
-        ['1d', '1 day'],
-      ].forEach(([v, l]) => {
-        const opt = document.createElement('option');
-        opt.value = v; opt.textContent = l;
-        if (v === currentGranularity) opt.selected = true;
-        sel.appendChild(opt);
-      });
-      sel.addEventListener('change', e => {
-        setOverride(dsKey, '__dataset__', 'granularity', e.target.value, defaultGranularity);
-        updateChangeCount();
-      });
-      label.appendChild(sel);
-      dsSettings.appendChild(label);
-
-      const hint = document.createElement('span');
-      hint.style.cssText = 'color:#888;font-size:11px';
-      hint.textContent = 'Averages raw data to this interval (requires rebuild)';
-      dsSettings.appendChild(hint);
-    }
-    sec.appendChild(dsSettings);
-
     const card = document.createElement('div');
     card.className = 'card';
     const table = document.createElement('table');
@@ -285,6 +244,7 @@ function buildUI() {
       <th class="center">AdaptiveComf</th>
       <th class="center">Histogram</th>
       <th class="center">AvgProfile</th>
+      <th>Granularity</th>
       <th>Adaptive Source</th>
     </tr>`;
     table.appendChild(thead);
@@ -362,6 +322,34 @@ function buildUI() {
         td.appendChild(cb);
         tr.appendChild(td);
       }
+
+      // Granularity Dropdown
+      const tdGran = document.createElement('td');
+      {
+        const sel = document.createElement('select');
+        const defaultGranularity = '1h';
+        const currentGranularity = getOverride(dsKey, logger.id, 'granularity', defaultGranularity);
+        [
+          ['5min', '5 min'],
+          ['10min', '10 min'],
+          ['15min', '15 min'],
+          ['30min', '30 min'],
+          ['1h', '1 hour'],
+          ['2h', '2 hours'],
+          ['3h', '3 hours'],
+          ['6h', '6 hours'],
+          ['12h', '12 hours'],
+          ['1d', '1 day'],
+        ].forEach(([v, l]) => {
+          const opt = document.createElement('option');
+          opt.value = v; opt.textContent = l;
+          if (v === currentGranularity) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener('change', e => setOverride(dsKey, logger.id, 'granularity', e.target.value, defaultGranularity));
+        tdGran.appendChild(sel);
+      }
+      tr.appendChild(tdGran);
 
       // Adaptive Source Dropdown
       const tdAdapt = document.createElement('td');
