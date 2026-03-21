@@ -116,10 +116,12 @@ DATASETS = {
         # Import 861011 (TinyTag External Ambient) from House 5's data folder
         "import_loggers": {"861011": "house5"},
         "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "861011", "759498", "govee"],
-        # Per-logger date filters
+        # Per-logger date filters — external data scoped to the monitoring period
         "logger_date_filters": {
             "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
-            "861011": {"before": "2024-05-07 12:00:00"},  # erroneous data from 12pm EAT 7 May 2024 onward
+            "861011": {"from": "2024-06-02", "before": "2025-10-15"},  # TinyTag external ambient, monitoring period only
+            OPENMETEO_HISTORICAL_ID: {"from": "2024-06-02", "before": "2025-10-15"},
+            OPENMETEO_FORECAST_ID: {"from": "2024-06-02", "before": "2025-10-15"},
         },
         # Per-dataset name overrides (759498 is "Bedroom 3 below metal roof" globally but "Bedroom 1" here)
         "logger_name_overrides": {"759498": "Bedroom 1"},
