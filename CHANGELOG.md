@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-21 22:50:00 CST
+- **Adaptive comfort annotation toggle button**: Added a small ▼/▲ button at the bottom-right of the adaptive comfort chart to minimise/maximise the detail overlay text (data range, comfort model, running mean sources). Prevents long annotation text from obscuring data points. Button only appears on the adaptive comfort chart when annotations are present. State persists across re-renders within the same session.
+
 ### 2026-03-21 14:12:58 CST
 - **Hide empty Advanced Settings dropdown**: The "Advanced Settings" toggle is now hidden entirely when there's nothing to show inside it (no anomalous data and no substratification controls). Fixes the Schoolteacher's House line graph showing an empty dropdown.
 

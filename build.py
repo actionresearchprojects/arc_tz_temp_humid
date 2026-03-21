@@ -1283,6 +1283,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
+    <button id="annotation-toggle" title="Hide details" style="display:none;position:absolute;bottom:8px;right:8px;z-index:60;width:22px;height:22px;padding:0;border:1px solid #ccc;border-radius:4px;background:rgba(255,255,255,0.85);color:#888;font-size:13px;line-height:22px;text-align:center;cursor:pointer;font-family:sans-serif;" onclick="toggleAnnotation()">&#x25BC;</button>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
     <div class="substrat-no-data" id="substrat-no-data">No data matches the selected filter</div>
     <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
@@ -3820,6 +3821,29 @@ function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
   };
 }
 
+// ── Annotation toggle (adaptive comfort detail text) ─────────────────────────
+let _annotationHidden = false;
+let _savedAnnotations = null;
+function toggleAnnotation() {
+  const chartEl = document.getElementById('chart');
+  const btn = document.getElementById('annotation-toggle');
+  if (!chartEl._fullLayout) return;
+  if (_annotationHidden) {
+    // Restore
+    if (_savedAnnotations) Plotly.relayout(chartEl, {annotations: _savedAnnotations});
+    btn.innerHTML = '&#x25BC;';
+    btn.title = 'Hide details';
+    _annotationHidden = false;
+  } else {
+    // Hide
+    _savedAnnotations = (chartEl._fullLayout.annotations || []).map(a => Object.assign({}, a));
+    Plotly.relayout(chartEl, {annotations: []});
+    btn.innerHTML = '&#x25B2;';
+    btn.title = 'Show details';
+    _annotationHidden = true;
+  }
+}
+
 // ── Histogram ────────────────────────────────────────────────────────────────
 function renderHistogram() {
   const {start, end} = getTimeRange();
@@ -5308,7 +5332,17 @@ function _doRender() {
     }
   }
   _zoomReset = false;
+  // If annotation is hidden and we're still on adaptive comfort, keep it hidden
+  const isAdaptive = state.chartType === 'adaptive';
+  const annoToggle = document.getElementById('annotation-toggle');
+  if (isAdaptive && _annotationHidden && layout.annotations && layout.annotations.length) {
+    _savedAnnotations = layout.annotations.map(a => Object.assign({}, a));
+    layout.annotations = [];
+  }
+  if (!isAdaptive) { _annotationHidden = false; _savedAnnotations = null; }
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
+  // Show toggle button only for adaptive comfort with annotations
+  annoToggle.style.display = (isAdaptive && (_savedAnnotations && _savedAnnotations.length || !_annotationHidden && layout.annotations && layout.annotations.length)) ? '' : 'none';
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';
