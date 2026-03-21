@@ -66,7 +66,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "861011"
       },
       {
         "id": "759493",
@@ -99,7 +99,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "3276003D",
@@ -110,7 +110,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "639148",
@@ -121,7 +121,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "861011"
       },
       {
         "id": "3276028A",
@@ -132,7 +132,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "759522",
@@ -143,7 +143,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "861011"
       },
       {
         "id": "32760205",
@@ -154,7 +154,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "759521",
@@ -165,7 +165,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "861011"
       },
       {
         "id": "327601CB",
@@ -176,7 +176,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "759209",
@@ -187,7 +187,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "861011"
       },
       {
         "id": "759498",
@@ -231,7 +231,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "759492",
@@ -242,7 +242,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "861011"
       },
       {
         "id": "759489",
@@ -275,7 +275,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       },
       {
         "id": "32760164",
@@ -297,7 +297,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "External Historical (Open-Meteo)"
+        "external_source": "320E02D1"
       }
     ]
   },
