@@ -390,29 +390,32 @@ function buildUI() {
   updateChangeCount();
 }
 
-function countChanges() {
+function countOverrides() {
   let n = 0;
   for (const ds of Object.values(pending)) {
-    // Dataset-level settings
     for (const [k, v] of Object.entries(ds)) {
       if (k !== 'loggers') n++;
     }
-    // Logger-level settings
     for (const ov of Object.values(ds.loggers || {})) n += Object.keys(ov).length;
   }
   return n;
 }
 
+function hasUnsavedChanges() {
+  return JSON.stringify(pending) !== JSON.stringify(savedConfig);
+}
+
 function updateChangeCount() {
-  const n = countChanges();
+  const dirty = hasUnsavedChanges();
+  const n = countOverrides();
   const el = document.getElementById('change-count');
   const saveBtn = document.getElementById('save-btn');
   if (!el || !saveBtn) return;
-  if (n === 0) {
-    el.textContent = 'No unsaved changes';
+  if (!dirty) {
+    el.textContent = n > 0 ? `${n} override${n !== 1 ? 's' : ''} (saved)` : 'No overrides';
     saveBtn.disabled = true;
   } else {
-    el.innerHTML = `<span class="unsaved-dot"></span>${n} unsaved change${n !== 1 ? 's' : ''}`;
+    el.innerHTML = `<span class="unsaved-dot"></span>${n} unsaved override${n !== 1 ? 's' : ''}`;
     saveBtn.disabled = false;
   }
 }

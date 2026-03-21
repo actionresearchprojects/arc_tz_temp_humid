@@ -1674,7 +1674,11 @@ function applyUserConfig(config) {
       if (ov.name) meta.loggerNames[lid] = ov.name;
       if (ov.section) {
         meta.roomLoggers = (meta.roomLoggers || []).filter(id => id !== lid);
+        meta.structuralLoggers = (meta.structuralLoggers || []).filter(id => id !== lid);
+        meta.externalLoggers = (meta.externalLoggers || []).filter(id => id !== lid);
         if (ov.section === 'room') meta.roomLoggers.push(lid);
+        else if (ov.section === 'structural') meta.structuralLoggers.push(lid);
+        else if (ov.section === 'external') meta.externalLoggers.push(lid);
       }
       if (typeof ov.showInComfort === 'boolean') {
         meta.comfortLoggers = (meta.comfortLoggers || []).filter(id => id !== lid);
