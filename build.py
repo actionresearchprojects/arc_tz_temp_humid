@@ -710,9 +710,17 @@ def compute_exponential_running_mean(df, primary_logger, fallback_loggers, alpha
 
 
 # ── JSON builder ───────────────────────────────────────────────────────────────
-def build_dataset_json(key, df, logger_overrides=None):
+GRANULARITY_MAP = {
+    "5min": "5min", "10min": "10min", "15min": "15min", "30min": "30min",
+    "1h": "1h", "2h": "2h", "3h": "3h", "6h": "6h", "12h": "12h", "1d": "1D",
+}
+
+def build_dataset_json(key, df, logger_overrides=None, granularity="1h"):
     cfg = DATASETS[key]
     logger_overrides = logger_overrides or {}
+
+    # Resample rule from config granularity
+    resample_rule = GRANULARITY_MAP.get(granularity, "1h")
 
     # Default external source for the dataset
     default_external_logger = cfg["external_logger"]
@@ -809,6 +817,8 @@ def build_dataset_json(key, df, logger_overrides=None):
         ldf = df[df["logger_id"] == logger_id].copy()
         if ldf.empty:
             continue
+        # Resample to configured granularity (default 1h)
+        ldf = ldf[["temperature", "humidity"]].resample(resample_rule).mean().dropna(how="all")
         ts_ms = [int(t.timestamp() * 1000) for t in ldf.index]
         entry = {
             "timestamps":  ts_ms,
@@ -4797,7 +4807,9 @@ def main():
             print(f"Processing {cfg['label']}...")
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
             logger_overrides = user_config.get(key, {}).get("loggers", {})
-            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides)
+            granularity = user_config.get(key, {}).get("granularity", "1h")
+            print(f"  Granularity: {granularity}")
+            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides, granularity=granularity)
     else:
         # Full build: load everything from source files
         datasets_dfs = {}
@@ -4809,7 +4821,9 @@ def main():
             print(f"  {df.index.min().date()} → {df.index.max().date()}")
             print("  Processing...")
             logger_overrides = user_config.get(key, {}).get("loggers", {})
-            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides)
+            granularity = user_config.get(key, {}).get("granularity", "1h")
+            print(f"  Granularity: {granularity}")
+            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides, granularity=granularity)
 
         # Save sensor snapshot for future --auto builds
         print("Saving sensor snapshot...")
