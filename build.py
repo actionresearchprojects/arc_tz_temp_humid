@@ -2696,6 +2696,25 @@ function setupStaticListeners() {
         textEl.appendChild(t2);
       });
     }
+    // Inject running-mean source summary below legend for comfort chart PNG export
+    function injectSVGSourceNote(doc, svgW, svgH, text) {
+      if (!text) return;
+      const ns = 'http://www.w3.org/2000/svg';
+      const root = doc.querySelector('.infolayer') || doc.documentElement;
+      // Position above the watermark lines (which sit at svgH - 10 and svgH - 24)
+      const y = svgH - 44;
+      const el = doc.createElementNS(ns, 'text');
+      el.setAttribute('x', String(svgW - 12));
+      el.setAttribute('y', String(y));
+      el.setAttribute('text-anchor', 'end');
+      el.setAttribute('dominant-baseline', 'auto');
+      el.setAttribute('font-family', 'Ubuntu, sans-serif');
+      el.setAttribute('font-size', '8');
+      el.setAttribute('fill', '#999');
+      el.setAttribute('opacity', '0.85');
+      el.textContent = text;
+      root.appendChild(el);
+    }
     // Shared: finish canvas → PNG download
     function canvasToPNG(canvas) {
       canvas.toBlob(blob => {
@@ -2799,6 +2818,7 @@ function setupStaticListeners() {
         const doc = new DOMParser().parseFromString(parseSVGDataUrl(svgDataUrl), 'image/svg+xml');
         injectSVGWatermark(doc, W, H, isComfort ? 0.8 : 1.0);
         injectLegendIDCodes(doc);
+        if (isComfort && _comfortExtSrcText) injectSVGSourceNote(doc, W, H, _comfortExtSrcText);
         if (!isComfort) unlockLegendScroll(doc.documentElement);
         return svgToCanvas(new XMLSerializer().serializeToString(doc), W, H, scale);
       }).then(canvasToPNG).catch(dlDone);
@@ -3460,6 +3480,21 @@ function updateHistogramStats(start, end) {
 }
 
 // ── Adaptive comfort ──────────────────────────────────────────────────────────
+let _comfortExtSrcText = ''; // stored for PNG export
+
+function extSourceForDate(spans, tsMs, m) {
+  if (!spans || !spans.length) return '';
+  const d = toEATString(tsMs).slice(0, 10);
+  for (const sp of spans) {
+    if (d >= sp.from && d <= sp.to) {
+      const name = m.loggerNames[sp.source] || sp.source;
+      const type = m.loggerSources[sp.source];
+      return type ? name + ' [' + type + ']' : name;
+    }
+  }
+  return '';
+}
+
 function renderAdaptiveComfort() {
   const {start, end} = getTimeRange();
   const m = dataset().meta;
@@ -3497,10 +3532,11 @@ function renderAdaptiveComfort() {
     const cSource = m.loggerSources[loggerId] || '';
     const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
     const cName = m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
+    const customdata = filtered.timestamps.map(ts => extSourceForDate(series.extSourceSpans, ts, m));
     traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
       name:cName, marker:{color:m.colors[loggerId], size:4, opacity:0.2},
-      legendgroup:loggerId, showlegend:false, meta:{loggerId},
-      hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Source: ${cSource}${cIdLabel}<extra></extra>`});
+      legendgroup:loggerId, showlegend:false, meta:{loggerId}, customdata,
+      hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
     // Legend-only trace with larger, visible marker
     traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
       name:cName, marker:{color:m.colors[loggerId], size:10, opacity:0.8, symbol:'square', line:{width:0}},
@@ -3562,6 +3598,7 @@ function renderAdaptiveComfort() {
       extSrcText = `Running mean sources: ${parts.join(', ')}`;
     }
   }
+  _comfortExtSrcText = extSrcText;
 
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},

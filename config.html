@@ -96,6 +96,9 @@ td input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; }
   <!-- Logger tables, populated after load -->
   <div id="config-area" style="display:none">
     <div id="datasets-container"></div>
+    <div style="margin-top:12px;padding:10px 12px;background:#f0f6ff;border:1px solid #d0dff0;border-radius:5px;font-size:11px;color:#555;line-height:1.5;">
+      <b>Adaptive Source note:</b> The running mean for adaptive comfort uses the chosen external source where data is available. Any days without data from the chosen source are automatically filled with Open-Meteo historical data. If the chosen source has no data at all, Open-Meteo is used for the entire period. Changes to Adaptive Source and Granularity take effect on the next build (automated or manual).
+    </div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
       <button id="save-btn" class="primary" disabled>Save changes</button>
       <button id="reset-btn" class="danger">Reset all to defaults</button>
@@ -249,7 +252,7 @@ function buildUI() {
       <th class="center">Histogram</th>
       <th class="center">AvgProfile</th>
       <th>Granularity</th>
-      <th>Adaptive Source</th>
+      <th>Adaptive Source <span class="hint" style="display:block;text-transform:none;letter-spacing:0;font-weight:400">Gaps filled with Open-Meteo</span></th>
     </tr>`;
     table.appendChild(thead);
 
