@@ -3213,32 +3213,39 @@ function updateHistogramStats(start, end) {
 let _comfortExtSrcText = ''; // stored for PNG export
 let _comfortLoggerSources = {}; // per-logger ext source summary for PNG legend
 
+// Pre-parse span dates to ms for fast numeric comparison
+const _spanMsCache = new WeakMap();
+function _getSpanMs(spans) {
+  let cached = _spanMsCache.get(spans);
+  if (cached) return cached;
+  cached = spans.map(sp => ({
+    source: sp.source,
+    fromMs: new Date(sp.from + 'T00:00:00Z').getTime(),
+    toMs: new Date(sp.to + 'T23:59:59Z').getTime(),
+  }));
+  _spanMsCache.set(spans, cached);
+  return cached;
+}
+
 function extSourcesForPoint(spans, tsMs, m) {
   if (!spans || !spans.length) return '';
-  // The running mean at this point is influenced by the preceding ~7 days.
-  // Find all sources that contributed daily temps in that window.
   const DAY_MS = 86400000;
-  const pointDate = toEATString(tsMs).slice(0, 10);
-  const windowStart = toEATString(tsMs - 7 * DAY_MS).slice(0, 10);
-  const srcLabel = (id) => {
-    const name = m.loggerNames[id] || id;
-    const type = m.loggerSources[id];
-    return type ? name + ' [' + type + ']' : name;
-  };
+  const windowStart = tsMs - 7 * DAY_MS;
+  const spanMs = _getSpanMs(spans);
   const sources = [];
   const seen = new Set();
-  for (const sp of spans) {
-    // Does this span overlap with [windowStart, pointDate]?
-    if (sp.to >= windowStart && sp.from <= pointDate && !seen.has(sp.source)) {
+  for (const sp of spanMs) {
+    if (sp.toMs >= windowStart && sp.fromMs <= tsMs && !seen.has(sp.source)) {
       seen.add(sp.source);
-      sources.push(srcLabel(sp.source));
+      const name = m.loggerNames[sp.source] || sp.source;
+      const type = m.loggerSources[sp.source];
+      sources.push(type ? name + ' [' + type + ']' : name);
     }
   }
   return sources.join(' + ') || '';
 }
 
 function renderAdaptiveComfort() {
-  console.log('[COMFORT DEBUG] renderAdaptiveComfort called, compareEnabled=', state.compareEnabled);
   const {start, end} = getTimeRange();
   const m = dataset().meta;
   const traces = [], params = getComfortParams();
@@ -3252,12 +3259,16 @@ function renderAdaptiveComfort() {
     return type ? `${name} [${type}]` : name;
   };
   const iterations = getCompareIterations();
+  const isCompare = state.compareEnabled && iterations.length > 1;
   for (const iter of iterations) {
     const savedFilters = state.substratFilters;
     const savedCombine = state.substratCombine;
     state.substratFilters = iter.substratFilters;
     state.substratCombine = iter.substratCombine;
     const namePrefix = iter.setLabel ? '[' + iter.setLabel + '] ' : '';
+
+    // In compare mode, merge all loggers into one trace per set for performance
+    const cmpX = [], cmpY = [], cmpHover = [], cmpColors = [];
 
     for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
       if (!iter.selectedLoggers.has(loggerId)) continue;
@@ -3294,25 +3305,39 @@ function renderAdaptiveComfort() {
       const cSource = m.loggerSources[loggerId] || '';
       const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
       const cName = namePrefix + m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
-      const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
-      const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
-      traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-        name:cName, marker:{color, size:4, opacity:0.2},
-        legendgroup:lgGroup, showlegend:false, meta:{loggerId}, customdata,
-        hovertemplate:`${namePrefix + m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
-      // Legend-only trace (only in non-compare mode)
-      if (!iter.setLabel) {
+
+      if (isCompare) {
+        // Merge into per-set arrays — skip expensive per-point customdata
+        for (let i = 0; i < filtered.extTemp.length; i++) {
+          cmpX.push(filtered.extTemp[i]);
+          cmpY.push(filtered.temperature[i]);
+          cmpHover.push(m.loggerNames[loggerId]);
+          cmpColors.push(color);
+        }
+      } else {
+        const lgGroup = loggerId;
+        const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
+        traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
+          name:cName, marker:{color, size:4, opacity:0.2},
+          legendgroup:lgGroup, showlegend:false, meta:{loggerId}, customdata,
+          hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
         traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
           name:cName, marker:{color, size:10, opacity:0.8, symbol:'square', line:{width:0}},
           legendgroup:lgGroup, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
       }
     }
 
-    // In compare mode, add a single legend entry per set
-    if (iter.setLabel) {
+    if (isCompare && cmpX.length > 0) {
+      // Single merged trace per compare set — much faster than one per logger
+      const lgGroup = 'compare_s' + iter.setIndex;
+      traces.push({x:cmpX, y:cmpY, type:'scatter', mode:'markers',
+        name: iter.legendName, marker:{color: cmpColors, size:4, opacity:0.2},
+        legendgroup:lgGroup, showlegend:false, customdata:cmpHover,
+        hovertemplate:`[${iter.setLabel}] %{customdata}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<extra></extra>`});
+      // Legend-only trace
       traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
         name: iter.legendName, marker:{color: iter.baseColor, size:12, opacity:0.9, symbol:'square', line:{width:0}},
-        legendgroup:'compare_s' + iter.setIndex, showlegend:true, hoverinfo:'skip'});
+        legendgroup:lgGroup, showlegend:true, hoverinfo:'skip'});
     }
 
     state.substratFilters = savedFilters;
@@ -3330,20 +3355,19 @@ function renderAdaptiveComfort() {
       hoverinfo:'skip', showlegend:false});
   }
 
-  console.log('[DENSITY DEBUG] showDensity=', state.showDensity, 'allExtTemps.length=', allExtTemps.length, 'compareEnabled=', state.compareEnabled);
   if (state.showDensity && allExtTemps.length > 30) {
-    console.log('[DENSITY DEBUG] Adding density heatmap trace');
     // Subsample for density heatmap if too many points (performance)
     let heatX = allExtTemps, heatY = allTemps;
-    if (allExtTemps.length > 20000) {
-      const step = Math.ceil(allExtTemps.length / 20000);
+    const heatLimit = isCompare ? 10000 : 20000;
+    if (allExtTemps.length > heatLimit) {
+      const step = Math.ceil(allExtTemps.length / heatLimit);
       heatX = []; heatY = [];
       for (let i = 0; i < allExtTemps.length; i += step) { heatX.push(allExtTemps[i]); heatY.push(allTemps[i]); }
     }
     traces.unshift({x:heatX, y:heatY, type:'histogram2dcontour',
       histnorm:'percent',
       colorscale:[[0,'rgba(220,220,220,0)'],[0.05,'rgba(190,190,190,0.2)'],[0.15,'rgba(150,150,150,0.36)'],[0.35,'rgba(110,110,110,0.5)'],[0.6,'rgba(70,70,70,0.66)'],[1,'rgba(30,30,30,0.8)']],
-      showscale:true, ncontours:20,
+      showscale:true, ncontours: isCompare ? 12 : 20,
       colorbar:{
         title:{text:'% of points', side:'right', font:{size:11}},
         thickness:12, len:0.5, x:1.01,
@@ -4836,7 +4860,6 @@ function hideLoadingBar() {
 }
 
 function _doRender() {
-  console.log('[RENDER DEBUG] _doRender called, chartType=', state.chartType, 'compareEnabled=', state.compareEnabled);
   let result = state.chartType === 'line' ? renderLineGraph()
     : state.chartType === 'histogram' ? renderHistogram()
     : state.chartType === 'periodic' ? renderPeriodicAverages()
