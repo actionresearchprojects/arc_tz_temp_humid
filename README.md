@@ -157,7 +157,7 @@ running_mean(today) = 0.2 * yesterday's_mean_temp + 0.8 * running_mean(yesterday
 
 This gives more weight to recent days while still accounting for the past week or two. The dashboard then plots indoor temperature against this running mean, with comfort bands showing acceptable ranges.
 
-The default comfort model is the Vellei model for high humidity (RH > 60%), which is appropriate for the tropical climate in Bagamoyo.
+The default comfort model is the Vellei model for high humidity (RH > 60%), which is appropriate for the tropical climate near Mkuranga.
 
 For full technical details, see `runningmean.md`.
 
