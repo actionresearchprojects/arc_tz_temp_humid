@@ -29,6 +29,8 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 #bar-title { font-size: 14px; font-weight: 600; color: #222; white-space: nowrap; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
 #time-bar-right { flex: 1; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 #chart { flex: 1; min-height: 0; }
+#chart .annotation { pointer-events: all; transition: opacity 0.2s; }
+#chart .annotation:hover { opacity: 0.1; cursor: default; }
 .section-title { font-weight: 600; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .section { display: flex; flex-direction: column; gap: 2px; }
 select, button, input { font-family: inherit; }
@@ -387,7 +389,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
-    <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:absolute;z-index:60;">i</span>
+    <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:fixed;z-index:60;">i</span>
     <div class="info-tip-fixed" id="rm-xaxis-info-tip"></div>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
     <div class="substrat-no-data" id="substrat-no-data" data-i18n="noDataFilter">No data matches the selected filter</div>
@@ -3360,32 +3362,19 @@ function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
 // ── Position running mean info icon next to x-axis title ─────────────────────
 function positionComfortOverlays() {
   const chartEl = document.getElementById('chart');
-  const container = document.getElementById('chart-area');
   const rmIcon = document.getElementById('rm-xaxis-info-icon');
   if (state.chartType !== 'comfort') { rmIcon.style.display = 'none'; return; }
-  const containerRect = container.getBoundingClientRect();
   const xTitleEl = chartEl.querySelector('.g-xtitle');
   if (xTitleEl) {
     const xr = xTitleEl.getBoundingClientRect();
     rmIcon.style.display = '';
-    rmIcon.style.left = (xr.right - containerRect.left + 4) + 'px';
-    rmIcon.style.top = (xr.top - containerRect.top + (xr.height - 14) / 2) + 'px';
+    rmIcon.style.left = (xr.right + 4) + 'px';
+    rmIcon.style.top = (xr.top + (xr.height - 14) / 2) + 'px';
   } else {
     rmIcon.style.display = 'none';
   }
 
-  // Make Plotly annotations fade when mouse hovers over them
-  // Plotly annotations have a <rect> background + <text> inside a <g class="annotation">
-  // We need pointer-events on the rect so the hover fires
-  chartEl.querySelectorAll('.annotation').forEach(anno => {
-    if (anno._fadeAttached) return;
-    anno._fadeAttached = true;
-    // Ensure the background rect captures pointer events
-    const rect = anno.querySelector('rect');
-    if (rect) rect.style.pointerEvents = 'all';
-    anno.addEventListener('mouseenter', () => { anno.style.opacity = '0.1'; anno.style.transition = 'opacity 0.2s'; });
-    anno.addEventListener('mouseleave', () => { anno.style.opacity = '1'; });
-  });
+  // Handled by CSS: #chart .annotation:hover { opacity: 0.1 }
 }
 
 // ── Histogram ────────────────────────────────────────────────────────────────
