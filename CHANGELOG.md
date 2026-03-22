@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2026-03-22 22:30:00 CST
+- **Fix running mean tooltip**: No longer says "7 days". Now explains it as an exponentially weighted average where recent days count most but influence extends well beyond 7 days, per the EN 16798-1 formula.
+- **Replace minimize button with fade-on-hover**: Removed the broken annotation toggle button. The "Data ranges from..." detail text on the adaptive comfort chart now fades to near-transparent when the mouse hovers over it, letting you see the data underneath.
+- **Running mean info icon positioning**: Now dynamically positioned right next to the x-axis title text using DOM measurement after each render and resize.
+- **Swahili translations for all info tooltips**: All info tooltip texts (line, histogram, comfort, periodic, density, compare mode, long-term mode, comfort band, running mean) now use `t()` translation keys and update when the language is switched. Added full Swahili translations for all nine tooltip texts.
+
 ### 2026-03-22 21:45:00 CST
 - **Fix comfort band tooltip**: Corrected to reference ASHRAE-55 (not EN 16798-1) as the basis for the adaptive comfort model. Added link to Vellei et al. (2017) DOI for the humidity-aware extensions. Tooltip now explains that the default model ignores humidity and can overestimate overheating by ~30%.
 - **Reposition annotation toggle and running mean info icon**: Both now dynamically position themselves relative to chart elements after each render. The minimize arrow sits next to the "Data ranges from..." annotation text. The running mean `i` icon sits next to the x-axis title. Both reposition on window resize.

@@ -387,7 +387,6 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
-    <button id="annotation-toggle" title="Hide details" style="display:none;position:absolute;z-index:60;width:18px;height:18px;padding:0;border:1px solid #ccc;border-radius:3px;background:rgba(255,255,255,0.85);color:#888;font-size:11px;line-height:18px;text-align:center;cursor:pointer;font-family:sans-serif;" onclick="toggleAnnotation()">&#x25BC;</button>
     <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:absolute;z-index:60;">i</span>
     <div class="info-tip-fixed" id="rm-xaxis-info-tip"></div>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
@@ -589,6 +588,17 @@ const I18N = {
     roomTemp: 'Room temp',
     extSource: 'Ext. source',
     sensor: 'Sensor',
+    // Info tooltip texts
+    infoLine: 'See how temperature and humidity change over time for each logger. Vertical lines show season boundaries and the red band marks the 32-35\u00b0C heat stress range.',
+    infoHistogramStack: 'Shows how often each temperature or humidity level occurs. Useful for spotting where conditions cluster and how rooms compare overall. Normalised so loggers with different sampling rates are comparable. Bars are stacked. Hover to see individual logger values.',
+    infoHistogramOverlay: 'Shows how often each temperature or humidity level occurs. Useful for spotting where conditions cluster and how rooms compare overall. Normalised so loggers with different sampling rates are comparable. Bars are overlaid. Hover to see how many loggers share each bin.',
+    infoComfort: 'Plots room temperature against recent outdoor conditions to show whether a building is keeping occupants comfortable without mechanical cooling. Points inside the green band are within the adaptive comfort zone for the selected humidity model.',
+    infoPeriodic: 'Reveals typical patterns by averaging readings across a cycle. Use "Day" to see how rooms heat up and cool down over 24 hours, or "Year" for seasonal trends. Climate oscillations (MJO, IOD, ENSO) show how large-scale weather patterns affect local conditions.',
+    infoDensity: 'Darker areas = more readings concentrated there. Scale shows % of all plotted points in each region.',
+    infoCompare: 'Compare different time periods on the same chart to see how conditions have changed, e.g. this month vs last month, or dry season vs wet season. Each set can have its own loggers and date range.',
+    infoLongTerm: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.',
+    infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
+    infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures. Recent days count most, but the influence extends well beyond 7 days. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants tolerate warmer indoors, so the comfort band shifts right.',
   },
   sw: {
     title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
@@ -692,6 +702,17 @@ const I18N = {
     roomTemp: 'Joto la chumba',
     extSource: 'Chanzo cha nje',
     sensor: 'Sensor',
+    // Info tooltip texts
+    infoLine: 'Angalia jinsi joto na unyevunyevu unavyobadilika kwa kila sensor. Mistari ya wima inaonyesha mipaka ya misimu na bendi nyekundu inaonyesha kiwango cha joto hatari cha 32-35\u00b0C.',
+    infoHistogramStack: 'Inaonyesha ni mara ngapi kiwango fulani cha joto au unyevunyevu kinatokea. Inasaidia kuona hali za kawaida na kulinganisha vyumba. Baa zimepangwa. Elekeza ili kuona thamani za kila sensor.',
+    infoHistogramOverlay: 'Inaonyesha ni mara ngapi kiwango fulani cha joto au unyevunyevu kinatokea. Inasaidia kuona hali za kawaida na kulinganisha vyumba. Baa zimeingizwa juu ya nyingine. Elekeza ili kuona ni sensors ngapi zinashiriki kila bin.',
+    infoComfort: 'Inaonyesha joto la chumba dhidi ya hali ya hewa ya nje ili kuona kama jengo linaweka wenyeji katika hali nzuri bila baridi ya mitambo. Alama ndani ya bendi ya kijani ziko ndani ya eneo la starehe.',
+    infoPeriodic: 'Inaonyesha mifumo ya kawaida kwa kupata wastani wa masomo. Tumia "Siku" kuona jinsi vyumba vinavyopata joto na baridi kwa saa 24, au "Mwaka" kwa mwenendo wa misimu.',
+    infoDensity: 'Maeneo meusi = masomo mengi yamejilimbikizia hapo. Kipimo kinaonyesha % ya alama zote zilizochorwa katika kila eneo.',
+    infoCompare: 'Linganisha vipindi tofauti vya wakati kwenye chati moja ili kuona jinsi hali zilivyobadilika, k.m. mwezi huu dhidi ya mwezi uliopita, au kiangazi dhidi ya masika. Kila seti inaweza kuwa na sensors na tarehe zake.',
+    infoLongTerm: 'Inaweka masomo ya sasa ya sensor katika muktadha wa hali ya hewa ya muda mrefu. Inaonyesha data ya joto ya kihistoria tangu 1940 na makadirio ya siku zijazo chini ya hali tofauti za hali ya hewa.',
+    infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
+    infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Siku za hivi karibuni zinahesabiwa zaidi, lakini ushawishi unaendelea zaidi ya siku 7. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani.',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -3332,64 +3353,12 @@ function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
   };
 }
 
-// ── Annotation toggle (adaptive comfort detail text) ─────────────────────────
-let _annotationHidden = false;
-let _savedAnnotations = null;
-function toggleAnnotation() {
-  const chartEl = document.getElementById('chart');
-  const btn = document.getElementById('annotation-toggle');
-  if (!chartEl._fullLayout) return;
-  if (_annotationHidden) {
-    if (_savedAnnotations) Plotly.relayout(chartEl, {annotations: _savedAnnotations});
-    btn.innerHTML = '&#x25BC;';
-    btn.title = 'Hide details';
-    _annotationHidden = false;
-  } else {
-    _savedAnnotations = (chartEl._fullLayout.annotations || []).map(a => Object.assign({}, a));
-    Plotly.relayout(chartEl, {annotations: []});
-    btn.innerHTML = '&#x25B2;';
-    btn.title = 'Show details';
-    _annotationHidden = true;
-  }
-  positionComfortOverlays();
-}
-
+// ── Position running mean info icon next to x-axis title ─────────────────────
 function positionComfortOverlays() {
   const chartEl = document.getElementById('chart');
-  const chartRect = chartEl.getBoundingClientRect();
-  const btn = document.getElementById('annotation-toggle');
   const rmIcon = document.getElementById('rm-xaxis-info-icon');
-  if (state.chartType !== 'comfort') { btn.style.display = 'none'; rmIcon.style.display = 'none'; return; }
-
-  // Position annotation toggle next to the "Data ranges from..." annotation
-  const annos = chartEl.querySelectorAll('.annotation');
-  // Find the bottom-right annotation (dateRange annotation has paper xref/yref)
-  let targetAnno = null;
-  annos.forEach(a => {
-    const r = a.getBoundingClientRect();
-    // The dateRange annotation sits near the bottom-right of the plot
-    if (r.bottom > chartRect.top + chartRect.height * 0.5) targetAnno = a;
-  });
-  if (targetAnno && !_annotationHidden) {
-    const ar = targetAnno.getBoundingClientRect();
-    btn.style.display = '';
-    btn.style.left = (ar.left - chartRect.left - 22) + 'px';
-    btn.style.top = (ar.top - chartRect.top + 1) + 'px';
-  } else if (_annotationHidden) {
-    // When hidden, put the restore button at bottom-right of plot area
-    const fl = chartEl._fullLayout;
-    if (fl) {
-      const plotRight = fl.margin.l + fl.width;
-      const plotBottom = fl.margin.t + fl.height;
-      btn.style.display = '';
-      btn.style.left = (plotRight - 22) + 'px';
-      btn.style.top = (plotBottom - 22) + 'px';
-    }
-  } else {
-    btn.style.display = 'none';
-  }
-
-  // Position running mean info icon next to x-axis title
+  if (state.chartType !== 'comfort') { rmIcon.style.display = 'none'; return; }
+  const chartRect = chartEl.getBoundingClientRect();
   const xTitleEl = chartEl.querySelector('.g-xtitle');
   if (xTitleEl) {
     const xr = xTitleEl.getBoundingClientRect();
@@ -3399,6 +3368,16 @@ function positionComfortOverlays() {
   } else {
     rmIcon.style.display = 'none';
   }
+
+  // Make annotations fade when mouse hovers over them
+  chartEl.querySelectorAll('.annotation').forEach(anno => {
+    if (anno._fadeAttached) return;
+    anno._fadeAttached = true;
+    anno.style.transition = 'opacity 0.2s';
+    anno.style.cursor = 'default';
+    anno.addEventListener('mouseenter', () => { anno.style.opacity = '0.1'; });
+    anno.addEventListener('mouseleave', () => { anno.style.opacity = '1'; });
+  });
 }
 
 // ── Histogram ────────────────────────────────────────────────────────────────
@@ -5399,16 +5378,7 @@ function _doRender() {
     }
   }
   _zoomReset = false;
-  // If annotation is hidden and we're still on adaptive comfort, keep it hidden
-  const isAdaptive = state.chartType === 'comfort';
-  const annoToggle = document.getElementById('annotation-toggle');
-  if (isAdaptive && _annotationHidden && layout.annotations && layout.annotations.length) {
-    _savedAnnotations = layout.annotations.map(a => Object.assign({}, a));
-    layout.annotations = [];
-  }
-  if (!isAdaptive) { _annotationHidden = false; _savedAnnotations = null; }
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
-  // Show toggle button only for adaptive comfort with annotations
   requestAnimationFrame(positionComfortOverlays);
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
@@ -5501,8 +5471,8 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
 (function() {
   const icon = document.getElementById('density-info-icon');
   const tip  = document.getElementById('info-fixed-tip');
-  tip.textContent = 'Darker areas = more readings concentrated there. Scale shows % of all plotted points in each region.';
   icon.addEventListener('mouseenter', () => {
+    tip.textContent = t('infoDensity');
     const r = icon.getBoundingClientRect();
     tip.style.display = 'block';
     let left = r.right + 8;
@@ -5517,15 +5487,15 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
 (function() {
   const icon = document.getElementById('chart-info-icon');
   const tip  = document.getElementById('chart-info-tip');
-  const texts = {
-    line: 'See how temperature and humidity change over time for each logger. Vertical lines show season boundaries and the red band marks the 32-35\u00b0C heat stress range.',
-    histogram: () => 'Shows how often each temperature or humidity level occurs. Useful for spotting where conditions cluster and how rooms compare overall. Normalised so loggers with different sampling rates are comparable. ' + (state.histogramBarmode === 'stack' ? 'Bars are stacked. Hover to see individual logger values.' : 'Bars are overlaid. Hover to see how many loggers share each bin.'),
-    comfort: 'Plots room temperature against recent outdoor conditions to show whether a building is keeping occupants comfortable without mechanical cooling. Points inside the green band are within the adaptive comfort zone for the selected humidity model.',
-    periodic: 'Reveals typical patterns by averaging readings across a cycle. Use "Day" to see how rooms heat up and cool down over 24 hours, or "Year" for seasonal trends. Climate oscillations (MJO, IOD, ENSO) show how large-scale weather patterns affect local conditions.',
+  const textKeys = {
+    line: () => t('infoLine'),
+    histogram: () => state.histogramBarmode === 'stack' ? t('infoHistogramStack') : t('infoHistogramOverlay'),
+    comfort: () => t('infoComfort'),
+    periodic: () => t('infoPeriodic'),
   };
   icon.addEventListener('mouseenter', () => {
-    const t = texts[state.chartType];
-    tip.textContent = (typeof t === 'function' ? t() : t) || '';
+    const fn = textKeys[state.chartType];
+    tip.textContent = fn ? fn() : '';
     const r = icon.getBoundingClientRect();
     tip.style.display = 'block';
     let left = r.left;
@@ -5537,34 +5507,31 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
 })();
 
-// Sidebar info tooltips — Compare Mode, Long-Term Mode, EN16798 running mean
+// Sidebar info tooltips — Compare Mode, Long-Term Mode, comfort band, running mean
 (function() {
   const items = [
-    { iconId: 'compare-info-icon', tipId: 'compare-info-tip',
-      text: 'Compare different time periods on the same chart to see how conditions have changed, e.g. this month vs last month, or dry season vs wet season. Each set can have its own loggers and date range.' },
-    { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip',
-      text: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.' },
-    { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip',
-      html: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.' },
-    { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip',
-      text: 'The running mean is a weighted average of outdoor temperature over the past 7 days, giving more weight to recent days. It captures how people acclimatise to changing weather. When outdoor temperatures have been high, occupants tolerate warmer indoor conditions, so the comfort band shifts right.' },
+    { iconId: 'compare-info-icon', tipId: 'compare-info-tip', key: 'infoCompare' },
+    { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip', key: 'infoLongTerm' },
+    { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip', key: 'infoComfortBand', hasLink: true },
+    { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip', key: 'infoRunningMean' },
   ];
-  items.forEach(({iconId, tipId, text, html}) => {
+  items.forEach(({iconId, tipId, key, hasLink}) => {
     const icon = document.getElementById(iconId);
     const tip  = document.getElementById(tipId);
     if (!icon || !tip) return;
-    if (html) { tip.innerHTML = html; tip.style.pointerEvents = 'auto'; }
-    else tip.textContent = text;
-    icon.addEventListener('mouseenter', () => {
+    if (hasLink) tip.style.pointerEvents = 'auto';
+    function showTip() {
+      const txt = t(key);
+      if (hasLink) tip.innerHTML = txt; else tip.textContent = txt;
       const r = icon.getBoundingClientRect();
       tip.style.display = 'block';
       let left = r.right + 8;
       if (left + 328 > window.innerWidth - 8) left = window.innerWidth - 336;
       tip.style.left = Math.max(4, left) + 'px';
       tip.style.top  = r.top + 'px';
-    });
-    if (html) {
-      // Keep tip visible when hovering over it (so user can click links)
+    }
+    icon.addEventListener('mouseenter', showTip);
+    if (hasLink) {
       let hideTimer;
       const hide = () => { hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 200); };
       const cancelHide = () => clearTimeout(hideTimer);
