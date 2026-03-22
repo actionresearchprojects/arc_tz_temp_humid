@@ -29,7 +29,7 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 #bar-title { font-size: 14px; font-weight: 600; color: #222; white-space: nowrap; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
 #time-bar-right { flex: 1; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 #chart { flex: 1; min-height: 0; }
-#chart .annotation { transition: opacity 0.2s !important; }
+#chart .annotation { transition: opacity 0.5s !important; }
 #chart .annotation rect { pointer-events: all !important; cursor: default; }
 #chart .annotation:hover { opacity: 0.08 !important; }
 #chart .annotation:hover rect { fill-opacity: 0.08 !important; }
@@ -3372,13 +3372,31 @@ function positionComfortOverlays() {
   if (fl && fl.xaxis && fl.xaxis._offset !== undefined) {
     const cr = chartEl.getBoundingClientRect();
     // _offset is the left edge of the axis, _length is its width
-    const axisCenterX = cr.left + fl.xaxis._offset + fl.xaxis._length / 2;
-    // Title sits below the tick labels; use the full height minus a small offset from bottom
-    const titleY = cr.top + cr.height - fl.margin.b / 3;
-    rmIcon.style.display = '';
-    // Place to the right of where the title text ends (estimate ~half title width from center)
-    rmIcon.style.left = (axisCenterX + 140) + 'px';
-    rmIcon.style.top = (titleY - 7) + 'px';
+    // Find the actual x-axis title text element in the SVG
+    const allText = chartEl.querySelectorAll('text');
+    let xTitleText = null;
+    const axisTitle = t('runningMeanAxis');
+    for (const txt of allText) {
+      if (txt.textContent && txt.textContent.includes('°C') && txt.getAttribute('data-unformatted') === axisTitle) {
+        xTitleText = txt; break;
+      }
+    }
+    // Fallback: find any text matching the axis title
+    if (!xTitleText) {
+      for (const txt of allText) {
+        if (txt.textContent === axisTitle || (txt.getAttribute('data-unformatted') || '') === axisTitle) {
+          xTitleText = txt; break;
+        }
+      }
+    }
+    if (xTitleText) {
+      const xr = xTitleText.getBoundingClientRect();
+      rmIcon.style.display = '';
+      rmIcon.style.left = (xr.right + 4) + 'px';
+      rmIcon.style.top = (xr.top + (xr.height - 14) / 2) + 'px';
+    } else {
+      rmIcon.style.display = 'none';
+    }
   } else {
     rmIcon.style.display = 'none';
   }
