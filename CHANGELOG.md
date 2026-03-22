@@ -1,9 +1,10 @@
 ## Changelog
 
 ### 2026-03-23 00:30:00 CST
-- **Dashboard data action → once daily**: Changed `update-dashboard-data.yml` cron from twice daily (04:00 & 16:00 UTC) to once daily (04:00 UTC).
+- **Merged GitHub Actions into single daily workflow**: Combined `update-cycle-data.yml` into `update-dashboard-data.yml`. One workflow now fetches cycles (ENSO/IOD/MJO), Open-Meteo, and Omnisense data daily at 04:00 UTC, then rebuilds. Deleted `update-cycle-data.yml`.
+- **Dashboard data action → once daily**: Changed cron from twice daily (04:00 & 16:00 UTC) to once daily (04:00 UTC).
 - **Fix cycle data action 403 failure**: Added User-Agent header to `fetch_cycles.py` requests to avoid BoM 403 Forbidden errors on IOD fetch.
-- **Cycle data action resilience**: Added `continue-on-error: true` to the fetch step in `update-cycle-data.yml` so a single failed source doesn't block the rest from being committed.
+- **All fetch steps use continue-on-error**: Any single fetch failure won't block the rest from being committed.
 
 ### 2026-03-23 00:00:00 CST
 - **Annotation fade-on-hover working**: Pure CSS approach targeting SVG `rect` and `text` children with `fill-opacity` and `!important`. 0.5s fade transition.
