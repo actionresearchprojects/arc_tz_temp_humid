@@ -1,5 +1,12 @@
 ## Changelog
 
+### 2026-03-22 16:05:00 CST
+- **Fix: Humidity option hidden on all beta charts** — previously Temperature Differential showed a humidity checkbox; now all beta charts hide it since they're temperature-only.
+- **Fix: Zoom resets on time range changes** — added `_zoomReset = true` to all time-mode, day/week/month/year/season/between change handlers and long-term mode toggle. Previously stale zoom persisted when switching to a narrower range (e.g. day view).
+- **Fix: Threshold and season shapes use EAT strings** — shapes and annotations now use `toEATString()` instead of `new Date()`, fixing a 3-hour timezone offset that could cause the 32–35°C band and season lines to misalign with data on narrow views.
+- **Fix: Admin-flagged hover left-aligned** — added `hoverlabel: {align: 'left'}` to purple anomalous-range traces so multi-line reason text doesn't appear right-aligned.
+- **Fix: Section average checkboxes hidden after leaving beta** — added post-restore re-hide of `.periodic-avg-cb` and `.lock-btn` elements since the section restore loop was undoing their hidden state.
+
 ### 2026-03-22 15:35:00 CST
 - **Fix: Compare mode cross-building traces no longer dotted** — Schoolteacher's House (and other cross-building loggers) now render as solid lines matching same-building style.
 - **Fix: Structural loggers visible in Data Quality sidebar** — structural logger section now shows in sidebar when Data Quality chart is selected; other beta charts still show room loggers only.

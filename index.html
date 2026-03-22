@@ -2483,7 +2483,7 @@ function setupStaticListeners() {
       document.getElementById('line-options-section').style.display = 'none';
       document.getElementById('line-options-divider').style.display = 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
-      document.getElementById('humidity-label').style.display = state.chartType === 'beta-diff' ? '' : 'none';
+      document.getElementById('humidity-label').style.display = 'none';
       document.getElementById('cb-threshold').parentElement.style.display = 'none';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
       // Hide external logger checkboxes; show room loggers (+ structural for data quality)
@@ -2519,6 +2519,10 @@ function setupStaticListeners() {
       const loggerDiv = document.getElementById('logger-checkboxes');
       for (const child of loggerDiv.children) { child.style.display = ''; }
     }
+    // Re-apply periodic-only controls after section restore (which resets all display styles)
+    const _loggerDiv = document.getElementById('logger-checkboxes');
+    _loggerDiv.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
+    _loggerDiv.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isBeta) {
       // already handled above
     } else if (isPeriodic) {
@@ -2590,32 +2594,32 @@ function setupStaticListeners() {
       document.getElementById(id).classList.add('hidden'));
     const map = {between:'between-inputs',year:'year-input',season:'season-input',month:'month-input',week:'week-input',day:'day-input'};
     if (map[state.timeMode]) document.getElementById(map[state.timeMode]).classList.remove('hidden');
-    updatePlot();
+    _zoomReset = true; updatePlot();
   });
 
   document.getElementById('date-start').addEventListener('change', e => {
-    state.betweenStart = new Date(e.target.value + 'T00:00:00').getTime(); updatePlot();
+    state.betweenStart = new Date(e.target.value + 'T00:00:00').getTime(); _zoomReset = true; updatePlot();
   });
   document.getElementById('date-end').addEventListener('change', e => {
-    state.betweenEnd = new Date(e.target.value + 'T23:59:59').getTime(); updatePlot();
+    state.betweenEnd = new Date(e.target.value + 'T23:59:59').getTime(); _zoomReset = true; updatePlot();
   });
   document.getElementById('year-select').addEventListener('change', e => {
-    state.selectedYear = parseInt(e.target.value); updatePlot();
+    state.selectedYear = parseInt(e.target.value); _zoomReset = true; updatePlot();
   });
   document.getElementById('season-select').addEventListener('change', e => {
     const [y, s] = e.target.value.split('-').map(Number);
-    state.selectedSeason = {year: y, season: s}; updatePlot();
+    state.selectedSeason = {year: y, season: s}; _zoomReset = true; updatePlot();
   });
   document.getElementById('month-select').addEventListener('change', e => {
     const [y, mo] = e.target.value.split('-').map(Number);
-    state.selectedMonth = {year: y, month: mo}; updatePlot();
+    state.selectedMonth = {year: y, month: mo}; _zoomReset = true; updatePlot();
   });
   document.getElementById('week-select').addEventListener('change', e => {
     const [y, w] = e.target.value.split('-').map(Number);
-    state.selectedWeek = {year: y, week: w}; updatePlot();
+    state.selectedWeek = {year: y, week: w}; _zoomReset = true; updatePlot();
   });
   document.getElementById('day-select').addEventListener('change', e => {
-    state.selectedDay = parseInt(e.target.value); updatePlot();
+    state.selectedDay = parseInt(e.target.value); _zoomReset = true; updatePlot();
   });
 
   document.getElementById('cb-temperature').addEventListener('change', e => {
@@ -2861,7 +2865,7 @@ function setupStaticListeners() {
       state.selectedHistoricSeries = new Set();
       savedBeforeHistoric = null;
     }
-    rebuildYearDropdown(); updatePlot();
+    rebuildYearDropdown(); _zoomReset = true; updatePlot();
   });
 
   document.getElementById('download-btn').addEventListener('click', () => {
@@ -3462,7 +3466,7 @@ function renderLineGraph() {
   const rangeMaxMs = state.timeMode === 'all' ? dataMaxMs : end;
   if (state.showThreshold) {
     shapes.push({type:'rect', xref:'x', yref:'y',
-      x0:new Date(rangeMinMs), x1:new Date(rangeMaxMs), y0:32, y1:35,
+      x0:toEATString(rangeMinMs), x1:toEATString(rangeMaxMs), y0:32, y1:35,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
     traces.push({x:[null], y:[null], type:'scatter', mode:'lines',
       name:'32–35°C Threshold', line:{color:'rgba(231,76,60,0.35)', width:8},
@@ -3472,8 +3476,8 @@ function renderLineGraph() {
   if (state.showSeasonLines) {
     const seasons = getSeasonBoundaries(rangeMinMs, rangeMaxMs);
     seasons.forEach(s => {
-      shapes.push({type:'line', xref:'x', yref:'paper', x0:new Date(s.ts), x1:new Date(s.ts), y0:0, y1:1, line:{color:'#bbb', width:1, dash:'dot'}});
-      annotations.push({x:new Date(s.ts), xref:'x', yref:'paper', y:1.01, yanchor:'bottom', xanchor:'left', text:s.name, showarrow:false, font:{size:9, color:'#888'}, textangle:-30});
+      shapes.push({type:'line', xref:'x', yref:'paper', x0:toEATString(s.ts), x1:toEATString(s.ts), y0:0, y1:1, line:{color:'#bbb', width:1, dash:'dot'}});
+      annotations.push({x:toEATString(s.ts), xref:'x', yref:'paper', y:1.01, yanchor:'bottom', xanchor:'left', text:s.name, showarrow:false, font:{size:9, color:'#888'}, textangle:-30});
     });
   }
 
@@ -5523,6 +5527,7 @@ function renderBetaQuality() {
             x: [toEATString(rangeStart), toEATString(rangeEnd)],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
+            hoverlabel: {align: 'left'},
             hovertemplate: `${nameWithSrc}<br>Admin flagged<br>${reason}<br>%{x}<extra></extra>`,
           });
         }
@@ -5535,6 +5540,7 @@ function renderBetaQuality() {
             x: [toEATString(rangeStart), toEATString(rangeEnd)],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
+            hoverlabel: {align: 'left'},
             hovertemplate: `${nameWithSrc}<br>Admin flagged<br>${reason}<br>%{x}<extra></extra>`,
           });
         }
