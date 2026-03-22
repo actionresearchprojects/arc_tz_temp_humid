@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2026-03-22 15:35:00 CST
+- **Fix: Compare mode cross-building traces no longer dotted** — Schoolteacher's House (and other cross-building loggers) now render as solid lines matching same-building style.
+- **Fix: Structural loggers visible in Data Quality sidebar** — structural logger section now shows in sidebar when Data Quality chart is selected; other beta charts still show room loggers only.
+- **Fix: Beta checkbox restoration on re-entry** — added defensive reset of all checkbox visibility before applying beta section filter, preventing stale display:none from previous visit.
+- **Fix: Thermal lag y-axis padding reduced** — changed formula from `maxLag * 1.3 + 0.5` to `maxLag * 1.15 + 0.2` for tighter fit.
+- **Fix: Beta dropdown bold removed** — "Beta Features" option no longer bold, just red text.
+- **Remove: Suspect readings from Data Quality** — removed outlier detection (>3σ) as readings were not accurate. Legend entry and OUTLIER_WINDOW constant also removed.
+- **Fix: Admin-flagged hover tooltip word-wrapped** — long reason text now wraps at ~45 characters to prevent tooltip from going off-screen.
+
 ### 2026-03-22 13:54:26 CST
 - **Fix: Cross-building compare traces now use set colour** in compare mode instead of the other dataset's original colours.
 - **Fix: Beta feature checkboxes now visible** - rewrote section visibility logic to use data-attribute lookup instead of fragile text matching. Only Room loggers shown; External/Structural sections hidden.

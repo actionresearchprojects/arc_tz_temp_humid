@@ -39,7 +39,7 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 select, button, input { font-family: inherit; }
 select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; max-width: 100%; }
 select:focus { outline: none; border-color: #4a90d9; }
-#chart-type option[value="beta"] { color: #c0392b; font-weight: 700; }
+#chart-type option[value="beta"] { color: #c0392b; }
 .beta-tag { display:inline-block; background:#c0392b; color:white; font-size:9px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; letter-spacing:0.03em; }
 .cb-label { display: flex; align-items: center; gap: 5px; padding: 1px 0; cursor: pointer; line-height: 1.4; font-size: 12px; }
 .cb-label:hover { color: #1f77b4; }
@@ -358,7 +358,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="comfort" data-i18n="adaptiveComfort">Adaptive Comfort</option>
             <option value="histogram" data-i18n="histogram">Histogram</option>
             <option value="periodic" data-i18n="averageProfiles">Average Profiles</option>
-            <option value="beta" style="color:#c0392b;font-weight:700" data-i18n="betaFeatures">Beta Features</option>
+            <option value="beta" style="color:#c0392b" data-i18n="betaFeatures">Beta Features</option>
           </select>
           <select id="beta-chart-type" style="display:none">
             <option value="beta-diff" data-i18n="betaDiff">Temperature Differential</option>
@@ -559,7 +559,7 @@ const I18N = {
     infoBetaDiff: 'Shows the difference between indoor and outdoor temperature at each time step. Positive = hotter inside than outside (building trapping heat). Negative = cooler inside (building providing relief). Per-room lines let you compare which spaces perform best.',
     infoBetaDecrement: 'How much the building dampens the outdoor temperature swing each day. Calculated as indoor swing divided by outdoor swing. Example: outdoor high 35\u00b0C, low 23\u00b0C (swing = 12\u00b0C); indoor high 30\u00b0C, low 26\u00b0C (swing = 4\u00b0C). Factor = 4/12 = 0.33. Lower values mean the building smooths out temperature extremes better. A value of 1.0 means no damping at all.',
     infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\'s thermal mass absorbs heat slowly and releases it later, ideally when it\'s cooler outside.',
-    infoBetaQuality: 'Data health overview showing per-sensor coverage, gap detection (periods >6h with no readings), and outlier flags (readings >3\u03c3 from the local 24h rolling mean). Green = good data, orange = gap, red = suspect reading.',
+    infoBetaQuality: 'Data health overview showing per-sensor coverage and gap detection (periods >6h with no readings). Green = good data, orange = gap. Admin-flagged anomalous ranges shown in purple where applicable.',
 
     stacked: 'Stacked',
     overlay: 'Overlay',
@@ -700,7 +700,7 @@ const I18N = {
     infoBetaDiff: 'Inaonyesha tofauti kati ya joto la ndani na nje. Chanya = ndani ni moto zaidi kuliko nje. Hasi = ndani ni baridi zaidi.',
     infoBetaDecrement: 'Uwiano wa mabadiliko ya joto la ndani na nje kwa siku. Nambari ndogo ni bora: inamaanisha jengo linapunguza joto la nje vizuri.',
     infoBetaLag: 'Masaa mangapi kilele cha joto la ndani kinachelewa nyuma ya kilele cha nje. Ucheleweshaji mrefu = thermal mass nzuri.',
-    infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor, mapungufu, na masomo yasiyo ya kawaida.',
+    infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor na mapungufu. Kijani = data nzuri, machungwa = pengo. Maeneo yaliyotambuliwa na msimamizi yanaonyeshwa kwa zambarau.',
 
     stacked: 'Stacked',
     overlay: 'Overlay',
@@ -2416,12 +2416,10 @@ function setupStaticListeners() {
       betaSel.style.display = '';
       mainSel.value = 'beta';
       mainSel.style.color = '#c0392b';
-      mainSel.style.fontWeight = '700';
       if (newType === 'beta') { state.chartType = betaSel.value; }
     } else {
       betaSel.style.display = 'none';
       mainSel.style.color = '';
-      mainSel.style.fontWeight = '';
     }
     const isLine = state.chartType === 'line';
     const isHistogram = state.chartType === 'histogram';
@@ -2488,28 +2486,32 @@ function setupStaticListeners() {
       document.getElementById('humidity-label').style.display = state.chartType === 'beta-diff' ? '' : 'none';
       document.getElementById('cb-threshold').parentElement.style.display = 'none';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
-      // Hide external and structural logger checkboxes; only show room loggers
+      // Hide external logger checkboxes; show room loggers (+ structural for data quality)
       const _m = dataset().meta;
       const _roomSet = new Set(_m.roomLoggers || []);
+      const _structSet = new Set(_m.structuralLoggers || []);
+      const _isQuality = state.chartType === 'beta-quality';
       const loggerDiv = document.getElementById('logger-checkboxes');
-      // Use data attributes on checkboxes to determine which to show
-      let inRoomSection = false;
+      // First reset all children to visible, then apply filter
+      for (const c of loggerDiv.children) { c.style.display = ''; }
+      let inVisibleSection = false;
       for (const child of Array.from(loggerDiv.children)) {
         if (child.classList && child.classList.contains('sub-section-title')) {
-          // Check if next checkbox siblings are room loggers
-          const nextCb = child.nextElementSibling;
-          let sectionIsRoom = false;
-          // Look ahead to find first checkbox in this section
           let sib = child.nextElementSibling;
+          let sectionVisible = false;
           while (sib && !sib.classList.contains('sub-section-title')) {
             const cb = sib.querySelector && sib.querySelector('input[data-logger-id]');
-            if (cb) { sectionIsRoom = _roomSet.has(cb.dataset.loggerId); break; }
+            if (cb) {
+              const lid = cb.dataset.loggerId;
+              sectionVisible = _roomSet.has(lid) || (_isQuality && _structSet.has(lid));
+              break;
+            }
             sib = sib.nextElementSibling;
           }
-          inRoomSection = sectionIsRoom;
-          child.style.display = inRoomSection ? '' : 'none';
+          inVisibleSection = sectionVisible;
+          child.style.display = inVisibleSection ? '' : 'none';
         } else {
-          child.style.display = inRoomSection ? '' : 'none';
+          child.style.display = inVisibleSection ? '' : 'none';
         }
       }
     } else {
@@ -3410,7 +3412,7 @@ function renderLineGraph() {
             const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
             traces.push({x, y, type:'scatter', mode:'lines',
               name: crossPrefix + dispName + (source ? ' <span style="color:#aaa">(' + source + ')</span>' : ''),
-              line:{color, width:1.4, dash:'dot'}, opacity:0.5, connectgaps:false,
+              line:{color, width:1.4}, opacity:0.35, connectgaps:false,
               legendgroup:lgGroup, showlegend:!iter.setLabel,
               hovertemplate:`${crossPrefix}${dispName}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?t('tempOnly'):t('humidOnly')}: %{y:.1f}${unit}<br>${t('source')}: ${source}<extra></extra>`});
           }
@@ -5438,7 +5440,7 @@ function renderBetaLag() {
   const dsl = dsLabel();
   const title = `${dsl} \u2013 ${t('betaLagTitle')}`;
   const maxLag = loggerLag.length > 0 ? Math.max(...loggerLag) : 1;
-  const yTop = Math.ceil((maxLag * 1.3 + 0.5) * 2) / 2; // round up to nearest 0.5, with padding for text labels
+  const yTop = Math.ceil((maxLag * 1.15 + 0.2) * 2) / 2; // round up to nearest 0.5, with padding for text labels
   return {
     traces, title,
     layout: {
@@ -5462,7 +5464,6 @@ function renderBetaQuality() {
   let yIdx = 0;
 
   const GAP_THRESH = 6 * 3600 * 1000; // 6 hours
-  const OUTLIER_WINDOW = 24; // readings for rolling stats (not hours — depends on frequency)
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
@@ -5506,39 +5507,13 @@ function renderBetaQuality() {
       }
     }
 
-    // Outlier detection: readings > 3σ from local rolling mean
-    if (temp.length > OUTLIER_WINDOW * 2) {
-      const outlierX = [], outlierY = [], outlierText = [];
-      for (let i = OUTLIER_WINDOW; i < temp.length - OUTLIER_WINDOW; i++) {
-        let sum = 0, sumSq = 0, cnt = 0;
-        for (let j = i - OUTLIER_WINDOW; j <= i + OUTLIER_WINDOW; j++) {
-          if (temp[j] != null) { sum += temp[j]; sumSq += temp[j] * temp[j]; cnt++; }
-        }
-        if (cnt < OUTLIER_WINDOW) continue;
-        const mean = sum / cnt;
-        const std = Math.sqrt(sumSq / cnt - mean * mean);
-        if (std > 0 && temp[i] != null && Math.abs(temp[i] - mean) > 3 * std) {
-          outlierX.push(toEATString(ts[i]));
-          outlierY.push(y);
-          const dev = ((temp[i] - mean) / std).toFixed(1);
-          outlierText.push(`${nameWithSrc}<br>Suspect reading: ${temp[i].toFixed(1)}\u00b0C<br>Local mean: ${mean.toFixed(1)}\u00b0C (\u00b1${std.toFixed(1)})<br>Deviation: ${dev}\u03c3<br>%{x}`);
-        }
-      }
-      if (outlierX.length > 0) {
-        traces.push({
-          x: outlierX, y: outlierY, type: 'scatter', mode: 'markers',
-          marker: {color: '#e74c3c', size: 6, symbol: 'x'},
-          showlegend: false,
-          hovertemplate: outlierText.map(t => t + '<extra></extra>'),
-        });
-      }
-    }
-
     // Admin-flagged anomalous ranges (from CLAUDE.md / config)
     const anomRanges = m.anomalousRanges || {};
     if (anomRanges[loggerId]) {
       const rng = anomRanges[loggerId];
-      const reason = rng.reason || 'Flagged as anomalous by admin';
+      const rawReason = rng.reason || 'Flagged as anomalous by admin';
+      // Word-wrap reason text for hover tooltip (max ~45 chars per line)
+      const reason = rawReason.replace(/(.{1,45})(\s|$)/g, '$1<br>').replace(/<br>$/, '').trim();
       // Show anomalous region as a distinct purple band
       if (rng.before) {
         const rangeStart = ts[0];
@@ -5572,7 +5547,6 @@ function renderBetaQuality() {
   // Legend entries
   traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Good data',line:{color:'#27ae60',width:8},showlegend:true,hoverinfo:'skip'});
   traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Gap (>6h)',line:{color:'#e67e22',width:8},showlegend:true,hoverinfo:'skip'});
-  traces.push({x:[null],y:[null],type:'scatter',mode:'markers',name:'Suspect reading (>3\u03c3)',marker:{color:'#e74c3c',size:6,symbol:'x'},showlegend:true,hoverinfo:'skip'});
   // Only show admin-flagged legend if any anomalous ranges exist
   const _anomRanges = m.anomalousRanges || {};
   if (Object.keys(_anomRanges).length > 0) {
