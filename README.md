@@ -1,6 +1,6 @@
 # ARC Ecovillage Temperature & Humidity Dashboard
 
-Interactive environmental monitoring dashboard for the **Action Research Circles (ARC) Cool Buildings Programme**. Tracks temperature and humidity inside buildings at the Al-Mizan Children's Ecovillage (CEV) in Bagamoyo, Tanzania.
+Interactive environmental monitoring dashboard for the **Architecture for Resilient Communities (ARC) Cool Buildings Programme**. Tracks temperature and humidity inside buildings at the Al-Mizan Children's Ecovillage (CEV) in Bagamoyo, Tanzania.
 
 The dashboard is a self-contained HTML page that updates automatically and works offline once loaded.
 
@@ -198,4 +198,4 @@ For full technical details, see `runningmean.md`.
 
 ## License
 
-This project is part of the Action Research Circles Cool Buildings Programme, a research initiative focused on sustainable building design in tropical climates.
+This project is part of the Architecture for Resilient Communities Cool Buildings Programme, a research initiative focused on sustainable building design in tropical climates.
