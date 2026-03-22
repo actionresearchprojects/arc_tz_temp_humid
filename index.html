@@ -40,7 +40,6 @@ select, button, input { font-family: inherit; }
 select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; max-width: 100%; }
 select:focus { outline: none; border-color: #4a90d9; }
 #chart-type option[value="beta"] { color: #c0392b; font-weight: 700; }
-#beta-chart-type { color: #c0392b; font-weight: 600; border-color: #c0392b; }
 .beta-tag { display:inline-block; background:#c0392b; color:white; font-size:9px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; letter-spacing:0.03em; }
 .cb-label { display: flex; align-items: center; gap: 5px; padding: 1px 0; cursor: pointer; line-height: 1.4; font-size: 12px; }
 .cb-label:hover { color: #1f77b4; }
@@ -361,7 +360,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="periodic" data-i18n="averageProfiles">Average Profiles</option>
             <option value="beta" style="color:#c0392b;font-weight:700" data-i18n="betaFeatures">Beta Features</option>
           </select>
-          <select id="beta-chart-type" style="display:none;color:#c0392b;font-weight:600;border-color:#c0392b">
+          <select id="beta-chart-type" style="display:none">
             <option value="beta-diff" data-i18n="betaDiff">Temperature Differential</option>
             <option value="beta-decrement" data-i18n="betaDecrement">Decrement Factor</option>
             <option value="beta-lag" data-i18n="betaLag">Thermal Lag</option>
@@ -558,7 +557,7 @@ const I18N = {
     betaDecrementAxis: 'Decrement Factor (indoor swing / outdoor swing)',
     betaLagAxis: 'Thermal Lag (hours)',
     infoBetaDiff: 'Shows the difference between indoor and outdoor temperature at each time step. Positive = hotter inside than outside (building trapping heat). Negative = cooler inside (building providing relief). Per-room lines let you compare which spaces perform best.',
-    infoBetaDecrement: 'The decrement factor is the ratio of indoor to outdoor daily temperature swing. If outside swings 12\u00b0C but inside only 4\u00b0C, the factor is 0.33. Lower is better: it means the building dampens outdoor extremes more effectively.',
+    infoBetaDecrement: 'How much the building dampens the outdoor temperature swing each day. Calculated as indoor swing divided by outdoor swing. Example: outdoor high 35\u00b0C, low 23\u00b0C (swing = 12\u00b0C); indoor high 30\u00b0C, low 26\u00b0C (swing = 4\u00b0C). Factor = 4/12 = 0.33. Lower values mean the building smooths out temperature extremes better. A value of 1.0 means no damping at all.',
     infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\'s thermal mass absorbs heat slowly and releases it later, ideally when it\'s cooler outside.',
     infoBetaQuality: 'Data health overview showing per-sensor coverage, gap detection (periods >6h with no readings), and outlier flags (readings >3\u03c3 from the local 24h rolling mean). Green = good data, orange = gap, red = suspect reading.',
 
@@ -2410,15 +2409,19 @@ function setupStaticListeners() {
   function handleChartTypeChange(newType) {
     const prevType = state.chartType;
     state.chartType = newType;
-    // Show/hide beta sub-dropdown
+    // Show/hide beta sub-dropdown and style main dropdown
     const betaSel = document.getElementById('beta-chart-type');
     const mainSel = document.getElementById('chart-type');
     if (newType.startsWith('beta-') || newType === 'beta') {
       betaSel.style.display = '';
       mainSel.value = 'beta';
+      mainSel.style.color = '#c0392b';
+      mainSel.style.fontWeight = '700';
       if (newType === 'beta') { state.chartType = betaSel.value; }
     } else {
       betaSel.style.display = 'none';
+      mainSel.style.color = '';
+      mainSel.style.fontWeight = '';
     }
     const isLine = state.chartType === 'line';
     const isHistogram = state.chartType === 'histogram';
@@ -2477,7 +2480,7 @@ function setupStaticListeners() {
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
     if (isBeta) {
-      // Beta charts: hide most sidebar controls, show line-controls for logger selection
+      // Beta charts: show line-controls for logger selection, hide irrelevant sidebar controls
       document.getElementById('line-controls').classList.remove('hidden');
       document.getElementById('line-options-section').style.display = 'none';
       document.getElementById('line-options-divider').style.display = 'none';
@@ -2485,21 +2488,28 @@ function setupStaticListeners() {
       document.getElementById('humidity-label').style.display = state.chartType === 'beta-diff' ? '' : 'none';
       document.getElementById('cb-threshold').parentElement.style.display = 'none';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
-      // Hide external and structural sections; only show room loggers
+      // Hide external and structural logger checkboxes; only show room loggers
       const _m = dataset().meta;
-      const _extSet = new Set(_m.externalLoggers || []);
       const _roomSet = new Set(_m.roomLoggers || []);
       const loggerDiv = document.getElementById('logger-checkboxes');
-      // Walk through sub-section-title elements and hide external/structural sections
-      let currentSection = null;
-      for (const child of loggerDiv.children) {
+      // Use data attributes on checkboxes to determine which to show
+      let inRoomSection = false;
+      for (const child of Array.from(loggerDiv.children)) {
         if (child.classList && child.classList.contains('sub-section-title')) {
-          currentSection = child.textContent.trim();
-          const isRoom = currentSection === t('sectionRoom');
-          child.style.display = isRoom ? '' : 'none';
-        } else if (currentSection) {
-          const isRoom = currentSection === t('sectionRoom');
-          child.style.display = isRoom ? '' : 'none';
+          // Check if next checkbox siblings are room loggers
+          const nextCb = child.nextElementSibling;
+          let sectionIsRoom = false;
+          // Look ahead to find first checkbox in this section
+          let sib = child.nextElementSibling;
+          while (sib && !sib.classList.contains('sub-section-title')) {
+            const cb = sib.querySelector && sib.querySelector('input[data-logger-id]');
+            if (cb) { sectionIsRoom = _roomSet.has(cb.dataset.loggerId); break; }
+            sib = sib.nextElementSibling;
+          }
+          inRoomSection = sectionIsRoom;
+          child.style.display = inRoomSection ? '' : 'none';
+        } else {
+          child.style.display = inRoomSection ? '' : 'none';
         }
       }
     } else {
@@ -3386,7 +3396,9 @@ function renderLineGraph() {
             if (first < dataMinMs) dataMinMs = first;
             if (last > dataMaxMs) dataMaxMs = last;
           }
-          const color = otherM.colors[lid] || '#999';
+          const origColor = otherM.colors[lid] || '#999';
+          // In compare mode, use set colour; otherwise use logger's own colour
+          const color = iter.baseColor || origColor;
           const dispName = lnFrom(otherM, lid);
           const crossPrefix = namePrefix + otherName + ' \u2013 ';
           const source = otherM.loggerSources[lid] || '';
@@ -5328,7 +5340,7 @@ function renderBetaDecrement() {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm?45:65, r: sm?8:20, t: sm?30:40, b: sm?80:100},
       xaxis: {title: 'Room Logger <span style="color:#aaa">(source type)</span>', tickangle: -30, automargin: true},
-      yaxis: {title: t('betaDecrementAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(1.2, ...(loggerDecrement.length ? loggerDecrement : [0])) * 1.15], zeroline: true},
+      yaxis: {title: t('betaDecrementAxis'), showgrid: true, gridcolor: '#eee', range: [0, 1.05], fixedrange: true, zeroline: true},
       shapes: [{type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:1, y1:1, line:{color:'#e74c3c',width:1.5,dash:'dash'}}],
       annotations: [{x:1, y:1, xref:'paper', yref:'y', text:'1.0 = no damping', showarrow:false, font:{size:10,color:'#e74c3c'}, xanchor:'right', yanchor:'bottom'}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
@@ -5425,14 +5437,15 @@ function renderBetaLag() {
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
   const title = `${dsl} \u2013 ${t('betaLagTitle')}`;
-  const maxLag = loggerLag.length > 0 ? Math.max(...loggerLag) : 8;
+  const maxLag = loggerLag.length > 0 ? Math.max(...loggerLag) : 1;
+  const yTop = Math.ceil((maxLag * 1.3 + 0.5) * 2) / 2; // round up to nearest 0.5, with padding for text labels
   return {
     traces, title,
     layout: {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm?45:65, r: sm?8:20, t: sm?30:40, b: sm?80:100},
       xaxis: {title: 'Room Logger <span style="color:#aaa">(source type)</span>', tickangle: -30, automargin: true},
-      yaxis: {title: t('betaLagAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.ceil(Math.max(8, maxLag * 1.2))], fixedrange: true},
+      yaxis: {title: t('betaLagAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(yTop, 1)]},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
       hovermode: 'closest',
     },
@@ -5495,7 +5508,7 @@ function renderBetaQuality() {
 
     // Outlier detection: readings > 3σ from local rolling mean
     if (temp.length > OUTLIER_WINDOW * 2) {
-      const outlierX = [], outlierY = [];
+      const outlierX = [], outlierY = [], outlierText = [];
       for (let i = OUTLIER_WINDOW; i < temp.length - OUTLIER_WINDOW; i++) {
         let sum = 0, sumSq = 0, cnt = 0;
         for (let j = i - OUTLIER_WINDOW; j <= i + OUTLIER_WINDOW; j++) {
@@ -5507,6 +5520,8 @@ function renderBetaQuality() {
         if (std > 0 && temp[i] != null && Math.abs(temp[i] - mean) > 3 * std) {
           outlierX.push(toEATString(ts[i]));
           outlierY.push(y);
+          const dev = ((temp[i] - mean) / std).toFixed(1);
+          outlierText.push(`${nameWithSrc}<br>Suspect reading: ${temp[i].toFixed(1)}\u00b0C<br>Local mean: ${mean.toFixed(1)}\u00b0C (\u00b1${std.toFixed(1)})<br>Deviation: ${dev}\u03c3<br>%{x}`);
         }
       }
       if (outlierX.length > 0) {
@@ -5514,8 +5529,40 @@ function renderBetaQuality() {
           x: outlierX, y: outlierY, type: 'scatter', mode: 'markers',
           marker: {color: '#e74c3c', size: 6, symbol: 'x'},
           showlegend: false,
-          hovertemplate: `${nameWithSrc}<br>Suspect reading<br>%{x}<extra></extra>`,
+          hovertemplate: outlierText.map(t => t + '<extra></extra>'),
         });
+      }
+    }
+
+    // Admin-flagged anomalous ranges (from CLAUDE.md / config)
+    const anomRanges = m.anomalousRanges || {};
+    if (anomRanges[loggerId]) {
+      const rng = anomRanges[loggerId];
+      const reason = rng.reason || 'Flagged as anomalous by admin';
+      // Show anomalous region as a distinct purple band
+      if (rng.before) {
+        const rangeStart = ts[0];
+        const rangeEnd = Math.min(rng.before, ts[ts.length - 1]);
+        if (rangeStart < rangeEnd) {
+          traces.push({
+            x: [toEATString(rangeStart), toEATString(rangeEnd)],
+            y: [y, y], type: 'scatter', mode: 'lines',
+            line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
+            hovertemplate: `${nameWithSrc}<br>Admin flagged<br>${reason}<br>%{x}<extra></extra>`,
+          });
+        }
+      }
+      if (rng.after) {
+        const rangeStart = Math.max(rng.after, ts[0]);
+        const rangeEnd = ts[ts.length - 1];
+        if (rangeStart < rangeEnd) {
+          traces.push({
+            x: [toEATString(rangeStart), toEATString(rangeEnd)],
+            y: [y, y], type: 'scatter', mode: 'lines',
+            line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
+            hovertemplate: `${nameWithSrc}<br>Admin flagged<br>${reason}<br>%{x}<extra></extra>`,
+          });
+        }
       }
     }
 
@@ -5526,6 +5573,11 @@ function renderBetaQuality() {
   traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Good data',line:{color:'#27ae60',width:8},showlegend:true,hoverinfo:'skip'});
   traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Gap (>6h)',line:{color:'#e67e22',width:8},showlegend:true,hoverinfo:'skip'});
   traces.push({x:[null],y:[null],type:'scatter',mode:'markers',name:'Suspect reading (>3\u03c3)',marker:{color:'#e74c3c',size:6,symbol:'x'},showlegend:true,hoverinfo:'skip'});
+  // Only show admin-flagged legend if any anomalous ranges exist
+  const _anomRanges = m.anomalousRanges || {};
+  if (Object.keys(_anomRanges).length > 0) {
+    traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Admin flagged',line:{color:'#8e44ad',width:12},opacity:0.35,showlegend:true,hoverinfo:'skip'});
+  }
 
   // Build y-axis tick labels
   const tickVals = [], tickText = [];

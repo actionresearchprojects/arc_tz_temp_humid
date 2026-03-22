@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2026-03-22 13:54:26 CST
+- **Fix: Cross-building compare traces now use set colour** in compare mode instead of the other dataset's original colours.
+- **Fix: Beta feature checkboxes now visible** - rewrote section visibility logic to use data-attribute lookup instead of fragile text matching. Only Room loggers shown; External/Structural sections hidden.
+- **Fix: Beta dropdown styling** - secondary dropdown is now plain (not red/bold). Only the "Beta Features" text in the main dropdown is red+bold. Main select element itself turns red when beta is selected.
+- **Fix: Decrement Factor y-axis fixed to 0-1 range**. Rewrote info tooltip with clearer worked example (outdoor high/low, indoor high/low, swing calculation).
+- **Fix: Thermal Lag y-axis now scales dynamically** to the actual data range with padding, instead of a minimum of 8.
+- **Data Quality: enriched suspect reading tooltips** - now show the actual reading, local mean, standard deviation, and sigma deviation (e.g. "Suspect: 38.2C, local mean: 29.1C +/-1.2, deviation: 7.6sigma").
+- **Data Quality: admin-flagged anomalous periods shown as purple bands** - the known Bedroom 4 (3276012B) anomalous range appears as a distinct purple overlay with the admin-specified reason on hover. Legend entry "Admin flagged" only appears when anomalous ranges exist.
+
 ### 2026-03-22 13:43:53 CST
 - **Refined Beta Features UI**: "Beta Features" is now a single red-styled option in the main chart dropdown. Selecting it reveals a secondary dropdown to the right for choosing the specific beta chart (Temperature Differential, Decrement Factor, Thermal Lag, Data Quality).
 - **Removed em dashes** from all beta info tooltips (EN and SW).
