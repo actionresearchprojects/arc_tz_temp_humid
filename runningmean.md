@@ -4,9 +4,9 @@ This document explains exactly how the adaptive comfort running mean is calculat
 
 ---
 
-## 1. The EN 15251 Formula
+## 1. The EN16798-1 Formula
 
-The running mean external temperature is defined in EN 15251 (now EN 16798-1) as:
+The running mean external temperature is defined in EN 16798-1 as:
 
 ```
 θ_rm(n) = (1 - α) × θ_ed(n-1) + α × θ_rm(n-1)
@@ -41,7 +41,7 @@ The past 7 days account for ~79% of the total weight. Days further back contribu
 
 ## 2. The Code - Step by Step
 
-The function lives in `build.py` at line 649:
+The function lives in `build.py`:
 
 ```python
 def compute_exponential_running_mean(df, primary_logger, fallback_loggers, alpha=0.8):
@@ -85,7 +85,7 @@ Result: any day the chosen source has data → that data is used. Any day it doe
 
 The code also tracks *which source was used for each day* (the `day_sources` series) so the dashboard can show this information on hover and in the legend.
 
-### Step 4: Compute the running mean (the actual EN 15251 formula)
+### Step 4: Compute the running mean (the actual EN16798-1 formula)
 
 ```python
 trm = [combined.iloc[0]]                                        # Seed: first day's temp
@@ -94,12 +94,12 @@ for i in range(1, len(combined)):
 ```
 
 Line by line:
-- `trm[0] = combined[0]` - the very first running mean value is seeded with the first available day's temperature (standard practice; EN 15251 doesn't specify initialisation, and the seed's influence decays to near-zero within a few weeks)
+- `trm[0] = combined[0]` - the very first running mean value is seeded with the first available day's temperature (standard practice; EN16798-1 doesn't specify initialisation, and the seed's influence decays to near-zero within a few weeks)
 - For every subsequent day: `trm[i] = 0.2 × combined[i-1] + 0.8 × trm[i-1]`
 
 This is exactly: **θ_rm(n) = (1 - α) × θ_ed(n-1) + α × θ_rm(n-1)** ✓
 
-Note: `combined[i-1]` is the *previous day's* temperature (θ_ed(n-1)), and `trm[-1]` = `trm[i-1]` is the *previous day's* running mean (θ_rm(n-1)). The formula uses yesterday's values to compute today's running mean, which is correct per EN 15251.
+Note: `combined[i-1]` is the *previous day's* temperature (θ_ed(n-1)), and `trm[-1]` = `trm[i-1]` is the *previous day's* running mean (θ_rm(n-1)). The formula uses yesterday's values to compute today's running mean, which is correct per EN16798-1.
 
 ### Step 5: Upsample to hourly and record source spans
 
@@ -122,7 +122,7 @@ The `source_spans` list records consecutive date ranges showing which source was
 
 ## 3. How It's Called
 
-In `build_dataset_json()` (line 843):
+In `build_dataset_json()`:
 
 ```python
 source_id = logger_overrides.get(logger_id, {}).get("external_source", default_external_logger)
@@ -134,7 +134,7 @@ For each indoor logger, it looks up which external source the user chose in `con
 running_mean_cache[source_id] = compute_exponential_running_mean(df, source_id, fallback_loggers)
 ```
 
-The `fallback_loggers` are always the Open-Meteo IDs (line 741):
+The `fallback_loggers` are always the Open-Meteo IDs:
 ```python
 fallback_loggers = [l for l in cfg.get("external_sensors", []) if l in OPENMETEO_IDS]
 ```

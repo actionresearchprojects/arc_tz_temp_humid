@@ -57,7 +57,7 @@
 
 ### 2026-03-16 17:00:00 CST
 - **Adaptive comfort source attribution on chart**: The Adaptive Comfort chart bottom-right annotation now shows:
-  1. The comfort model (e.g. "Adaptive comfort: EN 15251 · RH>60% (Vellei et al.)")
+  1. The comfort model (e.g. "Adaptive comfort: EN16798-1 · RH>60% (Vellei et al.)")
   2. The running mean external temperature source(s) with type and date periods when multiple sources are used (e.g. "Running mean sources: External Ambient [TinyTag] (2024-01-01 to 2024-05-06), Historical Temperature [Open-Meteo] (2024-05-07 to 2025-03-15)")
 - **build.py**: `compute_exponential_running_mean` now returns source span metadata tracking which days used the primary vs fallback logger. Stored as `extSourceSpans` in each logger's series data.
 
@@ -312,7 +312,7 @@
 - Added chart-type info (i) icon next to the chart-type dropdown. Tooltip text updates dynamically based on the currently selected chart type:
   - **Line Graph**: explains time series, gap detection, season lines, 32°C threshold.
   - **Histogram**: explains per-degree/percent bins, normalised fractions, comparable across different sampling rates.
-  - **Adaptive Comfort**: explains EN 15251 running mean, green comfort zone, humidity model selection.
+  - **Adaptive Comfort**: explains EN16798-1 running mean, green comfort zone, humidity model selection.
 - Uses same fixed-position JS tooltip pattern as the density heatmap info icon (Georgia serif, z-index 9999, viewport-clamped). Tooltip opens below the icon. Width 280px.
 - Rebuilt index.html.
 
@@ -621,7 +621,7 @@
 - Fixed JS spread operator stack overflow on large arrays in adaptive comfort graph. Replaced `Math.min(...allExtTemps)` / `Math.max(...allExtTemps)` and `push(...array)` with explicit `for...of` loops — fixes House 5 (174k records) silently failing to render adaptive comfort. Rebuilt index.html.
 
 ### 2026-02-27 (time not recorded)
-- Created `build.py` and `index.html`: static HTML dashboard for House 5 and Schoolteacher's House TinyTag Excel loggers. Reads .xlsx files from data/house5/ and data/schoolteacher/, embeds both datasets as separate JSON blobs. Dataset switcher in header reloads all controls instantly client-side. EN 15251 exponential running mean (alpha=0.8) for adaptive comfort. All features from omnisense_t_h preserved: line graph, adaptive comfort, time range filtering, logger/metric selection, season lines, 32°C threshold, comfort stats, PNG download, full responsive layout.
+- Created `build.py` and `index.html`: static HTML dashboard for House 5 and Schoolteacher's House TinyTag Excel loggers. Reads .xlsx files from data/house5/ and data/schoolteacher/, embeds both datasets as separate JSON blobs. Dataset switcher in header reloads all controls instantly client-side. EN16798-1 exponential running mean (alpha=0.8) for adaptive comfort. All features from omnisense_t_h preserved: line graph, adaptive comfort, time range filtering, logger/metric selection, season lines, 32°C threshold, comfort stats, PNG download, full responsive layout.
 CLAUDE.md
 ### 2026-03-21 23:XX:XX CST
 - Removed "Adaptive source: X" line from logger hover tooltips — not enough space in the tooltip box.

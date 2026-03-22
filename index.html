@@ -171,7 +171,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
   <h1 data-i18n="title">ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
   <div id="lang-wrap">
-    <button id="lang-btn" onclick="document.getElementById('lang-menu').classList.toggle('open')" title="Language">&#127760;</button>
+    <button id="lang-btn" onclick="document.getElementById('lang-menu').classList.toggle('open')" title="Language"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
     <div id="lang-menu">
       <button onclick="setLanguage('en')">English</button>
       <button onclick="setLanguage('sw')">Kiswahili</button>
@@ -3088,7 +3088,7 @@ function comfortSourceLabel(extSrcText) {
   const sel = document.getElementById('comfort-model');
   const parts = [];
   if (sel && state.comfortModel !== 'none') {
-    parts.push(`Adaptive comfort: EN 15251 · ${sel.options[sel.selectedIndex].text}`);
+    parts.push(`Adaptive comfort: EN16798-1 · ${sel.options[sel.selectedIndex].text}`);
   }
   if (extSrcText) parts.push(extSrcText);
   return parts.join('<br>') || '';
@@ -5466,7 +5466,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const texts = {
     line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; shaded red band is the 32\u201335\u00b0C heatwave threshold range.',
     histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked \u2014 hover to see individual logger values.' : 'overlaid \u2014 hover to see how many series share each bin.'),
-    comfort: 'Adaptive comfort per EN 15251. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
+    comfort: 'Adaptive comfort per EN16798-1. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
     periodic: 'Averages readings by position within a cycle. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
   };
   icon.addEventListener('mouseenter', () => {
