@@ -4308,25 +4308,29 @@ function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
 // ── Position running mean info icon next to x-axis title ─────────────────────
 function positionComfortOverlays() {
   const chartEl = document.getElementById('chart');
+  const container = document.getElementById('chart-area');
   const rmIcon = document.getElementById('rm-xaxis-info-icon');
   if (state.chartType !== 'comfort') { rmIcon.style.display = 'none'; return; }
-  const chartRect = chartEl.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
   const xTitleEl = chartEl.querySelector('.g-xtitle');
   if (xTitleEl) {
     const xr = xTitleEl.getBoundingClientRect();
     rmIcon.style.display = '';
-    rmIcon.style.left = (xr.right - chartRect.left + 4) + 'px';
-    rmIcon.style.top = (xr.top - chartRect.top + (xr.height - 14) / 2) + 'px';
+    rmIcon.style.left = (xr.right - containerRect.left + 4) + 'px';
+    rmIcon.style.top = (xr.top - containerRect.top + (xr.height - 14) / 2) + 'px';
   } else {
     rmIcon.style.display = 'none';
   }
 
-  // Make Plotly annotations fade when mouse hovers over them (SVG needs pointer-events)
+  // Make Plotly annotations fade when mouse hovers over them
+  // Plotly annotations have a <rect> background + <text> inside a <g class="annotation">
+  // We need pointer-events on the rect so the hover fires
   chartEl.querySelectorAll('.annotation').forEach(anno => {
     if (anno._fadeAttached) return;
     anno._fadeAttached = true;
-    anno.style.pointerEvents = 'all';
-    anno.style.cursor = 'default';
+    // Ensure the background rect captures pointer events
+    const rect = anno.querySelector('rect');
+    if (rect) rect.style.pointerEvents = 'all';
     anno.addEventListener('mouseenter', () => { anno.style.opacity = '0.1'; anno.style.transition = 'opacity 0.2s'; });
     anno.addEventListener('mouseleave', () => { anno.style.opacity = '1'; });
   });
