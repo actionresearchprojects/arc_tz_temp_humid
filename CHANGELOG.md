@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2026-03-22 21:45:00 CST
+- **Fix comfort band tooltip**: Corrected to reference ASHRAE-55 (not EN 16798-1) as the basis for the adaptive comfort model. Added link to Vellei et al. (2017) DOI for the humidity-aware extensions. Tooltip now explains that the default model ignores humidity and can overestimate overheating by ~30%.
+- **Reposition annotation toggle and running mean info icon**: Both now dynamically position themselves relative to chart elements after each render. The minimize arrow sits next to the "Data ranges from..." annotation text. The running mean `i` icon sits next to the x-axis title. Both reposition on window resize.
+
 ### 2026-03-22 21:15:00 CST
 - **Separate running mean info icon on adaptive comfort chart**: Added an info `i` button near the x-axis title that explains what the running mean represents and why the comfort band shifts with outdoor temperature. Split from the comfort band tooltip, which now focuses on the green band and humidity model selection.
 

@@ -387,8 +387,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
     </div>
     <div id="chart"></div>
-    <button id="annotation-toggle" title="Hide details" style="display:none;position:absolute;bottom:8px;right:8px;z-index:60;width:22px;height:22px;padding:0;border:1px solid #ccc;border-radius:4px;background:rgba(255,255,255,0.85);color:#888;font-size:13px;line-height:22px;text-align:center;cursor:pointer;font-family:sans-serif;" onclick="toggleAnnotation()">&#x25BC;</button>
-    <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:absolute;bottom:4px;left:50%;transform:translateX(12em);z-index:60;">i</span>
+    <button id="annotation-toggle" title="Hide details" style="display:none;position:absolute;z-index:60;width:18px;height:18px;padding:0;border:1px solid #ccc;border-radius:3px;background:rgba(255,255,255,0.85);color:#888;font-size:11px;line-height:18px;text-align:center;cursor:pointer;font-family:sans-serif;" onclick="toggleAnnotation()">&#x25BC;</button>
+    <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:absolute;z-index:60;">i</span>
     <div class="info-tip-fixed" id="rm-xaxis-info-tip"></div>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
     <div class="substrat-no-data" id="substrat-no-data" data-i18n="noDataFilter">No data matches the selected filter</div>
@@ -2953,6 +2953,7 @@ function setupStaticListeners() {
   window.addEventListener('resize', () => {
     if (window.innerWidth > 680) closeSidebar();
     Plotly.relayout('chart', {autosize: true});
+    requestAnimationFrame(positionComfortOverlays);
   });
 }
 
@@ -3339,18 +3340,64 @@ function toggleAnnotation() {
   const btn = document.getElementById('annotation-toggle');
   if (!chartEl._fullLayout) return;
   if (_annotationHidden) {
-    // Restore
     if (_savedAnnotations) Plotly.relayout(chartEl, {annotations: _savedAnnotations});
     btn.innerHTML = '&#x25BC;';
     btn.title = 'Hide details';
     _annotationHidden = false;
   } else {
-    // Hide
     _savedAnnotations = (chartEl._fullLayout.annotations || []).map(a => Object.assign({}, a));
     Plotly.relayout(chartEl, {annotations: []});
     btn.innerHTML = '&#x25B2;';
     btn.title = 'Show details';
     _annotationHidden = true;
+  }
+  positionComfortOverlays();
+}
+
+function positionComfortOverlays() {
+  const chartEl = document.getElementById('chart');
+  const chartRect = chartEl.getBoundingClientRect();
+  const btn = document.getElementById('annotation-toggle');
+  const rmIcon = document.getElementById('rm-xaxis-info-icon');
+  if (state.chartType !== 'comfort') { btn.style.display = 'none'; rmIcon.style.display = 'none'; return; }
+
+  // Position annotation toggle next to the "Data ranges from..." annotation
+  const annos = chartEl.querySelectorAll('.annotation');
+  // Find the bottom-right annotation (dateRange annotation has paper xref/yref)
+  let targetAnno = null;
+  annos.forEach(a => {
+    const r = a.getBoundingClientRect();
+    // The dateRange annotation sits near the bottom-right of the plot
+    if (r.bottom > chartRect.top + chartRect.height * 0.5) targetAnno = a;
+  });
+  if (targetAnno && !_annotationHidden) {
+    const ar = targetAnno.getBoundingClientRect();
+    btn.style.display = '';
+    btn.style.left = (ar.left - chartRect.left - 22) + 'px';
+    btn.style.top = (ar.top - chartRect.top + 1) + 'px';
+  } else if (_annotationHidden) {
+    // When hidden, put the restore button at bottom-right of plot area
+    const fl = chartEl._fullLayout;
+    if (fl) {
+      const plotRight = fl.margin.l + fl.width;
+      const plotBottom = fl.margin.t + fl.height;
+      btn.style.display = '';
+      btn.style.left = (plotRight - 22) + 'px';
+      btn.style.top = (plotBottom - 22) + 'px';
+    }
+  } else {
+    btn.style.display = 'none';
+  }
+
+  // Position running mean info icon next to x-axis title
+  const xTitleEl = chartEl.querySelector('.g-xtitle');
+  if (xTitleEl) {
+    const xr = xTitleEl.getBoundingClientRect();
+    rmIcon.style.display = '';
+    rmIcon.style.left = (xr.right - chartRect.left + 4) + 'px';
+    rmIcon.style.top = (xr.top - chartRect.top + (xr.height - 14) / 2) + 'px';
+  } else {
+    rmIcon.style.display = 'none';
   }
 }
 
@@ -5362,8 +5409,7 @@ function _doRender() {
   if (!isAdaptive) { _annotationHidden = false; _savedAnnotations = null; }
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   // Show toggle button only for adaptive comfort with annotations
-  annoToggle.style.display = (isAdaptive && (_savedAnnotations && _savedAnnotations.length || !_annotationHidden && layout.annotations && layout.annotations.length)) ? '' : 'none';
-  document.getElementById('rm-xaxis-info-icon').style.display = isAdaptive ? '' : 'none';
+  requestAnimationFrame(positionComfortOverlays);
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';
@@ -5499,15 +5545,16 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip',
       text: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.' },
     { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip',
-      text: 'The green band shows the range of indoor temperatures considered comfortable under the EN 16798-1 standard. In warm, humid climates the default model can be too narrow, so the Vellei et al. options widen the band to reflect how people actually adapt to humidity.' },
+      html: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.' },
     { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip',
       text: 'The running mean is a weighted average of outdoor temperature over the past 7 days, giving more weight to recent days. It captures how people acclimatise to changing weather. When outdoor temperatures have been high, occupants tolerate warmer indoor conditions, so the comfort band shifts right.' },
   ];
-  items.forEach(({iconId, tipId, text}) => {
+  items.forEach(({iconId, tipId, text, html}) => {
     const icon = document.getElementById(iconId);
     const tip  = document.getElementById(tipId);
     if (!icon || !tip) return;
-    tip.textContent = text;
+    if (html) { tip.innerHTML = html; tip.style.pointerEvents = 'auto'; }
+    else tip.textContent = text;
     icon.addEventListener('mouseenter', () => {
       const r = icon.getBoundingClientRect();
       tip.style.display = 'block';
@@ -5516,7 +5563,17 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
       tip.style.left = Math.max(4, left) + 'px';
       tip.style.top  = r.top + 'px';
     });
-    icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    if (html) {
+      // Keep tip visible when hovering over it (so user can click links)
+      let hideTimer;
+      const hide = () => { hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 200); };
+      const cancelHide = () => clearTimeout(hideTimer);
+      icon.addEventListener('mouseleave', hide);
+      tip.addEventListener('mouseenter', cancelHide);
+      tip.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    } else {
+      icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    }
   });
 })();
 
