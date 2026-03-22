@@ -1,7 +1,10 @@
 ## Changelog
 
+### 2026-03-22 08:56:57 CST
+- **Comprehensive Kiswahili translation**: Extended Swahili translations to cover nearly all user-visible English text. Now translates: dataset names (Nyumba 5, Nyumba ya Mwalimu), all room/logger names (Sebule, Chumba cha kulala, Jikoni, etc.), chart titles, axis labels (Saa ya Siku, Tarehe/Saa, Joto/Unyevunyevu), "Data ranges from/to" annotation, "Overall"/"Data completeness" stats, section sub-headers (Nje/Chumba/Muundo), avg trace names, hover tooltip labels, time period labels, and data source notes. Added `ln()` helper for logger names with `loggerNamesSw` map in data. Charts re-render on language switch via `updatePlot()`. Scientific terms (MJO, IOD, ENSO, Vellei et al.) and brand names (Open-Meteo, TinyTag, Omnisense) kept in English.
+
 ### 2026-03-22 00:48:45 CST
-- **Kiswahili language option**: Added a language selector (English/Kiswahili) in the top-right of the header bar. Translates static UI labels, section titles, select options, checkbox labels, and button text into Swahili where direct translations exist. Technical/scientific terms (Adaptive Comfort, Density Heatmap, logger names, RH model labels) kept in English. Language preference saved to localStorage and restored on reload. Translation system uses `data-i18n` attributes on static elements and a `t()` helper for dynamic content.
+- **Kiswahili language option**: Added a language selector (English/Kiswahili) in the top-right of the header bar with `t()` translation system and `data-i18n` attributes. Language preference saved to localStorage.
 
 ### 2026-03-21 22:50:00 CST
 - **Adaptive comfort annotation toggle button**: Added a small ▼/▲ button at the bottom-right of the adaptive comfort chart to minimise/maximise the detail overlay text (data range, comfort model, running mean sources). Prevents long annotation text from obscuring data points. Button only appears on the adaptive comfort chart when annotations are present. State persists across re-renders within the same session.

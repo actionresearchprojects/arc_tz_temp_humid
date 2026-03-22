@@ -157,6 +157,37 @@ LOGGER_NAMES = {
     OPENMETEO_LEGACY_ID: "External Temperature",  # backward compat
 }
 
+LOGGER_NAMES_SW = {
+    "861011": "Nje (Mazingira)",
+    "780981": "Sebule",
+    "639148": "Chumba cha kusoma",
+    "759522": "Chumba cha kulala 1",
+    "759521": "Chumba cha kulala 2",
+    "759209": "Chumba cha kulala 3",
+    "759492": "Chumba cha kulala 4",
+    "861968": "Sebule (chini ya paa la bati)",
+    "759493": "Sebule (juu ya dari)",
+    "759498": "Chumba cha kulala 3 (chini ya paa la bati)",
+    "861004": "Chumba cha kulala 3 (juu ya dari, chini ya insulation)",
+    "861034": "Chumba cha kulala 3 (juu ya dari, juu ya insulation)",
+    "759519": "Chumba cha kulala 4 (chini ya paa la bati)",
+    "759489": "Chumba cha kulala 4 (juu ya dari)",
+    "govee": "Eneo la kuishi",
+    "320E02D1": "Kituo cha Hali ya Hewa T&RH",
+    "327601CB": "Chumba cha kulala 2",
+    "32760371": "Chumba cha kulala 3",
+    "3276012B": "Chumba cha kulala 4",
+    "32760164": "Chumba cha kulala 4 (juu ya dari)",
+    "3276003D": "Jikoni",
+    "327601CD": "Sebule",
+    "32760205": "Chumba cha kulala 1",
+    "3276028A": "Chumba cha kusoma",
+    "32760208": "Eneo la vyoo",
+    OPENMETEO_HISTORICAL_ID: "Joto la Kihistoria",
+    OPENMETEO_FORECAST_ID: "Joto la Utabiri",
+    OPENMETEO_LEGACY_ID: "Joto la Nje",
+}
+
 LOGGER_SOURCES = {
     "861011": "TinyTag", "780981": "TinyTag", "639148": "TinyTag",
     "759522": "TinyTag", "759521": "TinyTag", "759209": "TinyTag",
@@ -871,6 +902,7 @@ def build_dataset_json(key, df, logger_overrides=None):
         "meta": {
             "loggers":      unique_loggers,
             "loggerNames":  logger_names,
+            "loggerNamesSw": {k: LOGGER_NAMES_SW.get(k, v) for k, v in logger_names.items()},
             "loggerSources": logger_sources,
             "externalLogger": default_external_logger,
             "externalLoggers": [l for l in unique_loggers if l in ext_sensor_set],
@@ -1193,7 +1225,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <hr class="divider">
       </div>
       <div style="font-size:10px;color:#888;line-height:1.3" id="data-source-notes">
-        Hourly external temperature from <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. Forecast shows the next 16 days.
+        <span data-i18n="hourlyExtTemp">Hourly external temperature from</span> <a href="https://open-meteo.com/" target="_blank" style="color:#6a9fd8">Open-Meteo</a>. <span data-i18n="forecastNote">Forecast shows the next 16 days.</span>
       </div>
     </div>
 
@@ -1244,8 +1276,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <div id="time-bar-top">
         <div id="time-bar-left">
           <select id="dataset-select">
-            <option value="house5">House 5</option>
-            <option value="schoolteacher">Schoolteacher's House</option>
+            <option value="house5" data-i18n="house5">House 5</option>
+            <option value="schoolteacher" data-i18n="schoolteacher">Schoolteacher's House</option>
           </select>
           <select id="chart-type">
             <option value="line" data-i18n="lineGraph">Line Graph</option>
@@ -1433,6 +1465,61 @@ const I18N = {
     belowUpper: 'Below upper boundary',
     withinComfort: 'Within comfort zone',
     aboveLower: 'Above lower boundary',
+    // Dataset labels
+    house5: 'House 5',
+    schoolteacher: "Schoolteacher's House",
+    // Section sub-headers
+    sectionExternal: 'External',
+    sectionRoom: 'Room',
+    sectionStructural: 'Structural',
+    // Chart titles
+    tempAndHumid: 'Temperature &amp; Humidity',
+    tempOnly: 'Temperature',
+    humidOnly: 'Humidity',
+    tempAndHumidDist: 'Temperature &amp; Humidity Distribution',
+    tempDist: 'Temperature Distribution',
+    humidDist: 'Humidity Distribution',
+    avgProfiles: 'Average Profiles',
+    adaptiveComfortTitle: 'Adaptive Comfort',
+    // Axis labels
+    dateTime: 'Date / Time',
+    hourOfDay: 'Hour of Day',
+    timeOfDay: 'Time of Day',
+    monthOfYear: 'Month of Year',
+    weekOfYear: 'Week of Year',
+    dayOfYear: 'Day of Year',
+    tanzanianSeason: 'Tanzanian Season',
+    tempAxis: 'Temperature (\u00b0C)',
+    humidAxis: 'Humidity (%RH)',
+    tempHumidAxis: 'Temperature (\u00b0C) / Humidity (%RH)',
+    airTempAxis: 'Air temperature (\u00b0C)  [\u2248 operative temp.]',
+    runningMeanAxis: '7-day running mean external temperature (\u00b0C)',
+    proportionAxis: 'Proportion of readings per sensor',
+    sumAxis: 'Sum of reading distribution across sensors',
+    // Dynamic text
+    dataRangesFrom: 'Data ranges from',
+    dataRangesTo: 'to',
+    overall: 'Overall',
+    ofTempReadingsBelow: 'of temperature readings below 32\u00b0C',
+    dataCompleteness: 'Data completeness',
+    seriesHaveGaps: 'series have gaps of 24h+. Hover orange boxes for details.',
+    noDataRange: 'No data available in the selected range',
+    noDataSelected: 'No data in selected range',
+    forecast: 'Forecast',
+    forecastNote: 'Forecast shows the next 16 days.',
+    hourlyExtTemp: 'Hourly external temperature from',
+    // Avg labels
+    externalAvg: 'External Avg',
+    roomAvg: 'Room Avg',
+    structuralAvg: 'Structural Avg',
+    // Periodic labels
+    phase: 'Phase',
+    // Hover text
+    source: 'Source',
+    runningMean: 'Running mean',
+    roomTemp: 'Room temp',
+    extSource: 'Ext. source',
+    sensor: 'Sensor',
   },
   sw: {
     title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
@@ -1489,9 +1576,61 @@ const I18N = {
     belowUpper: 'Chini ya mpaka wa juu',
     withinComfort: 'Ndani ya eneo la starehe',
     aboveLower: 'Juu ya mpaka wa chini',
+    house5: 'Nyumba 5',
+    schoolteacher: 'Nyumba ya Mwalimu',
+    sectionExternal: 'Nje',
+    sectionRoom: 'Chumba',
+    sectionStructural: 'Muundo',
+    tempAndHumid: 'Joto na Unyevunyevu',
+    tempOnly: 'Joto',
+    humidOnly: 'Unyevunyevu',
+    tempAndHumidDist: 'Usambazaji wa Joto na Unyevunyevu',
+    tempDist: 'Usambazaji wa Joto',
+    humidDist: 'Usambazaji wa Unyevunyevu',
+    avgProfiles: 'Wastani wa Profaili',
+    adaptiveComfortTitle: 'Adaptive Comfort',
+    dateTime: 'Tarehe / Saa',
+    hourOfDay: 'Saa ya Siku',
+    timeOfDay: 'Wakati wa Siku',
+    monthOfYear: 'Mwezi wa Mwaka',
+    weekOfYear: 'Wiki ya Mwaka',
+    dayOfYear: 'Siku ya Mwaka',
+    tanzanianSeason: 'Msimu wa Tanzania',
+    tempAxis: 'Joto (\u00b0C)',
+    humidAxis: 'Unyevunyevu (%RH)',
+    tempHumidAxis: 'Joto (\u00b0C) / Unyevunyevu (%RH)',
+    airTempAxis: 'Joto la hewa (\u00b0C)  [\u2248 joto la uendeshaji]',
+    runningMeanAxis: 'Wastani wa joto la nje wa siku 7 (\u00b0C)',
+    proportionAxis: 'Uwiano wa masomo kwa kila sensor',
+    sumAxis: 'Jumla ya usambazaji wa masomo kwa sensors',
+    dataRangesFrom: 'Data kuanzia',
+    dataRangesTo: 'hadi',
+    overall: 'Jumla',
+    ofTempReadingsBelow: 'ya masomo ya joto chini ya 32\u00b0C',
+    dataCompleteness: 'Ukamilifu wa data',
+    seriesHaveGaps: 'safu zina mapungufu ya saa 24+. Elekeza masanduku ya machungwa kwa maelezo.',
+    noDataRange: 'Hakuna data katika kipindi kilichochaguliwa',
+    noDataSelected: 'Hakuna data katika kipindi kilichochaguliwa',
+    forecast: 'Utabiri',
+    forecastNote: 'Utabiri unaonyesha siku 16 zijazo.',
+    hourlyExtTemp: 'Joto la nje la kila saa kutoka',
+    externalAvg: 'Wastani wa Nje',
+    roomAvg: 'Wastani wa Chumba',
+    structuralAvg: 'Wastani wa Muundo',
+    phase: 'Awamu',
+    source: 'Chanzo',
+    runningMean: 'Wastani',
+    roomTemp: 'Joto la chumba',
+    extSource: 'Chanzo cha nje',
+    sensor: 'Sensor',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
+function ln(id) {
+  const m = dataset().meta;
+  if (currentLang === 'sw' && m.loggerNamesSw && m.loggerNamesSw[id]) return m.loggerNamesSw[id];
+  return m.loggerNames[id] || id;
+}
 
 function setLanguage(lang) {
   currentLang = lang;
@@ -1643,6 +1782,11 @@ function applyLanguage() {
     const locked = btn.classList.contains('locked');
     btn.textContent = t(locked ? 'unlockAvg' : 'lockAvg');
   });
+
+  // Re-render chart with translated labels
+  if (typeof updatePlot === 'function') {
+    try { updatePlot(); } catch(e) {}
+  }
 }
 
 function dataset() { return ALL_DATA[state.datasetKey]; }
@@ -2091,7 +2235,7 @@ function renderCompareSets() {
         const source = m.loggerSources[id] || '';
         const isExtTT = extSet.has(id) && source === 'TinyTag';
         const ttSuffix = isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '';
-        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> ' + m.loggerNames[id] + meteoSuffix(id) + omniSuffix(source) + ttSuffix;
+        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> ' + ln(id) + meteoSuffix(id) + omniSuffix(source) + ttSuffix;
         lbl.querySelector('input').addEventListener('change', e => {
           e.target.checked ? stateSet.add(id) : stateSet.delete(id);
           updatePlot();
@@ -2102,14 +2246,14 @@ function renderCompareSets() {
     if (isComfort) {
       const comfortRoomIds = (m.comfortLoggers || m.roomLoggers || []).filter(id => (m.roomLoggers || []).includes(id));
       const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-      addCmpSection('Room', comfortRoomIds);
-      addCmpSection('Structural', comfortStructIds);
+      addCmpSection(t('sectionRoom'), comfortRoomIds);
+      addCmpSection(t('sectionStructural'), comfortStructIds);
     } else {
-      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection('External', m.externalLoggers);
+      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection(t('sectionExternal'), m.externalLoggers);
       const roomLoggers = m.loggers.filter(id => !extSet.has(id) && roomSet.has(id) && lineSet.has(id));
       const midLoggers = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
-      addCmpSection('Room', roomLoggers);
-      addCmpSection('Structural', midLoggers);
+      addCmpSection(t('sectionRoom'), roomLoggers);
+      addCmpSection(t('sectionStructural'), midLoggers);
     }
     body.appendChild(loggerWrap);
 
@@ -2375,7 +2519,7 @@ function describeCompareDiffs() {
         if (otherCount > 0) srcParts.push(otherCount + ' other');
         // If few loggers, list names; otherwise summarise by count
         if (ids.length <= 3) {
-          parts.push(ids.map(id => m.loggerNames[id] || id).join(', '));
+          parts.push(ids.map(id => ln(id)).join(', '));
         } else {
           parts.push(srcParts.join(' + '));
         }
@@ -2627,7 +2771,7 @@ function loadDataset(key) {
     lbl.dataset.tooltip = loggerTooltip(id, m);
     const hasAnom = !!anomRanges[id];
     const anomSuffix = hasAnom ? ' <span class="anomalous-warn">&#9888;</span>' : '';
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${m.loggerNames[id]}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${ln(id)}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? stateSet.add(id) : stateSet.delete(id);
       updatePlot();
@@ -2729,20 +2873,20 @@ function loadDataset(key) {
   }
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
-    addSection(loggerDiv, state.selectedLoggers, 'External', m.externalLoggers, null, extTTLabel, 'external');
-    addSectionAvgCheckbox(loggerDiv, 'external', 'External');
+    addSection(loggerDiv, state.selectedLoggers, t('sectionExternal'), m.externalLoggers, null, extTTLabel, 'external');
+    addSectionAvgCheckbox(loggerDiv, 'external', t('sectionExternal'));
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
   // Room loggers section
   if (roomLoggers.length > 0) {
-    addSection(loggerDiv, state.selectedLoggers, 'Room', roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers), null, 'room');
-    addSectionAvgCheckbox(loggerDiv, 'room', 'Room');
+    addSection(loggerDiv, state.selectedLoggers, t('sectionRoom'), roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers), null, 'room');
+    addSectionAvgCheckbox(loggerDiv, 'room', t('sectionRoom'));
   }
   // Structural section
   if (midLoggers.length > 0) {
     if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
-    addSection(loggerDiv, state.selectedLoggers, 'Structural', midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers), null, 'structural');
-    addSectionAvgCheckbox(loggerDiv, 'structural', 'Structural');
+    addSection(loggerDiv, state.selectedLoggers, t('sectionStructural'), midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers), null, 'structural');
+    addSectionAvgCheckbox(loggerDiv, 'structural', t('sectionStructural'));
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
     const allNonExt = m.loggers.filter(id => !extSet.has(id));
@@ -2754,7 +2898,7 @@ function loadDataset(key) {
   roomDiv.innerHTML = '';
   const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
   const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-  addSection(roomDiv, state.selectedRoomLoggers, 'Room', comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds));
+  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds));
   if (comfortStructIds.length > 0) {
     if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
     addSection(roomDiv, state.selectedRoomLoggers, 'Structural', comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds));
@@ -3474,13 +3618,13 @@ function setupStaticListeners() {
       const selIds = [...state.selectedLoggers];
       const total = m.loggers.length;
       if (selIds.length === 0) sensorStr = '_NoSensors';
-      else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(m.loggerNames[id] || id)).join('+');
+      else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(ln(id))).join('+');
       else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
     } else if (state.chartType === 'comfort') {
       const selIds = [...state.selectedRoomLoggers];
       const total = (m.comfortLoggers || m.roomLoggers).length;
       if (selIds.length === 0) sensorStr = '_NoSensors';
-      else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(m.loggerNames[id] || id)).join('+');
+      else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(ln(id))).join('+');
       else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
     }
     // Local-time timestamp makes every filename unique - prevents browser appending " (2)", " (3)" etc.
@@ -3925,7 +4069,7 @@ function renderLineGraph() {
 
       const color = iter.colorMap[loggerId] || m.colors[loggerId];
       const isExtTT = extSet.has(loggerId) && m.loggerSources[loggerId] === 'TinyTag';
-      const name = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+      const name = namePrefix + ln(loggerId) + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
       const source = m.loggerSources[loggerId] || '';
       const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ` · ID: ${loggerId}`;
       const freqLabel = state.historicMode
@@ -3942,7 +4086,7 @@ function renderLineGraph() {
         const unit = metric === 'temperature' ? '°C' : '%RH';
         traces.push({x, y, type:'scatter', mode:'lines', name: name + meteoSuffix(loggerId) + omniSuffix(source) + freqLabel, line:{color, width:1.4},
           opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:(!iter.setLabel && firstMetric), meta:{loggerId},
-          hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?'Temp':'Humidity'}: %{y:.1f}${unit}<br>Source: ${source}${idLabel}<extra></extra>`});
+          hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?t('tempOnly'):t('humidOnly')}: %{y:.1f}${unit}<br>${t('source')}: ${source}${idLabel}<extra></extra>`});
         firstMetric = false;
       }
     }
@@ -4047,9 +4191,9 @@ function renderLineGraph() {
 
   const hasTemp = state.selectedMetrics.has('temperature');
   const hasHum  = state.selectedMetrics.has('humidity');
-  const yTitle  = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
+  const yTitle  = hasTemp && hasHum ? t('tempHumidAxis') : hasTemp ? t('tempAxis') : t('humidAxis');
   const ySuffix = hasTemp && hasHum ? '' : hasTemp ? '\u00b0C' : '%RH';
-  const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
+  const chartTitle = hasTemp && hasHum ? t('tempAndHumid') : hasTemp ? t('tempOnly') : t('humidOnly');
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
 
@@ -4059,7 +4203,7 @@ function renderLineGraph() {
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
-    xaxis:{title:'Date / Time <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range: state.timeMode === 'all' ? [toEATString(dataMinMs), toEATString(dataMaxMs)] : [toEATString(start), toEATString(end)],
+    xaxis:{title:t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range: state.timeMode === 'all' ? [toEATString(dataMinMs), toEATString(dataMaxMs)] : [toEATString(start), toEATString(end)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
@@ -4089,7 +4233,7 @@ function fmtDateEAT(ms, isStart) {
   return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
 }
 function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
-  let text = `Data ranges from ${fmtDateEAT(actualStartMs, true)} to ${fmtDateEAT(actualEndMs, false)}`;
+  let text = `${t('dataRangesFrom')} ${fmtDateEAT(actualStartMs, true)} ${t('dataRangesTo')} ${fmtDateEAT(actualEndMs, false)}`;
   if (extraLine) text += `<br>${extraLine}`;
   return {
     xref: 'paper', yref: 'paper',
@@ -4160,7 +4304,7 @@ function renderHistogram() {
       const color = iter.colorMap[loggerId] || m.colors[loggerId];
       const source = m.loggerSources[loggerId] || '';
       const isExtTT = (m.externalLoggers || []).includes(loggerId) && source === 'TinyTag';
-      const name = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+      const name = namePrefix + ln(loggerId) + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
       const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
 
@@ -4221,9 +4365,9 @@ function renderHistogram() {
 
   const hasTemp = state.selectedMetrics.has('temperature');
   const hasHum  = state.selectedMetrics.has('humidity');
-  const xTitle  = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
-  const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity Distribution'
-    : hasTemp ? 'Temperature Distribution' : 'Humidity Distribution';
+  const xTitle  = hasTemp && hasHum ? t('tempHumidAxis') : hasTemp ? t('tempAxis') : t('humidAxis');
+  const chartTitle = hasTemp && hasHum ? t('tempAndHumidDist')
+    : hasTemp ? t('tempDist') : t('humidDist');
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
 
@@ -4273,7 +4417,7 @@ function renderHistogram() {
       tickmode: tickvals.length ? 'array' : undefined,
       tickvals: tickvals.length ? tickvals : undefined,
       ticktext: tickvals.length ? ticktext : undefined},
-    yaxis:{title: state.histogramBarmode === 'overlay' ? 'Proportion of readings per sensor' : 'Sum of reading distribution across sensors', tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
+    yaxis:{title: state.histogramBarmode === 'overlay' ? t('proportionAxis') : t('sumAxis'), tickformat:'.0%', showgrid:true, gridcolor:'#eee'},
     barmode: state.histogramBarmode, shapes, annotations: histAnnotations,
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
     plot_bgcolor:'white', paper_bgcolor:'white',
@@ -4404,17 +4548,17 @@ function updateHistogramStats(start, end) {
     if (count === 0) continue; // no temperature readings in range
     const pct = below/count*100;
     totalBelow += below; totalAll += count;
-    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
+    roomStats.push({id: loggerId, name: ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
   if (roomStats.length === 0) { histStatsPanel.classList.add('hidden'); return; }
   const overallPct = totalAll > 0 ? (totalBelow/totalAll*100).toFixed(1) : '-';
-  overall.textContent = `Overall: ${overallPct}% of temperature readings below 32\u00b0C`;
+  overall.textContent = `${t('overall')}: ${overallPct}% ${t('ofTempReadingsBelow')}`;
   // Gap warning and dropdown
   const gapCount = roomStats.filter(r => r.hasGap).length;
   if (gapCount > 0) {
     statsBox.classList.add('has-gaps');
     warnDiv.classList.remove('hidden');
-    warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
+    warnDiv.textContent = `${t('dataCompleteness')}: ${gapCount} / ${roomStats.length} ${t('seriesHaveGaps')}`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
     // Include selected external loggers in completeness check (e.g. Weather Station T&RH)
     const seriesIds = new Set(roomStats.map(r => r.id));
@@ -4457,7 +4601,7 @@ function extSourcesForPoint(spans, tsMs, m) {
   for (const sp of spanMs) {
     if (sp.toMs >= windowStart && sp.fromMs <= tsMs && !seen.has(sp.source)) {
       seen.add(sp.source);
-      const name = m.loggerNames[sp.source] || sp.source;
+      const name = ln(sp.source);
       const type = m.loggerSources[sp.source];
       sources.push(type ? name + ' [' + type + ']' : name);
     }
@@ -4474,7 +4618,7 @@ function renderAdaptiveComfort() {
   const seenSpans = new Map();
   const perLoggerSources = {}; // loggerId → Set of source labels
   const srcLabel = (id) => {
-    const name = m.loggerNames[id] || id;
+    const name = ln(id);
     const type = m.loggerSources[id];
     return type ? `${name} [${type}]` : name;
   };
@@ -4524,14 +4668,14 @@ function renderAdaptiveComfort() {
       const color = iter.colorMap[loggerId] || m.colors[loggerId];
       const cSource = m.loggerSources[loggerId] || '';
       const cIdLabel = loggerId === 'govee' ? '' : ` · ID: ${loggerId}`;
-      const cName = namePrefix + m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(cSource);
+      const cName = namePrefix + ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(cSource);
 
       if (isCompare) {
         // Merge into per-set arrays — skip expensive per-point customdata
         for (let i = 0; i < filtered.extTemp.length; i++) {
           cmpX.push(filtered.extTemp[i]);
           cmpY.push(filtered.temperature[i]);
-          cmpHover.push(m.loggerNames[loggerId]);
+          cmpHover.push(ln(loggerId));
           cmpColors.push(color);
         }
       } else {
@@ -4540,7 +4684,7 @@ function renderAdaptiveComfort() {
         traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
           name:cName, marker:{color, size:4, opacity:0.2},
           legendgroup:lgGroup, showlegend:false, meta:{loggerId}, customdata,
-          hovertemplate:`${m.loggerNames[loggerId]}<br>Running mean: %{x:.1f}°C<br>Room temp: %{y:.1f}°C<br>Ext. source: %{customdata}<br>Sensor: ${cSource}${cIdLabel}<extra></extra>`});
+          hovertemplate:`${ln(loggerId)}<br>${t('runningMean')}: %{x:.1f}°C<br>${t('roomTemp')}: %{y:.1f}°C<br>${t('extSource')}: %{customdata}<br>${t('sensor')}: ${cSource}${cIdLabel}<extra></extra>`});
         traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
           name:cName, marker:{color, size:10, opacity:0.8, symbol:'square', line:{width:0}},
           legendgroup:lgGroup, showlegend:true, hoverinfo:'skip', meta:{loggerId}});
@@ -4630,12 +4774,12 @@ function renderAdaptiveComfort() {
 
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
-    xaxis:{title:'7-day running mean external temperature (°C)', showgrid:true, gridcolor:'#eee'},
-    yaxis:{title:'Air temperature (°C)  [≈ operative temp.]', showgrid:true, gridcolor:'#eee'},
+    xaxis:{title:t('runningMeanAxis'), showgrid:true, gridcolor:'#eee'},
+    yaxis:{title:t('airTempAxis'), showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : [],
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: `${dsl} \u2013 Adaptive Comfort`, _noData: allExtTemps.length === 0};
+  }, title: `${dsl} \u2013 ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
 }
 
 // ── Data completeness detection ───────────────────────────────────────────────
@@ -4953,19 +5097,19 @@ function updateComfortStats(start, end, params) {
       pct = count > 0 ? inZone/count*100 : 0;
       totalIn += inZone; totalAll += count;
     }
-    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
+    roomStats.push({id: loggerId, name: ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
   if (roomStats.length === 0) { statsBox.style.display = 'none'; return; }
   statsBox.style.display = '';
   const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '-';
-  const modeLabel = {below_upper: 'below upper boundary', within: 'within comfort zone', above_lower: 'above lower boundary'}[state.comfortPctMode || 'below_upper'];
-  overall.textContent = `Overall: ${overallPct}% ${modeLabel}`;
+  const modeLabel = {below_upper: t('belowUpper').toLowerCase(), within: t('withinComfort').toLowerCase(), above_lower: t('aboveLower').toLowerCase()}[state.comfortPctMode || 'below_upper'];
+  overall.textContent = `${t('overall')}: ${overallPct}% ${modeLabel}`;
   // Gap warning and dropdown
   const gapCount = roomStats.filter(r => r.hasGap).length;
   if (gapCount > 0) {
     statsBox.classList.add('has-gaps');
     warnDiv.classList.remove('hidden');
-    warnDiv.textContent = `Data completeness: ${gapCount} of ${roomStats.length} series have gaps of 24h+. Hover orange boxes for details.`;
+    warnDiv.textContent = `${t('dataCompleteness')}: ${gapCount} / ${roomStats.length} ${t('seriesHaveGaps')}`;
     const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
     // Include selected external loggers in completeness check (e.g. Weather Station T&RH)
     const comfortSeriesIds = new Set(roomStats.map(r => r.id));
@@ -5120,7 +5264,7 @@ function updatePeriodicCompleteness(start, end) {
     if (!filtered) continue;
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
-    roomStats.push({id: loggerId, name: m.loggerNames[loggerId] + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct: null, hasGap: gaps.length > 0});
+    roomStats.push({id: loggerId, name: ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct: null, hasGap: gaps.length > 0});
   }
 
   const gapCount = roomStats.filter(r => r.hasGap).length;
@@ -5128,7 +5272,7 @@ function updatePeriodicCompleteness(start, end) {
 
   panel.classList.remove('hidden');
   box.classList.add('has-gaps');
-  warnDiv.textContent = 'Data completeness: ' + gapCount + ' of ' + roomStats.length + ' series have gaps of 24h+. Hover orange boxes for details.';
+  warnDiv.textContent = t('dataCompleteness') + ': ' + gapCount + ' / ' + roomStats.length + ' ' + t('seriesHaveGaps');
 
   // Build "jump to complete period" dropdown (same as histogram/comfort)
   const seriesInfo = roomStats.map(r => ({ts: dataset().series[r.id].timestamps, source: m.loggerSources[r.id] || 'Unknown'}));
@@ -5147,10 +5291,10 @@ function emptyPeriodicResult(msg) {
       margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
       xaxis: {showgrid: false, zeroline: false, showticklabels: false},
       yaxis: {showgrid: false, zeroline: false, showticklabels: false},
-      annotations: [{text: msg || 'No data in selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
+      annotations: [{text: msg || t('noDataSelected'), xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
     },
-    title: dsLabel() + ' \u2013 Average Profiles',
+    title: dsLabel() + ' \u2013 ' + t('avgProfiles'),
     _noData: true,
   };
 }
@@ -5338,7 +5482,7 @@ function renderPeriodicAverages() {
       const color = iter.colorMap[loggerId] || m.colors[loggerId];
       const source = m.loggerSources[loggerId] || '';
       const isExtTT = extSet.has(loggerId) && source === 'TinyTag';
-      const logName = namePrefix + m.loggerNames[loggerId] + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
+      const logName = namePrefix + ln(loggerId) + (isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '');
       const idLabel = (loggerId === 'govee' || isOpenMeteo(loggerId)) ? '' : ' \u00b7 ID: ' + loggerId;
       const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : loggerId;
       let firstMetric = true;
@@ -5365,7 +5509,7 @@ function renderPeriodicAverages() {
 
         const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
         const metricName = metric === 'temperature' ? 'Avg temp' : 'Avg humidity';
-        const hoverTpl = namePrefix + m.loggerNames[loggerId] + '<br>%{text}<br>' + metricName + ': %{y:.1f}' + unit + '<br>Source: ' + source + idLabel + '<extra></extra>';
+        const hoverTpl = namePrefix + ln(loggerId) + '<br>%{text}<br>' + metricName + ': %{y:.1f}' + unit + '<br>' + t('source') + ': ' + source + idLabel + '<extra></extra>';
         const trace = {
           x, y, text: txt, type: 'scatter',
           name: logName + meteoSuffix(loggerId) + omniSuffix(source),
@@ -5388,7 +5532,7 @@ function renderPeriodicAverages() {
       // Data quality warning: >50% of categories with single-point averages
       const singlePct = nCats > 0 ? singlePointCats / nCats * 100 : 0;
       if (singlePct > 50) {
-        warningInfos.push({loggerId, name: m.loggerNames[loggerId], metric, pct: singlePct});
+        warningInfos.push({loggerId, name: ln(loggerId), metric, pct: singlePct});
       }
     }
   }
@@ -5413,9 +5557,9 @@ function renderPeriodicAverages() {
   // Section average lines (External, Room, Structural) — hidden in compare mode
   if (!state.compareEnabled) {
   const sectionDefs = [
-    {key: 'external', name: 'External Avg', color: '#1a1a1a'},
-    {key: 'room', name: 'Room Avg', color: '#333399'},
-    {key: 'structural', name: 'Structural Avg', color: '#663300'},
+    {key: 'external', name: t('externalAvg'), color: '#1a1a1a'},
+    {key: 'room', name: t('roomAvg'), color: '#333399'},
+    {key: 'structural', name: t('structuralAvg'), color: '#663300'},
   ];
   for (const sd of sectionDefs) {
     if (!state.showSectionAvg[sd.key]) continue;
@@ -5486,25 +5630,25 @@ function renderPeriodicAverages() {
 
   const hasTemp = state.selectedMetrics.has('temperature');
   const hasHum = state.selectedMetrics.has('humidity');
-  const yTitle = hasTemp && hasHum ? 'Temperature (\u00b0C) / Humidity (%RH)' : hasTemp ? 'Temperature (\u00b0C)' : 'Humidity (%RH)';
+  const yTitle = hasTemp && hasHum ? t('tempHumidAxis') : hasTemp ? t('tempAxis') : t('humidAxis');
   const ySuffix = hasTemp && hasHum ? '' : hasTemp ? '\u00b0C' : '%RH';
-  const chartTitle = hasTemp && hasHum ? 'Temperature &amp; Humidity' : hasTemp ? 'Temperature' : 'Humidity';
+  const chartTitle = hasTemp && hasHum ? t('tempAndHumid') : hasTemp ? t('tempOnly') : t('humidOnly');
 
-  const cycleLabels = {day:'Day', year:'Year', mjo:'MJO', iod:'IOD', enso:'ENSO'};
-  const rangeFullLabels = {day:'Day', year:'Year', mjo:'Madden\u2013Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o\u2013Southern Oscillation (ENSO)'};
-  const groupByLabels = {hour:'Hour', synoptic:'Synoptic', month:'Month', week:'Week', day:'Day', season:'Season', phase:'Phase'};
+  const cycleLabels = {day:t('day'), year:t('year'), mjo:'MJO', iod:'IOD', enso:'ENSO'};
+  const rangeFullLabels = {day:t('day'), year:t('year'), mjo:'Madden\u2013Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o\u2013Southern Oscillation (ENSO)'};
+  const groupByLabels = {hour:t('hour'), synoptic:'Synoptic', month:t('month'), week:t('week'), day:t('day'), season:t('season'), phase:t('phase')};
   const isOsc = pr === 'mjo' || pr === 'iod' || pr === 'enso';
-  const periodLabel = isOsc ? (cycleLabels[pr] || pr) + ' Phase' : (cycleLabels[pr] || pr) + ' / ' + (groupByLabels[pg] || pg);
+  const periodLabel = isOsc ? (cycleLabels[pr] || pr) + ' ' + t('phase') : (cycleLabels[pr] || pr) + ' / ' + (groupByLabels[pg] || pg);
   const periodFullLabel = isOsc ? (rangeFullLabels[pr] || pr) : periodLabel;
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
   let xTitle;
-  if (pr === 'day' && pg === 'hour') xTitle = 'Hour of Day <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>';
-  else if (pr === 'day' && pg === 'synoptic') xTitle = 'Time of Day <i><span style="color:#aaa">(EAT)</span></i>';
-  else if (pr === 'year' && pg === 'month') xTitle = 'Month of Year';
-  else if (pr === 'year' && pg === 'week') xTitle = 'Week of Year';
-  else if (pr === 'year' && pg === 'day') xTitle = 'Day of Year';
-  else if (pr === 'year' && pg === 'season') xTitle = 'Tanzanian Season';
+  if (pr === 'day' && pg === 'hour') xTitle = t('hourOfDay') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>';
+  else if (pr === 'day' && pg === 'synoptic') xTitle = t('timeOfDay') + ' <i><span style="color:#aaa">(EAT)</span></i>';
+  else if (pr === 'year' && pg === 'month') xTitle = t('monthOfYear');
+  else if (pr === 'year' && pg === 'week') xTitle = t('weekOfYear');
+  else if (pr === 'year' && pg === 'day') xTitle = t('dayOfYear');
+  else if (pr === 'year' && pg === 'season') xTitle = t('tanzanianSeason');
   else if (pr === 'mjo') xTitle = 'Madden\u2013Julian Oscillation (MJO) Phase';
   else if (pr === 'iod') xTitle = 'Indian Ocean Dipole (IOD) Phase';
   else if (pr === 'enso') xTitle = 'El Ni\u00f1o\u2013Southern Oscillation (ENSO) Phase';
@@ -5585,7 +5729,7 @@ function _doRender() {
         margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
         xaxis: {showgrid: false, zeroline: false, showticklabels: false},
         yaxis: {showgrid: false, zeroline: false, showticklabels: false},
-        annotations: [{text: 'No data available in the selected range', xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
+        annotations: [{text: t('noDataRange'), xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
         plot_bgcolor: 'white', paper_bgcolor: 'white',
       },
       title: result.title,
