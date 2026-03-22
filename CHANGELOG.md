@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-22 17:50:00 CST
+- **Fix: no graph reload when closing Advanced Settings without changes**: Closing the Advanced Settings dropdown now only triggers `updatePlot()` if filters or compare mode were actually active. Previously, closing the panel always forced a full graph reload even when nothing had changed.
+
 ### 2026-03-22 08:56:57 CST
 - **Comprehensive Kiswahili translation**: Extended Swahili translations to cover nearly all user-visible English text. Now translates: dataset names (Nyumba 5, Nyumba ya Mwalimu), all room/logger names (Sebule, Chumba cha kulala, Jikoni, etc.), chart titles, axis labels (Saa ya Siku, Tarehe/Saa, Joto/Unyevunyevu), "Data ranges from/to" annotation, "Overall"/"Data completeness" stats, section sub-headers (Nje/Chumba/Muundo), avg trace names, hover tooltip labels, time period labels, and data source notes. Added `ln()` helper for logger names with `loggerNamesSw` map in data. Charts re-render on language switch via `updatePlot()`. Scientific terms (MJO, IOD, ENSO, Vellei et al.) and brand names (Open-Meteo, TinyTag, Omnisense) kept in English.
 

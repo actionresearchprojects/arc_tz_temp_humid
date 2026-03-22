@@ -1819,7 +1819,9 @@ function toggleAdvancedSettings() {
   body.style.display = isOpen ? 'block' : 'none';
   arrow.classList.toggle('open', isOpen);
   if (!isOpen) {
-    // Collapse = clear all filters and disable compare
+    // Collapse = clear all filters and disable compare, but only replot if something changed
+    const hadFilters = state.substratFilters.length > 0;
+    const hadCompare = state.compareEnabled;
     state.substratFilters = [];
     document.getElementById('substrat-filters').innerHTML = '';
     state.compareEnabled = false;
@@ -1827,7 +1829,7 @@ function toggleAdvancedSettings() {
     document.getElementById('compare-body').style.display = 'none';
     document.getElementById('logger-checkboxes').parentElement.classList.remove('compare-hide-main');
     document.getElementById('room-logger-checkboxes').parentElement.classList.remove('compare-hide-main');
-    updatePlot();
+    if (hadFilters || hadCompare) updatePlot();
   }
 }
 
