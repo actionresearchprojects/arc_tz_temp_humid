@@ -26,5 +26,6 @@ __pycache__/
 *.pyc
 .DS_Store
 .aider*
+CLAUDE.md
 open-meteo-automation-plan.md
 omnisense.com.har

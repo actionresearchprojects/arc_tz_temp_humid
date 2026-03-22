@@ -2,9 +2,9 @@
 
 Interactive environmental monitoring dashboard for the **Action Research Circles (ARC) Cool Buildings Programme**. Tracks temperature and humidity inside buildings at the Al-Mizan Children's Ecovillage (CEV) in Bagamoyo, Tanzania.
 
-The dashboard is a self-contained HTML page hosted on GitHub Pages. It updates automatically, requires no server, and works offline once loaded.
+The dashboard is a self-contained HTML page that updates automatically and works offline once loaded.
 
-**Live dashboard:** [actionresearchprojects.github.io/arc_tz_temp_humid](https://actionresearchprojects.github.io/arc_tz_temp_humid/)
+**Live dashboard:** [actionresearchprojects.net/graphs/arc-tz-temp-humid](https://actionresearchprojects.net/graphs/arc-tz-temp-humid)
 
 ---
 
@@ -123,51 +123,13 @@ A second building with 3 TinyTag sensors for comparison. Uses a nearby TinyTag o
 
 ---
 
-## Setup
-
-### What You Need
-
-- **Python 3.9 or newer** - [python.org](https://python.org)
-- **Git** - [git-scm.com](https://git-scm.com)
-- **Python packages:**
-  ```
-  pip install pandas pytz openpyxl requests
-  ```
-
-### Getting Started
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/actionresearchprojects/arc_tz_temp_humid
-   ```
-
-2. For a full local build (requires TinyTag Excel files in `data/house5/` and `data/schoolteacher/`):
-   ```
-   cd arc_tz_temp_humid
-   python build.py
-   ```
-
-3. Open `index.html` in any browser to view the dashboard.
-
-For automated builds using GitHub Actions, you also need to set up these GitHub Secrets:
-
-| Secret | Purpose |
-|---|---|
-| `OMNISENSE_USERNAME` | Login for the Omnisense sensor platform |
-| `OMNISENSE_PASSWORD` | Login for the Omnisense sensor platform |
-| `MAIN_SITE_PAT` | GitHub Personal Access Token for triggering the main site sync |
-
-See `UPDATE.md` for the full data update workflow.
-
----
-
 ## How Data Flows
 
 ```
 TinyTag Excel files -----+
 (added manually)         |
                          v
-Omnisense sensors ----> build.py ----> index.html ----> GitHub Pages
+Omnisense sensors ----> build.py ----> index.html ----> actionresearchprojects.net
 (auto-fetched)           ^                              (live dashboard)
                          |
 Open-Meteo API ----------+
@@ -218,7 +180,7 @@ For full technical details, see `runningmean.md`.
 | Languages | Python, JavaScript, HTML, CSS |
 | Data processing | pandas, openpyxl |
 | Visualization | Plotly.js |
-| Hosting | GitHub Pages |
+| Hosting | GitHub Pages, actionresearchprojects.net |
 | Automation | GitHub Actions |
 | Data sources | Open-Meteo API, Omnisense platform, TinyTag loggers, NOAA/BoM climate data |
 
