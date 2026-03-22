@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-22 20:15:00 CST
+- **Remove forecast Open-Meteo from Schoolteacher's House**: Removed `OPENMETEO_FORECAST_ID` from the schoolteacher dataset's `external_sensors` and `sidebar_order` config. Added filtering in both the full build and `--auto` build paths so only the Open-Meteo logger IDs listed in a dataset's `external_sensors` are merged. House 5 still includes forecast data as before.
+
 ### 2026-03-22 17:50:00 CST
 - **Fix: no graph reload when closing Advanced Settings without changes**: Closing the Advanced Settings dropdown now only triggers `updatePlot()` if filters or compare mode were actually active. Previously, closing the panel always forced a full graph reload even when nothing had changed.
 

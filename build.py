@@ -111,9 +111,9 @@ DATASETS = {
         "folder": Path("data/schoolteacher"),
         "skip_rows": 7,
         "external_logger": OPENMETEO_HISTORICAL_ID,
-        "external_sensors": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID],
+        "external_sensors": [OPENMETEO_HISTORICAL_ID],
         "room_loggers": None,
-        "sidebar_order": [OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, "759498", "govee"],
+        "sidebar_order": [OPENMETEO_HISTORICAL_ID, "759498", "govee"],
         # Per-logger date filters — historical Open-Meteo scoped to monitoring period
         "logger_date_filters": {
             "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
@@ -645,6 +645,8 @@ def load_dataset(key):
     if ext_sensors & OPENMETEO_IDS:
         ext_df = load_external_temperature()
         if not ext_df.empty:
+            # Only keep Open-Meteo logger IDs that this dataset actually uses
+            ext_df = ext_df[ext_df["logger_id"].isin(ext_sensors)]
             dfs.append(ext_df)
             print(f"  Open-Meteo: {len(ext_df):,} records")
 
@@ -6167,7 +6169,9 @@ def main():
             df = datasets_dfs.get(key, pd.DataFrame())
             # Only merge Open-Meteo into datasets that use it as external logger
             if cfg["external_logger"] in OPENMETEO_IDS and not ext_df.empty:
-                df = pd.concat([df, ext_df]).sort_index()
+                ext_sensors = set(cfg.get("external_sensors", []))
+                filtered_ext = ext_df[ext_df["logger_id"].isin(ext_sensors)] if ext_sensors else ext_df
+                df = pd.concat([df, filtered_ext]).sort_index()
             # If fresh Omnisense available, replace snapshot Omnisense for house5
             if key == "house5" and not omnisense_df.empty:
                 df = df[~df["logger_id"].isin(OMNISENSE_T_H_SENSORS)]
