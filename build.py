@@ -1546,7 +1546,7 @@ const I18N = {
     infoCompare: 'Compare different time periods on the same chart to see how conditions have changed, e.g. this month vs last month, or dry season vs wet season. Each set can have its own loggers and date range.',
     infoLongTerm: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.',
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
-    infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures. Recent days count most, but the influence extends well beyond 7 days. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants tolerate warmer indoors, so the comfort band shifts right.',
+    infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants tolerate warmer indoors, so the comfort band shifts right.',
   },
   sw: {
     title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
@@ -1660,7 +1660,7 @@ const I18N = {
     infoCompare: 'Linganisha vipindi tofauti vya wakati kwenye chati moja ili kuona jinsi hali zilivyobadilika, k.m. mwezi huu dhidi ya mwezi uliopita, au kiangazi dhidi ya masika. Kila seti inaweza kuwa na sensors na tarehe zake.',
     infoLongTerm: 'Inaweka masomo ya sasa ya sensor katika muktadha wa hali ya hewa ya muda mrefu. Inaonyesha data ya joto ya kihistoria tangu 1940 na makadirio ya siku zijazo chini ya hali tofauti za hali ya hewa.',
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
-    infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Siku za hivi karibuni zinahesabiwa zaidi, lakini ushawishi unaendelea zaidi ya siku 7. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani.',
+    infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia.',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -1823,6 +1823,11 @@ function applyLanguage() {
   document.querySelectorAll('.lock-btn').forEach(btn => {
     const locked = btn.classList.contains('locked');
     btn.textContent = t(locked ? 'unlockAvg' : 'lockAvg');
+  });
+
+  // Update logger names in sidebar checkboxes
+  document.querySelectorAll('.logger-name[data-lid]').forEach(span => {
+    span.textContent = ln(span.dataset.lid);
   });
 
   // Re-render chart with translated labels
@@ -2279,7 +2284,7 @@ function renderCompareSets() {
         const source = m.loggerSources[id] || '';
         const isExtTT = extSet.has(id) && source === 'TinyTag';
         const ttSuffix = isExtTT ? ' <span style="color:#aaa">(TinyTag)</span>' : '';
-        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> ' + ln(id) + meteoSuffix(id) + omniSuffix(source) + ttSuffix;
+        lbl.innerHTML = '<input type="checkbox" data-cmp-logger="' + id + '" ' + (stateSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + m.colors[id] + ';vertical-align:middle"></span> <span class="logger-name" data-lid="' + id + '">' + ln(id) + '</span>' + meteoSuffix(id) + omniSuffix(source) + ttSuffix;
         lbl.querySelector('input').addEventListener('change', e => {
           e.target.checked ? stateSet.add(id) : stateSet.delete(id);
           updatePlot();
@@ -2817,7 +2822,7 @@ function loadDataset(key) {
     lbl.dataset.tooltip = loggerTooltip(id, m);
     const hasAnom = !!anomRanges[id];
     const anomSuffix = hasAnom ? ' <span class="anomalous-warn">&#9888;</span>' : '';
-    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> ${ln(id)}${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
+    lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> <span class="logger-name" data-lid="${id}">${ln(id)}</span>${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? stateSet.add(id) : stateSet.delete(id);
       updatePlot();
@@ -3921,8 +3926,7 @@ function setupStaticListeners() {
   backdrop.addEventListener('click', closeSidebar);
   window.addEventListener('resize', () => {
     if (window.innerWidth > 680) closeSidebar();
-    Plotly.relayout('chart', {autosize: true});
-    requestAnimationFrame(positionComfortOverlays);
+    Plotly.relayout('chart', {autosize: true}).then(positionComfortOverlays);
   });
 }
 
@@ -4317,13 +4321,13 @@ function positionComfortOverlays() {
     rmIcon.style.display = 'none';
   }
 
-  // Make annotations fade when mouse hovers over them
+  // Make Plotly annotations fade when mouse hovers over them (SVG needs pointer-events)
   chartEl.querySelectorAll('.annotation').forEach(anno => {
     if (anno._fadeAttached) return;
     anno._fadeAttached = true;
-    anno.style.transition = 'opacity 0.2s';
+    anno.style.pointerEvents = 'all';
     anno.style.cursor = 'default';
-    anno.addEventListener('mouseenter', () => { anno.style.opacity = '0.1'; });
+    anno.addEventListener('mouseenter', () => { anno.style.opacity = '0.1'; anno.style.transition = 'opacity 0.2s'; });
     anno.addEventListener('mouseleave', () => { anno.style.opacity = '1'; });
   });
 }
@@ -5817,7 +5821,7 @@ function _doRender() {
   }
   _zoomReset = false;
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
-  requestAnimationFrame(positionComfortOverlays);
+  chartEl_.once('plotly_afterplot', positionComfortOverlays);
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';

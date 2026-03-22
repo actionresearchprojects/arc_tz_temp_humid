@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2026-03-22 23:15:00 CST
+- **Fix annotation fade-on-hover**: Added `pointer-events: all` to SVG annotation elements so mouse events fire properly. Annotations on the adaptive comfort chart now fade to 10% opacity on hover.
+- **Fix running mean info icon positioning**: Now uses Plotly's `plotly_afterplot` event instead of `requestAnimationFrame`, so the `.g-xtitle` element is guaranteed to exist. Repositions via `.then()` after resize relayout.
+- **Simplify running mean tooltip**: Removed specific "7 days" reference. Now just says "exponentially weighted average of past outdoor temperatures, where recent days count most".
+- **Swahili logger names in sidebar checkboxes**: Logger names in checkbox labels now wrapped in `<span class="logger-name" data-lid="...">` so they update when switching language. Applies to line/histogram, comfort, and compare mode checkboxes.
+
 ### 2026-03-22 22:30:00 CST
 - **Fix running mean tooltip**: No longer says "7 days". Now explains it as an exponentially weighted average where recent days count most but influence extends well beyond 7 days, per the EN 16798-1 formula.
 - **Replace minimize button with fade-on-hover**: Removed the broken annotation toggle button. The "Data ranges from..." detail text on the adaptive comfort chart now fades to near-transparent when the mouse hovers over it, letting you see the data underneath.
