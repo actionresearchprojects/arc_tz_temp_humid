@@ -1336,6 +1336,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     </div>
     <div id="chart"></div>
     <button id="annotation-toggle" title="Hide details" style="display:none;position:absolute;bottom:8px;right:8px;z-index:60;width:22px;height:22px;padding:0;border:1px solid #ccc;border-radius:4px;background:rgba(255,255,255,0.85);color:#888;font-size:13px;line-height:22px;text-align:center;cursor:pointer;font-family:sans-serif;" onclick="toggleAnnotation()">&#x25BC;</button>
+    <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:absolute;bottom:4px;left:50%;transform:translateX(12em);z-index:60;">i</span>
+    <div class="info-tip-fixed" id="rm-xaxis-info-tip"></div>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
     <div class="substrat-no-data" id="substrat-no-data" data-i18n="noDataFilter">No data matches the selected filter</div>
     <div id="chart-loading" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,0.82);z-index:50;flex-direction:column;align-items:center;justify-content:center;gap:10px;pointer-events:none;">
@@ -5789,7 +5791,7 @@ function _doRender() {
   }
   _zoomReset = false;
   // If annotation is hidden and we're still on adaptive comfort, keep it hidden
-  const isAdaptive = state.chartType === 'adaptive';
+  const isAdaptive = state.chartType === 'comfort';
   const annoToggle = document.getElementById('annotation-toggle');
   if (isAdaptive && _annotationHidden && layout.annotations && layout.annotations.length) {
     _savedAnnotations = layout.annotations.map(a => Object.assign({}, a));
@@ -5799,6 +5801,7 @@ function _doRender() {
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   // Show toggle button only for adaptive comfort with annotations
   annoToggle.style.display = (isAdaptive && (_savedAnnotations && _savedAnnotations.length || !_annotationHidden && layout.annotations && layout.annotations.length)) ? '' : 'none';
+  document.getElementById('rm-xaxis-info-icon').style.display = isAdaptive ? '' : 'none';
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';
@@ -5907,10 +5910,10 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
   const icon = document.getElementById('chart-info-icon');
   const tip  = document.getElementById('chart-info-tip');
   const texts = {
-    line: 'Time series of selected loggers. Vertical lines mark seasonal boundaries; shaded red band is the 32\u201335\u00b0C heatwave threshold range.',
-    histogram: () => 'Distribution of readings per 1\u00b0C or 1%RH bin. Normalised by each logger\u2019s total, so different sampling rates (hourly vs 5-min) are comparable. Bars are ' + (state.histogramBarmode === 'stack' ? 'stacked \u2014 hover to see individual logger values.' : 'overlaid \u2014 hover to see how many series share each bin.'),
-    comfort: 'Adaptive comfort per EN16798-1. X-axis is the 7-day exponential running mean of outdoor temperature (\u03b1=0.8). Y-axis is air temperature, used here as an approximation of operative temperature. Green band = comfort zone for the selected humidity model.',
-    periodic: 'Averages readings by position within a cycle. Day shows hourly or synoptic (6-hour) patterns across your selected date range. Year shows monthly, weekly, daily, or seasonal averages. Climate oscillations (MJO, IOD, ENSO) group readings by phase to reveal large-scale climate influences.',
+    line: 'See how temperature and humidity change over time for each logger. Vertical lines show season boundaries and the red band marks the 32-35\u00b0C heat stress range.',
+    histogram: () => 'Shows how often each temperature or humidity level occurs. Useful for spotting where conditions cluster and how rooms compare overall. Normalised so loggers with different sampling rates are comparable. ' + (state.histogramBarmode === 'stack' ? 'Bars are stacked. Hover to see individual logger values.' : 'Bars are overlaid. Hover to see how many loggers share each bin.'),
+    comfort: 'Plots room temperature against recent outdoor conditions to show whether a building is keeping occupants comfortable without mechanical cooling. Points inside the green band are within the adaptive comfort zone for the selected humidity model.',
+    periodic: 'Reveals typical patterns by averaging readings across a cycle. Use "Day" to see how rooms heat up and cool down over 24 hours, or "Year" for seasonal trends. Climate oscillations (MJO, IOD, ENSO) show how large-scale weather patterns affect local conditions.',
   };
   icon.addEventListener('mouseenter', () => {
     const t = texts[state.chartType];
@@ -5930,11 +5933,13 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
 (function() {
   const items = [
     { iconId: 'compare-info-icon', tipId: 'compare-info-tip',
-      text: 'Show multiple date ranges or filter combinations side by side on the same chart. Each set gets its own colours and can have different loggers or dates selected.' },
+      text: 'Compare different time periods on the same chart to see how conditions have changed, e.g. this month vs last month, or dry season vs wet season. Each set can have its own loggers and date range.' },
     { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip',
-      text: 'Switches to a long-term climate view. Hides humidity, resets loggers to Open-Meteo external temperature, and shows historic data (1940 to 2023) alongside future climate projections from the Copernicus Climate Change Service.' },
+      text: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.' },
     { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip',
-      text: 'Adaptive comfort model from the EN 16798-1 standard. The running mean is a weighted average of the last 7 days of outdoor temperature, giving more weight to recent days. The comfort band shifts depending on which humidity model is selected. Vellei et al. extends the standard for humid climates.' },
+      text: 'The green band shows the range of indoor temperatures considered comfortable under the EN 16798-1 standard. In warm, humid climates the default model can be too narrow, so the Vellei et al. options widen the band to reflect how people actually adapt to humidity.' },
+    { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip',
+      text: 'The running mean is a weighted average of outdoor temperature over the past 7 days, giving more weight to recent days. It captures how people acclimatise to changing weather. When outdoor temperatures have been high, occupants tolerate warmer indoor conditions, so the comfort band shifts right.' },
   ];
   items.forEach(({iconId, tipId, text}) => {
     const icon = document.getElementById(iconId);

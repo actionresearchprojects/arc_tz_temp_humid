@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2026-03-22 21:15:00 CST
+- **Separate running mean info icon on adaptive comfort chart**: Added an info `i` button near the x-axis title that explains what the running mean represents and why the comfort band shifts with outdoor temperature. Split from the comfort band tooltip, which now focuses on the green band and humidity model selection.
+
+### 2026-03-22 21:00:00 CST
+- **Rewrite all info tooltips for clarity**: Rewrote all chart and sidebar info tooltips to focus on what the user can learn from each feature, not just mechanical descriptions. Removed em/en dashes and special characters. Fixed "side by side" wording for Compare Mode (it overlays, not splits). Added practical examples like "this month vs last month" and "dry season vs wet season".
+
+### 2026-03-22 20:45:00 CST
+- **Fix annotation toggle on adaptive comfort chart**: The minimize/maximize button for the detail text overlay was never showing because it checked `state.chartType === 'adaptive'` instead of the correct value `'comfort'`. Fixed the condition so the toggle button now appears at the bottom-right of the adaptive comfort chart.
+
 ### 2026-03-22 20:35:00 CST
 - **Info buttons for Compare Mode, Long-Term Mode, and EN16798 comfort band**: Added hover info `i` icons next to each control in the sidebar. Compare Mode explains overlay functionality; Long-Term Mode describes ERA5/SSP climate data; EN16798 explains the running mean calculation and Vellei et al. humidity extensions. Uses same fixed-position tooltip pattern as existing density/chart info icons.
 
