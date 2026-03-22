@@ -39,8 +39,8 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 select, button, input { font-family: inherit; }
 select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; max-width: 100%; }
 select:focus { outline: none; border-color: #4a90d9; }
-#chart-type optgroup[label="Beta Features"], #chart-type optgroup[label="Vipengele vya Beta"] { color: #c0392b; font-weight: 700; font-style: normal; }
-#chart-type optgroup[label="Beta Features"] option, #chart-type optgroup[label="Vipengele vya Beta"] option { color: #c0392b; font-weight: 400; }
+#chart-type option[value="beta"] { color: #c0392b; font-weight: 700; }
+#beta-chart-type { color: #c0392b; font-weight: 600; border-color: #c0392b; }
 .beta-tag { display:inline-block; background:#c0392b; color:white; font-size:9px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; letter-spacing:0.03em; }
 .cb-label { display: flex; align-items: center; gap: 5px; padding: 1px 0; cursor: pointer; line-height: 1.4; font-size: 12px; }
 .cb-label:hover { color: #1f77b4; }
@@ -359,13 +359,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="comfort" data-i18n="adaptiveComfort">Adaptive Comfort</option>
             <option value="histogram" data-i18n="histogram">Histogram</option>
             <option value="periodic" data-i18n="averageProfiles">Average Profiles</option>
-            <optgroup label="Beta Features" data-i18n-group="betaFeatures">
-              <option value="beta-diff" data-i18n="betaDiff">Temperature Differential</option>
-              <option value="beta-decrement" data-i18n="betaDecrement">Decrement Factor</option>
-              <option value="beta-lag" data-i18n="betaLag">Thermal Lag</option>
-              <option value="beta-quality" data-i18n="betaQuality">Data Quality</option>
-              <option value="beta-crossbuild" data-i18n="betaCrossBuild">Cross-Building Compare</option>
-            </optgroup>
+            <option value="beta" style="color:#c0392b;font-weight:700" data-i18n="betaFeatures">Beta Features</option>
+          </select>
+          <select id="beta-chart-type" style="display:none;color:#c0392b;font-weight:600;border-color:#c0392b">
+            <option value="beta-diff" data-i18n="betaDiff">Temperature Differential</option>
+            <option value="beta-decrement" data-i18n="betaDecrement">Decrement Factor</option>
+            <option value="beta-lag" data-i18n="betaLag">Thermal Lag</option>
+            <option value="beta-quality" data-i18n="betaQuality">Data Quality</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -548,20 +548,20 @@ const I18N = {
     betaDecrement: 'Decrement Factor',
     betaLag: 'Thermal Lag',
     betaQuality: 'Data Quality',
-    betaCrossBuild: 'Cross-Building Compare',
+
     betaDiffTitle: 'Indoor\u2013Outdoor Temperature Differential',
     betaDecrementTitle: 'Decrement Factor by Room',
     betaLagTitle: 'Diurnal Thermal Lag by Room',
     betaQualityTitle: 'Data Quality & Anomaly Detection',
-    betaCrossBuildTitle: 'Cross-Building Comparison',
+
     betaDiffAxis: 'Temperature Differential (\u00b0C)',
     betaDecrementAxis: 'Decrement Factor (indoor swing / outdoor swing)',
     betaLagAxis: 'Thermal Lag (hours)',
     infoBetaDiff: 'Shows the difference between indoor and outdoor temperature at each time step. Positive = hotter inside than outside (building trapping heat). Negative = cooler inside (building providing relief). Per-room lines let you compare which spaces perform best.',
-    infoBetaDecrement: 'The decrement factor is the ratio of indoor to outdoor daily temperature swing. If outside swings 12\u00b0C but inside only 4\u00b0C, the factor is 0.33. Lower is better \u2014 it means the building dampens outdoor extremes more effectively.',
-    infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\u2019s thermal mass absorbs heat slowly and releases it later, ideally when it\u2019s cooler outside.',
+    infoBetaDecrement: 'The decrement factor is the ratio of indoor to outdoor daily temperature swing. If outside swings 12\u00b0C but inside only 4\u00b0C, the factor is 0.33. Lower is better: it means the building dampens outdoor extremes more effectively.',
+    infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\'s thermal mass absorbs heat slowly and releases it later, ideally when it\'s cooler outside.',
     infoBetaQuality: 'Data health overview showing per-sensor coverage, gap detection (periods >6h with no readings), and outlier flags (readings >3\u03c3 from the local 24h rolling mean). Green = good data, orange = gap, red = suspect reading.',
-    infoBetaCrossBuild: 'Side-by-side comparison of House 5 and Schoolteacher\u2019s House using summary statistics: mean temperature, decrement factor, and thermal lag for each monitored room.',
+
     stacked: 'Stacked',
     overlay: 'Overlay',
     belowUpper: 'Below upper boundary',
@@ -699,10 +699,10 @@ const I18N = {
     betaDecrementAxis: 'Kipengele cha Kupunguza',
     betaLagAxis: 'Ucheleweshaji (masaa)',
     infoBetaDiff: 'Inaonyesha tofauti kati ya joto la ndani na nje. Chanya = ndani ni moto zaidi kuliko nje. Hasi = ndani ni baridi zaidi.',
-    infoBetaDecrement: 'Uwiano wa mabadiliko ya joto la ndani na nje kwa siku. Nambari ndogo ni bora \u2014 inamaanisha jengo linapunguza joto la nje vizuri.',
+    infoBetaDecrement: 'Uwiano wa mabadiliko ya joto la ndani na nje kwa siku. Nambari ndogo ni bora: inamaanisha jengo linapunguza joto la nje vizuri.',
     infoBetaLag: 'Masaa mangapi kilele cha joto la ndani kinachelewa nyuma ya kilele cha nje. Ucheleweshaji mrefu = thermal mass nzuri.',
     infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor, mapungufu, na masomo yasiyo ya kawaida.',
-    infoBetaCrossBuild: 'Kulinganisha kando kwa kando kwa Nyumba 5 na Nyumba ya Mwalimu.',
+
     stacked: 'Stacked',
     overlay: 'Overlay',
     belowUpper: 'Chini ya mpaka wa juu',
@@ -774,6 +774,11 @@ function ln(id) {
   if (currentLang === 'sw' && m.loggerNamesSw && m.loggerNamesSw[id]) return m.loggerNamesSw[id];
   return m.loggerNames[id] || id;
 }
+// Logger name from a specific dataset's meta (for cross-building compare)
+function lnFrom(meta, id) {
+  if (currentLang === 'sw' && meta.loggerNamesSw && meta.loggerNamesSw[id]) return meta.loggerNamesSw[id];
+  return (meta.loggerNames && meta.loggerNames[id]) || id;
+}
 
 function setLanguage(lang) {
   currentLang = lang;
@@ -793,9 +798,9 @@ function applyLanguage() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
   });
-  // Translate optgroup labels
-  document.querySelectorAll('[data-i18n-group]').forEach(el => {
-    el.label = t(el.dataset.i18nGroup);
+  // Translate beta chart type dropdown
+  document.querySelectorAll('#beta-chart-type [data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
   });
 
   // Checkbox labels: text node after checkbox input
@@ -1308,9 +1313,14 @@ function renderCompareSets() {
     state.compareSets.push({
       selectedLoggers: new Set(m.lineLoggers || m.loggers),
       selectedRoomLoggers: new Set(m.roomLoggers || []),
+      selectedCrossLoggers: {}, // {dsKey: Set<loggerId>} for other datasets
       substratFilters: [],
       substratCombine: 'all',
     });
+  }
+  // Ensure all sets have selectedCrossLoggers
+  for (const cs of state.compareSets) {
+    if (!cs.selectedCrossLoggers) cs.selectedCrossLoggers = {};
   }
   const anomRanges = m.anomalousRanges || {};
   const extSet = new Set(m.externalLoggers || []);
@@ -1412,6 +1422,54 @@ function renderCompareSets() {
       const midLoggers = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
       addCmpSection(t('sectionRoom'), roomLoggers);
       addCmpSection(t('sectionStructural'), midLoggers);
+    }
+
+    // Cross-dataset loggers (other buildings)
+    if (!isComfort) {
+      for (const otherKey of Object.keys(ALL_DATA)) {
+        if (otherKey === state.datasetKey) continue;
+        const otherDs = ALL_DATA[otherKey];
+        const otherM = otherDs.meta;
+        const otherRoomSet = new Set(otherM.roomLoggers || []);
+        const otherExtSet = new Set(otherM.externalLoggers || []);
+        const otherRoomLoggers = otherM.loggers.filter(id => !otherExtSet.has(id) && otherRoomSet.has(id));
+        if (otherRoomLoggers.length === 0) continue;
+        // Initialize cross-logger set for this other dataset
+        if (!cs.selectedCrossLoggers[otherKey]) cs.selectedCrossLoggers[otherKey] = new Set();
+        const crossSet = cs.selectedCrossLoggers[otherKey];
+        // Divider
+        const hr = document.createElement('hr'); hr.className = 'divider'; loggerWrap.appendChild(hr);
+        const otherName = otherKey === 'house5' ? t('house5') : otherKey === 'schoolteacher' ? t('schoolteacher') : otherKey;
+        const titleEl = document.createElement('div');
+        titleEl.className = 'sub-section-title';
+        titleEl.textContent = otherName;
+        loggerWrap.appendChild(titleEl);
+        // All/None buttons
+        const secBtnRow = document.createElement('div');
+        secBtnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:3px;flex-wrap:wrap;';
+        secBtnRow.appendChild(mkCmpBtn(t('btnAll'), () => {
+          otherRoomLoggers.forEach(id => { crossSet.add(id); loggerWrap.querySelector('input[data-cross-logger="' + otherKey + ':' + id + '"]').checked = true; });
+          updatePlot();
+        }, 'btnAll'));
+        secBtnRow.appendChild(mkCmpBtn(t('btnNone'), () => {
+          otherRoomLoggers.forEach(id => { crossSet.delete(id); loggerWrap.querySelector('input[data-cross-logger="' + otherKey + ':' + id + '"]').checked = false; });
+          updatePlot();
+        }, 'btnNone'));
+        loggerWrap.appendChild(secBtnRow);
+        for (const id of otherRoomLoggers) {
+          const lbl = document.createElement('label');
+          lbl.className = 'cb-label';
+          const src = otherM.loggerSources[id] || '';
+          const color = otherM.colors[id] || '#999';
+          const dispName = lnFrom(otherM, id);
+          lbl.innerHTML = '<input type="checkbox" data-cross-logger="' + otherKey + ':' + id + '" ' + (crossSet.has(id) ? 'checked' : '') + '> <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + color + ';vertical-align:middle"></span> <span class="logger-name">' + dispName + '</span>' + (src ? ' <span style="color:#aaa;font-size:10px">(' + src + ')</span>' : '');
+          lbl.querySelector('input').addEventListener('change', e => {
+            e.target.checked ? crossSet.add(id) : crossSet.delete(id);
+            updatePlot();
+          });
+          loggerWrap.appendChild(lbl);
+        }
+      }
     }
     body.appendChild(loggerWrap);
 
@@ -1755,6 +1813,7 @@ function getCompareIterations() {
     const legendName = COMPARE_SET_NAMES[si] + (diffDesc ? ': ' + diffDesc : '');
     iterations.push({
       selectedLoggers: isComfort ? cs.selectedRoomLoggers : cs.selectedLoggers,
+      selectedCrossLoggers: cs.selectedCrossLoggers || {},
       substratFilters: cs.substratFilters,
       substratCombine: cs.substratCombine,
       colorMap,
@@ -2348,9 +2407,19 @@ function setupStaticListeners() {
     loadDataset(e.target.value);
   });
 
-  document.getElementById('chart-type').addEventListener('change', e => {
+  function handleChartTypeChange(newType) {
     const prevType = state.chartType;
-    state.chartType = e.target.value;
+    state.chartType = newType;
+    // Show/hide beta sub-dropdown
+    const betaSel = document.getElementById('beta-chart-type');
+    const mainSel = document.getElementById('chart-type');
+    if (newType.startsWith('beta-') || newType === 'beta') {
+      betaSel.style.display = '';
+      mainSel.value = 'beta';
+      if (newType === 'beta') { state.chartType = betaSel.value; }
+    } else {
+      betaSel.style.display = 'none';
+    }
     const isLine = state.chartType === 'line';
     const isHistogram = state.chartType === 'histogram';
     const isComfort = state.chartType === 'comfort';
@@ -2416,6 +2485,30 @@ function setupStaticListeners() {
       document.getElementById('humidity-label').style.display = state.chartType === 'beta-diff' ? '' : 'none';
       document.getElementById('cb-threshold').parentElement.style.display = 'none';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
+      // Hide external and structural sections; only show room loggers
+      const _m = dataset().meta;
+      const _extSet = new Set(_m.externalLoggers || []);
+      const _roomSet = new Set(_m.roomLoggers || []);
+      const loggerDiv = document.getElementById('logger-checkboxes');
+      // Walk through sub-section-title elements and hide external/structural sections
+      let currentSection = null;
+      for (const child of loggerDiv.children) {
+        if (child.classList && child.classList.contains('sub-section-title')) {
+          currentSection = child.textContent.trim();
+          const isRoom = currentSection === t('sectionRoom');
+          child.style.display = isRoom ? '' : 'none';
+        } else if (currentSection) {
+          const isRoom = currentSection === t('sectionRoom');
+          child.style.display = isRoom ? '' : 'none';
+        }
+      }
+    } else {
+      // Non-beta: ensure all logger sections are visible
+      const loggerDiv = document.getElementById('logger-checkboxes');
+      for (const child of loggerDiv.children) { child.style.display = ''; }
+    }
+    if (isBeta) {
+      // already handled above
     } else if (isPeriodic) {
       document.getElementById('line-options-section').style.display = state.periodCycle === 'year' ? '' : 'none';
       document.getElementById('line-options-divider').style.display = state.periodCycle === 'year' ? '' : 'none';
@@ -2463,6 +2556,12 @@ function setupStaticListeners() {
     // Re-render compare sets when chart type changes (logger pool differs for comfort)
     if (state.compareEnabled) renderCompareSets();
     updatePlot();
+  }
+  document.getElementById('chart-type').addEventListener('change', e => {
+    handleChartTypeChange(e.target.value);
+  });
+  document.getElementById('beta-chart-type').addEventListener('change', e => {
+    handleChartTypeChange(e.target.value);
   });
 
   document.getElementById('comfort-model').addEventListener('change', e => {
@@ -3265,6 +3364,45 @@ function renderLineGraph() {
           opacity:0.35, connectgaps:false, legendgroup:lgGroup, showlegend:(!iter.setLabel && firstMetric), meta:{loggerId},
           hovertemplate:`${name}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?t('tempOnly'):t('humidOnly')}: %{y:.1f}${unit}<br>${t('source')}: ${source}${idLabel}<extra></extra>`});
         firstMetric = false;
+      }
+    }
+
+    // Cross-dataset loggers (other buildings in compare mode)
+    if (iter.selectedCrossLoggers) {
+      for (const otherKey of Object.keys(iter.selectedCrossLoggers)) {
+        const crossSet = iter.selectedCrossLoggers[otherKey];
+        if (!crossSet || crossSet.size === 0) continue;
+        const otherDs = ALL_DATA[otherKey];
+        if (!otherDs) continue;
+        const otherM = otherDs.meta;
+        const otherName = otherKey === 'house5' ? t('house5') : otherKey === 'schoolteacher' ? t('schoolteacher') : otherKey;
+        for (const lid of crossSet) {
+          const series = otherDs.series[lid];
+          if (!series) continue;
+          let filtered = filterSeries(series, start, end);
+          if (!filtered) continue;
+          if (filtered.timestamps.length) {
+            const first = filtered.timestamps[0], last = filtered.timestamps[filtered.timestamps.length - 1];
+            if (first < dataMinMs) dataMinMs = first;
+            if (last > dataMaxMs) dataMaxMs = last;
+          }
+          const color = otherM.colors[lid] || '#999';
+          const dispName = lnFrom(otherM, lid);
+          const crossPrefix = namePrefix + otherName + ' \u2013 ';
+          const source = otherM.loggerSources[lid] || '';
+          const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : 'cross_' + otherKey + '_' + lid;
+          for (const metric of ['temperature','humidity']) {
+            if (!state.selectedMetrics.has(metric)) continue;
+            const {x, y} = buildGapArrays(filtered.timestamps, filtered[metric]);
+            for (const v of y) { if (v != null) { if (v < yMin) yMin = v; if (v > yMax) yMax = v; } }
+            const unit = metric === 'temperature' ? '\u00b0C' : '%RH';
+            traces.push({x, y, type:'scatter', mode:'lines',
+              name: crossPrefix + dispName + (source ? ' <span style="color:#aaa">(' + source + ')</span>' : ''),
+              line:{color, width:1.4, dash:'dot'}, opacity:0.5, connectgaps:false,
+              legendgroup:lgGroup, showlegend:!iter.setLabel,
+              hovertemplate:`${crossPrefix}${dispName}<br>%{x|%d/%m/%Y %H:%M}<br>${metric==='temperature'?t('tempOnly'):t('humidOnly')}: %{y:.1f}${unit}<br>${t('source')}: ${source}<extra></extra>`});
+          }
+        }
       }
     }
 
@@ -5127,7 +5265,7 @@ function renderBetaDecrement() {
   }
 
   const roomSet = new Set(m.roomLoggers || []);
-  const loggerNames = [], loggerDecrement = [], loggerColors = [];
+  const loggerNames = [], loggerDecrement = [], loggerColors = [], loggerIds = [], loggerSources = [];
   let hasData = false;
 
   for (const loggerId of m.loggers) {
@@ -5164,9 +5302,12 @@ function renderBetaDecrement() {
     if (factors.length === 0) continue;
     hasData = true;
     const avgFactor = factors.reduce((a, b) => a + b, 0) / factors.length;
-    loggerNames.push(ln(loggerId));
+    const source = m.loggerSources[loggerId] || '';
+    loggerNames.push(ln(loggerId) + (source ? ' (' + source + ')' : ''));
     loggerDecrement.push(+avgFactor.toFixed(3));
     loggerColors.push(m.colors[loggerId] || '#1f77b4');
+    loggerIds.push(loggerId);
+    loggerSources.push(source);
   }
 
   const traces = [{
@@ -5174,7 +5315,7 @@ function renderBetaDecrement() {
     marker: {color: loggerColors, opacity: 0.8},
     text: loggerDecrement.map(v => v.toFixed(2)),
     textposition: 'outside',
-    hovertemplate: '%{x}<br>Decrement factor: %{y:.3f}<extra></extra>',
+    hovertemplate: loggerNames.map((n, i) => ln(loggerIds[i]) + ' (' + loggerSources[i] + ')<br>Decrement factor: %{y:.3f}<extra></extra>'),
   }];
 
   // Reference line at 1.0
@@ -5186,8 +5327,8 @@ function renderBetaDecrement() {
     layout: {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm?45:65, r: sm?8:20, t: sm?30:40, b: sm?80:100},
-      xaxis: {title: '', tickangle: -30, automargin: true},
-      yaxis: {title: t('betaDecrementAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(1.2, ...loggerDecrement) * 1.15], zeroline: true},
+      xaxis: {title: 'Room Logger <span style="color:#aaa">(source type)</span>', tickangle: -30, automargin: true},
+      yaxis: {title: t('betaDecrementAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(1.2, ...(loggerDecrement.length ? loggerDecrement : [0])) * 1.15], zeroline: true},
       shapes: [{type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:1, y1:1, line:{color:'#e74c3c',width:1.5,dash:'dash'}}],
       annotations: [{x:1, y:1, xref:'paper', yref:'y', text:'1.0 = no damping', showarrow:false, font:{size:10,color:'#e74c3c'}, xanchor:'right', yanchor:'bottom'}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
@@ -5226,7 +5367,7 @@ function renderBetaLag() {
   }
 
   const roomSet = new Set(m.roomLoggers || []);
-  const loggerNames = [], loggerLag = [], loggerColors = [];
+  const loggerNames = [], loggerLag = [], loggerColors = [], loggerIds = [], loggerSrcArr = [];
   let hasData = false;
 
   for (const loggerId of m.loggers) {
@@ -5265,9 +5406,12 @@ function renderBetaLag() {
     if (lags.length === 0) continue;
     hasData = true;
     const avgLag = lags.reduce((a, b) => a + b, 0) / lags.length;
-    loggerNames.push(ln(loggerId));
+    const source = m.loggerSources[loggerId] || '';
+    loggerNames.push(ln(loggerId) + (source ? ' (' + source + ')' : ''));
     loggerLag.push(+avgLag.toFixed(1));
     loggerColors.push(m.colors[loggerId] || '#1f77b4');
+    loggerIds.push(loggerId);
+    loggerSrcArr.push(source);
   }
 
   const traces = [{
@@ -5275,19 +5419,20 @@ function renderBetaLag() {
     marker: {color: loggerColors, opacity: 0.8},
     text: loggerLag.map(v => v.toFixed(1) + 'h'),
     textposition: 'outside',
-    hovertemplate: '%{x}<br>Avg thermal lag: %{y:.1f} hours<extra></extra>',
+    hovertemplate: loggerNames.map((n, i) => ln(loggerIds[i]) + ' (' + loggerSrcArr[i] + ')<br>Avg thermal lag: %{y:.1f} hours<extra></extra>'),
   }];
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
   const title = `${dsl} \u2013 ${t('betaLagTitle')}`;
+  const maxLag = loggerLag.length > 0 ? Math.max(...loggerLag) : 8;
   return {
     traces, title,
     layout: {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm?45:65, r: sm?8:20, t: sm?30:40, b: sm?80:100},
-      xaxis: {title: '', tickangle: -30, automargin: true},
-      yaxis: {title: t('betaLagAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(8, ...loggerLag) * 1.2]},
+      xaxis: {title: 'Room Logger <span style="color:#aaa">(source type)</span>', tickangle: -30, automargin: true},
+      yaxis: {title: t('betaLagAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.ceil(Math.max(8, maxLag * 1.2))], fixedrange: true},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
       hovermode: 'closest',
     },
@@ -5314,7 +5459,9 @@ function renderBetaQuality() {
     if (!filtered) continue;
 
     hasData = true;
+    const source = m.loggerSources[loggerId] || '';
     const name = ln(loggerId);
+    const nameWithSrc = name + (source ? ' (' + source + ')' : '');
     const ts = filtered.timestamps;
     const temp = filtered.temperature;
     const y = yIdx;
@@ -5329,7 +5476,7 @@ function renderBetaQuality() {
             x: [toEATString(ts[segStart]), toEATString(ts[i-1])],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#27ae60', width: 8}, showlegend: false,
-            hovertemplate: `${name}<br>Good data<br>%{x}<extra></extra>`,
+            hovertemplate: `${nameWithSrc}<br>Good data<br>%{x}<extra></extra>`,
           });
         }
         if (i < ts.length && i > 0) {
@@ -5339,7 +5486,7 @@ function renderBetaQuality() {
             x: [toEATString(ts[i-1]), toEATString(ts[i])],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#e67e22', width: 8}, showlegend: false,
-            hovertemplate: `${name}<br>Gap: ${gapHours}h<br>%{x}<extra></extra>`,
+            hovertemplate: `${nameWithSrc}<br>Gap: ${gapHours}h<br>%{x}<extra></extra>`,
           });
         }
         segStart = i;
@@ -5367,7 +5514,7 @@ function renderBetaQuality() {
           x: outlierX, y: outlierY, type: 'scatter', mode: 'markers',
           marker: {color: '#e74c3c', size: 6, symbol: 'x'},
           showlegend: false,
-          hovertemplate: `${name}<br>Suspect reading<br>%{x}<extra></extra>`,
+          hovertemplate: `${nameWithSrc}<br>Suspect reading<br>%{x}<extra></extra>`,
         });
       }
     }
@@ -5387,10 +5534,11 @@ function renderBetaQuality() {
     if (!state.selectedLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.timestamps || series.timestamps.length === 0) continue;
-    let filtered = filterSeries(series, start, end);
-    if (!filtered) continue;
+    let filtered2 = filterSeries(series, start, end);
+    if (!filtered2) continue;
+    const src = m.loggerSources[loggerId] || '';
     tickVals.push(idx);
-    tickText.push(ln(loggerId));
+    tickText.push(ln(loggerId) + (src ? ' <span style="color:#aaa">(' + src + ')</span>' : ''));
     idx++;
   }
 
@@ -5409,184 +5557,6 @@ function renderBetaQuality() {
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
     },
     _noData: !hasData,
-  };
-}
-
-// ── Beta Feature 5: Cross-Building Comparison ────────────────────────────────
-function renderBetaCrossBuilding() {
-  const {start, end} = getTimeRange();
-  const buildings = [];
-
-  for (const dsKey of Object.keys(ALL_DATA)) {
-    const ds = ALL_DATA[dsKey];
-    const m = ds.meta;
-    const dsName = dsKey === 'house5' ? t('house5') : dsKey === 'schoolteacher' ? t('schoolteacher') : dsKey;
-    const roomSet = new Set(m.roomLoggers || []);
-    const extIds = m.externalLoggers || [];
-
-    // Get external series for this dataset
-    let extSeries = null;
-    for (const id of extIds) {
-      if (id.indexOf('(Open-Meteo)') !== -1 && id.indexOf('Forecast') === -1 && ds.series[id]) { extSeries = ds.series[id]; break; }
-    }
-    if (!extSeries) {
-      for (const id of extIds) { if (ds.series[id]) { extSeries = ds.series[id]; break; } }
-    }
-    const extFiltered = extSeries ? filterSeries(extSeries, start, end) : null;
-
-    // Group external by day
-    const extByDay = {};
-    if (extFiltered) {
-      for (let i = 0; i < extFiltered.timestamps.length; i++) {
-        const d = toEATString(extFiltered.timestamps[i]).slice(0, 10);
-        if (!extByDay[d]) extByDay[d] = [];
-        extByDay[d].push(extFiltered.temperature[i]);
-      }
-    }
-    // External peak hours by day
-    const extPeakByDay = {};
-    if (extFiltered) {
-      const dayPts = {};
-      for (let i = 0; i < extFiltered.timestamps.length; i++) {
-        const ds2 = toEATString(extFiltered.timestamps[i]);
-        const day = ds2.slice(0, 10);
-        const hour = parseInt(ds2.slice(11, 13), 10) + parseInt(ds2.slice(14, 16), 10) / 60;
-        if (!dayPts[day]) dayPts[day] = [];
-        dayPts[day].push({temp: extFiltered.temperature[i], hour});
-      }
-      for (const day of Object.keys(dayPts)) {
-        const pts = dayPts[day];
-        if (pts.length < 6) continue;
-        let maxT = -Infinity, peakH = 0;
-        for (const p of pts) { if (p.temp > maxT) { maxT = p.temp; peakH = p.hour; } }
-        extPeakByDay[day] = peakH;
-      }
-    }
-
-    for (const loggerId of m.loggers) {
-      if (!roomSet.has(loggerId)) continue;
-      const series = ds.series[loggerId];
-      if (!series) continue;
-      let filtered = filterSeries(series, start, end);
-      if (!filtered || filtered.timestamps.length < 10) continue;
-      filtered = applyAnomalousFilter(filtered, loggerId);
-      if (!filtered) continue;
-
-      const name = ln(loggerId);
-
-      // Mean temperature
-      let tSum = 0, tCnt = 0;
-      for (const v of filtered.temperature) { if (v != null) { tSum += v; tCnt++; } }
-      const meanT = tCnt > 0 ? tSum / tCnt : null;
-
-      // Decrement factor
-      const indoorByDay = {};
-      for (let i = 0; i < filtered.timestamps.length; i++) {
-        const d = toEATString(filtered.timestamps[i]).slice(0, 10);
-        if (!indoorByDay[d]) indoorByDay[d] = [];
-        indoorByDay[d].push(filtered.temperature[i]);
-      }
-      const factors = [];
-      for (const day of Object.keys(indoorByDay)) {
-        if (!extByDay[day]) continue;
-        const ea = extByDay[day], ia = indoorByDay[day];
-        if (ea.length < 4 || ia.length < 4) continue;
-        const es = Math.max(...ea) - Math.min(...ea);
-        const is2 = Math.max(...ia) - Math.min(...ia);
-        if (es < 0.5) continue;
-        factors.push(is2 / es);
-      }
-      const decrement = factors.length > 0 ? factors.reduce((a, b) => a + b, 0) / factors.length : null;
-
-      // Thermal lag
-      const indoorDayPts = {};
-      for (let i = 0; i < filtered.timestamps.length; i++) {
-        const ds2 = toEATString(filtered.timestamps[i]);
-        const day = ds2.slice(0, 10);
-        const hour = parseInt(ds2.slice(11, 13), 10) + parseInt(ds2.slice(14, 16), 10) / 60;
-        if (!indoorDayPts[day]) indoorDayPts[day] = [];
-        indoorDayPts[day].push({temp: filtered.temperature[i], hour});
-      }
-      const lags = [];
-      for (const day of Object.keys(indoorDayPts)) {
-        if (extPeakByDay[day] === undefined) continue;
-        const pts = indoorDayPts[day];
-        if (pts.length < 6) continue;
-        let maxT2 = -Infinity, peakH = 0;
-        for (const p of pts) { if (p.temp > maxT2) { maxT2 = p.temp; peakH = p.hour; } }
-        let lag = peakH - extPeakByDay[day];
-        if (lag < -12) lag += 24;
-        if (lag > 12) lag -= 24;
-        if (lag >= 0) lags.push(lag);
-      }
-      const avgLag = lags.length > 0 ? lags.reduce((a, b) => a + b, 0) / lags.length : null;
-
-      buildings.push({dsKey, dsName, loggerId, name, meanT, decrement, avgLag});
-    }
-  }
-
-  if (buildings.length === 0) {
-    return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:t('noDataRange'),xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaCrossBuildTitle'), _noData: true};
-  }
-
-  // Group by building for grouped bar chart
-  const dsKeys = [...new Set(buildings.map(b => b.dsKey))];
-  const buildingColors = {house5: '#1f77b4', schoolteacher: '#e67e22'};
-  const metrics = [
-    {key: 'meanT', label: 'Mean Temp (\u00b0C)', format: v => v != null ? v.toFixed(1) : 'N/A'},
-    {key: 'decrement', label: 'Decrement Factor', format: v => v != null ? v.toFixed(2) : 'N/A'},
-    {key: 'avgLag', label: 'Thermal Lag (h)', format: v => v != null ? v.toFixed(1) : 'N/A'},
-  ];
-
-  // Create a subplot-like layout with 3 bar charts side by side using subplots
-  const traces = [];
-  for (let mi = 0; mi < metrics.length; mi++) {
-    const metric = metrics[mi];
-    for (const dsKey of dsKeys) {
-      const blds = buildings.filter(b => b.dsKey === dsKey);
-      const xAxis = mi === 0 ? 'x' : 'x' + (mi + 1);
-      const yAxis = mi === 0 ? 'y' : 'y' + (mi + 1);
-      traces.push({
-        x: blds.map(b => b.name),
-        y: blds.map(b => b[metric.key]),
-        type: 'bar',
-        name: blds[0]?.dsName || dsKey,
-        marker: {color: buildingColors[dsKey] || '#999', opacity: 0.8},
-        text: blds.map(b => metric.format(b[metric.key])),
-        textposition: 'outside',
-        xaxis: xAxis, yaxis: yAxis,
-        legendgroup: dsKey,
-        showlegend: mi === 0,
-        hovertemplate: `%{x}<br>${metric.label}: %{y:.2f}<extra>${blds[0]?.dsName || ''}</extra>`,
-      });
-    }
-  }
-
-  const sm = window.innerWidth < 680;
-  const title = t('betaCrossBuildTitle');
-  return {
-    traces, title,
-    layout: {
-      autosize: true, font: {family: 'Ubuntu, sans-serif'},
-      margin: {l: sm?40:50, r: sm?8:20, t: sm?30:45, b: sm?80:100},
-      grid: {rows: 1, columns: 3, pattern: 'independent', xgap: 0.1},
-      xaxis:  {title: '', tickangle: -30, automargin: true, domain: [0, 0.3]},
-      xaxis2: {title: '', tickangle: -30, automargin: true, domain: [0.36, 0.66]},
-      xaxis3: {title: '', tickangle: -30, automargin: true, domain: [0.72, 1]},
-      yaxis:  {title: 'Mean Temp (\u00b0C)', showgrid: true, gridcolor: '#eee'},
-      yaxis2: {title: 'Decrement Factor', showgrid: true, gridcolor: '#eee'},
-      yaxis3: {title: 'Thermal Lag (h)', showgrid: true, gridcolor: '#eee'},
-      legend: {orientation: 'h', x: 0.5, y: 1.08, xanchor: 'center', itemclick: false, itemdoubleclick: false},
-      annotations: [
-        {text: '<b>Mean Temperature</b>', xref: 'paper', yref: 'paper', x: 0.15, y: 1.02, showarrow: false, font: {size: 11}},
-        {text: '<b>Decrement Factor</b>', xref: 'paper', yref: 'paper', x: 0.51, y: 1.02, showarrow: false, font: {size: 11}},
-        {text: '<b>Thermal Lag</b>', xref: 'paper', yref: 'paper', x: 0.86, y: 1.02, showarrow: false, font: {size: 11}},
-      ],
-      plot_bgcolor: 'white', paper_bgcolor: 'white',
-      barmode: 'group',
-      hovermode: 'closest',
-    },
-    _noData: false,
   };
 }
 
@@ -6012,7 +5982,6 @@ function _doRender() {
     : state.chartType === 'beta-decrement' ? renderBetaDecrement()
     : state.chartType === 'beta-lag' ? renderBetaLag()
     : state.chartType === 'beta-quality' ? renderBetaQuality()
-    : state.chartType === 'beta-crossbuild' ? renderBetaCrossBuilding()
     : renderAdaptiveComfort();
   // Replace with empty message if no actual data
   if (result._noData) {
@@ -6172,7 +6141,6 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     'beta-decrement': () => t('infoBetaDecrement'),
     'beta-lag': () => t('infoBetaLag'),
     'beta-quality': () => t('infoBetaQuality'),
-    'beta-crossbuild': () => t('infoBetaCrossBuild'),
   };
   icon.addEventListener('mouseenter', () => {
     const fn = textKeys[state.chartType];

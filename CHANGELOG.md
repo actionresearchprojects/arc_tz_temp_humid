@@ -1,14 +1,13 @@
 ## Changelog
 
-### 2026-03-22 13:30:01 CST
-- **Added Beta Features dropdown to chart type selector**: New `<optgroup>` in red with 5 experimental chart types:
-  1. **Temperature Differential** — Line chart showing indoor minus outdoor temperature per room over time. Positive = building trapping heat, negative = cooler inside.
-  2. **Decrement Factor** — Bar chart showing ratio of indoor to outdoor daily temperature swing per room. Lower = better thermal damping.
-  3. **Thermal Lag** — Bar chart showing average hours the indoor peak trails the outdoor peak per room. Longer lag = better thermal mass.
-  4. **Data Quality** — Timeline visualization per sensor showing coverage (green), gaps >6h (orange), and outlier readings >3σ from rolling mean (red markers).
-  5. **Cross-Building Comparison** — Side-by-side grouped bar charts comparing House 5 and Schoolteacher's House on mean temperature, decrement factor, and thermal lag.
-- All beta features include bilingual i18n (English/Kiswahili), info tooltips, and respect the current time range selection.
-- Beta charts hide advanced settings and irrelevant sidebar controls. Logger selection remains available.
+### 2026-03-22 13:43:53 CST
+- **Refined Beta Features UI**: "Beta Features" is now a single red-styled option in the main chart dropdown. Selecting it reveals a secondary dropdown to the right for choosing the specific beta chart (Temperature Differential, Decrement Factor, Thermal Lag, Data Quality).
+- **Removed em dashes** from all beta info tooltips (EN and SW).
+- **Beta sidebar cleanup**: When a beta chart is active, only Room logger checkboxes are shown (External and Structural sections are hidden since beta charts only use room data).
+- **Decrement Factor improvements**: X-axis labels and hover detail now include source type (TinyTag/Omnisense) to distinguish same-room sensors. Each sensor gets its own bar (no stacking).
+- **Thermal Lag improvements**: Same source type labelling as Decrement Factor. Y-axis now uses a fixed range to prevent jumping when switching loggers.
+- **Data Quality improvements**: Y-axis tick labels and hover detail now show source type in grey (e.g. "Bedroom 1 (TinyTag)").
+- **Cross-building compare moved to Compare Mode**: Removed from Beta Features. In Compare Mode, each set now shows a cross-dataset section (e.g. "Schoolteacher's House" when viewing House 5) with All/None buttons. Selected cross-building loggers appear as dotted lines on the line graph.
 
 ### 2026-03-23 00:30:00 CST
 - **Merged GitHub Actions into single daily workflow**: Combined `update-cycle-data.yml` into `update-dashboard-data.yml`. One workflow now fetches cycles (ENSO/IOD/MJO), Open-Meteo, and Omnisense data daily at 04:00 UTC, then rebuilds. Deleted `update-cycle-data.yml`.
