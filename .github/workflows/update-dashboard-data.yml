@@ -2,7 +2,7 @@ name: Update dashboard data
 
 on:
   schedule:
-    - cron: '0 4,16 * * *'  # twice daily at 04:00 and 16:00 UTC
+    - cron: '0 4 * * *'  # daily at 04:00 UTC
   workflow_dispatch:       # manual trigger from GitHub UI
 
 permissions:

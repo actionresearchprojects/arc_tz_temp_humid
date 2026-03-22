@@ -33,7 +33,9 @@ def fetch_all():
     for name, src in SOURCES.items():
         print(f"Fetching {name} from {src['url']} ...")
         try:
-            r = requests.get(src["url"], timeout=60)
+            r = requests.get(src["url"], timeout=60, headers={
+                "User-Agent": "Mozilla/5.0 (compatible; ARC-EcovillageBot/1.0)"
+            })
             r.raise_for_status()
             src["dest"].parent.mkdir(parents=True, exist_ok=True)
             src["dest"].write_text(r.text, encoding="utf-8")

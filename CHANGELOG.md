@@ -1,5 +1,14 @@
 ## Changelog
 
+### 2026-03-23 00:30:00 CST
+- **Dashboard data action → once daily**: Changed `update-dashboard-data.yml` cron from twice daily (04:00 & 16:00 UTC) to once daily (04:00 UTC).
+- **Fix cycle data action 403 failure**: Added User-Agent header to `fetch_cycles.py` requests to avoid BoM 403 Forbidden errors on IOD fetch.
+- **Cycle data action resilience**: Added `continue-on-error: true` to the fetch step in `update-cycle-data.yml` so a single failed source doesn't block the rest from being committed.
+
+### 2026-03-23 00:00:00 CST
+- **Annotation fade-on-hover working**: Pure CSS approach targeting SVG `rect` and `text` children with `fill-opacity` and `!important`. 0.5s fade transition.
+- **Running mean info icon positioning fixed**: Finds the actual x-axis title `<text>` element in the SVG by matching `data-unformatted` attribute against the translated axis title. Uses `position: fixed` with viewport coordinates from `getBoundingClientRect()`. 100ms delay after `plotly_afterplot` to ensure layout is finalized.
+
 ### 2026-03-22 23:15:00 CST
 - **Fix annotation fade-on-hover**: Added `pointer-events: all` to SVG annotation elements so mouse events fire properly. Annotations on the adaptive comfort chart now fade to 10% opacity on hover.
 - **Fix running mean info icon positioning**: Now uses Plotly's `plotly_afterplot` event instead of `requestAnimationFrame`, so the `.g-xtitle` element is guaranteed to exist. Repositions via `.then()` after resize relayout.

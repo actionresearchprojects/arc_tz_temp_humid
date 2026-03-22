@@ -24,6 +24,7 @@ jobs:
         run: pip install pandas pytz requests
 
       - name: Fetch cycle data (ENSO, IOD, MJO)
+        continue-on-error: true
         run: python fetch_cycles.py
 
       - name: Fetch Open-Meteo data
