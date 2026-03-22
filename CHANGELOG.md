@@ -5,6 +5,7 @@
 - **Dashboard data action → once daily**: Changed cron from twice daily (04:00 & 16:00 UTC) to once daily (04:00 UTC).
 - **Fix cycle data action 403 failure**: Added User-Agent header to `fetch_cycles.py` requests to avoid BoM 403 Forbidden errors on IOD fetch.
 - **All fetch steps use continue-on-error**: Any single fetch failure won't block the rest from being committed.
+- **Bump GitHub Actions to v6**: Updated `actions/checkout` v4→v6 and `actions/setup-python` v5→v6 for Node.js 24 compatibility (Node.js 20 deprecated June 2026).
 
 ### 2026-03-23 00:00:00 CST
 - **Annotation fade-on-hover working**: Pure CSS approach targeting SVG `rect` and `text` children with `fill-opacity` and `!important`. 0.5s fade transition.
