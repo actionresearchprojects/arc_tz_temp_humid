@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-22 20:35:00 CST
+- **Info buttons for Compare Mode, Long-Term Mode, and EN16798 comfort band**: Added hover info `i` icons next to each control in the sidebar. Compare Mode explains overlay functionality; Long-Term Mode describes ERA5/SSP climate data; EN16798 explains the running mean calculation and Vellei et al. humidity extensions. Uses same fixed-position tooltip pattern as existing density/chart info icons.
+
 ### 2026-03-22 20:20:00 CST
 - **Simplify adaptive comfort x-axis label**: Changed from "7-day running mean external temperature (°C)" to "Running mean external temperature (°C)" in both English and Kiswahili.
 

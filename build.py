@@ -991,7 +991,7 @@ select:focus { outline: none; border-color: #4a90d9; }
 .anomalous-warn { color: #d4880f; font-size: 13px; cursor: help; vertical-align: middle; margin-left: 2px; }
 .stale-warn { color: #d4880f; font-size: 11px; cursor: help; }
 #anomalous-fixed-tip { display:none; position:fixed; background:#5a4000; color:white; padding:6px 10px; border-radius:4px; font-size:10px; width:260px; z-index:200; pointer-events:none; line-height:1.4; }
-#info-fixed-tip, #chart-info-tip { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
+#info-fixed-tip, #chart-info-tip, .info-tip-fixed { display:none; position:fixed; background:#333; color:white; font-size:12px; font-family:'Ubuntu',sans-serif; padding:6px 9px; border-radius:4px; line-height:1.5; width:320px; max-width:90vw; z-index:9999; pointer-events:none; white-space:normal; }
 .cb-label input[type=checkbox] { cursor: pointer; margin: 0; flex-shrink: 0; }
 .control-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .control-row label { font-size: 12px; color: #666; white-space: nowrap; }
@@ -1178,7 +1178,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <button id="substrat-add-btn" class="substrat-only" style="display:none" onclick="addSubstratFilter()" data-i18n="addFilter">+ Add Filter</button>
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
           <hr class="divider" id="compare-divider">
-          <label class="cb-label"><input type="checkbox" id="cb-compare"> <b>Compare Mode</b></label>
+          <label class="cb-label"><input type="checkbox" id="cb-compare"> <b>Compare Mode</b> <span class="info-i" id="compare-info-icon">i</span></label>
+          <div class="info-tip-fixed" id="compare-info-tip"></div>
           <div id="compare-body" style="display:none">
             <div style="margin:4px 0 6px">
               <label style="font-size:11px;">Number of sets:
@@ -1212,7 +1213,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
       <hr class="divider" id="line-options-divider">
       <div class="section" id="historic-section" style="display:none">
-        <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> <b>Long-Term Mode</b></label>
+        <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> <b>Long-Term Mode</b> <span class="info-i" id="longterm-info-icon">i</span></label>
+        <div class="info-tip-fixed" id="longterm-info-tip"></div>
         <div id="historic-series-checkboxes" style="display:none;margin-top:4px"></div>
         <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Long-term historic and projected future data generated from <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
       </div>
@@ -1247,7 +1249,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label"><input type="checkbox" id="cb-density" checked> Density Heatmap <span class="info-i" id="density-info-icon">i</span></label>
         <div id="info-fixed-tip"></div>
         <div style="margin-top:6px;margin-bottom:4px;">
-          <div style="font-size:11px;color:#666;margin-bottom:3px;">Comfort band</div>
+          <div style="font-size:11px;color:#666;margin-bottom:3px;">Comfort band <span class="info-i" id="en16798-info-icon">i</span></div>
+          <div class="info-tip-fixed" id="en16798-info-tip"></div>
           <select id="comfort-model" style="width:100%;font-size:12px;">
             <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
             <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
@@ -5921,6 +5924,33 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     tip.style.top  = (r.bottom + 6) + 'px';
   });
   icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+})();
+
+// Sidebar info tooltips — Compare Mode, Long-Term Mode, EN16798 running mean
+(function() {
+  const items = [
+    { iconId: 'compare-info-icon', tipId: 'compare-info-tip',
+      text: 'Show multiple date ranges or filter combinations side by side on the same chart. Each set gets its own colours and can have different loggers or dates selected.' },
+    { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip',
+      text: 'Switches to a long-term climate view. Hides humidity, resets loggers to Open-Meteo external temperature, and shows historic data (1940 to 2023) alongside future climate projections from the Copernicus Climate Change Service.' },
+    { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip',
+      text: 'Adaptive comfort model from the EN 16798-1 standard. The running mean is a weighted average of the last 7 days of outdoor temperature, giving more weight to recent days. The comfort band shifts depending on which humidity model is selected. Vellei et al. extends the standard for humid climates.' },
+  ];
+  items.forEach(({iconId, tipId, text}) => {
+    const icon = document.getElementById(iconId);
+    const tip  = document.getElementById(tipId);
+    if (!icon || !tip) return;
+    tip.textContent = text;
+    icon.addEventListener('mouseenter', () => {
+      const r = icon.getBoundingClientRect();
+      tip.style.display = 'block';
+      let left = r.right + 8;
+      if (left + 328 > window.innerWidth - 8) left = window.innerWidth - 336;
+      tip.style.left = Math.max(4, left) + 'px';
+      tip.style.top  = r.top + 'px';
+    });
+    icon.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
 })();
 
 // Legend hover tooltip - attach to SVG legend elements after each render
