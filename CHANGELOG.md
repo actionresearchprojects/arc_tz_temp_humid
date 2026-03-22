@@ -1,5 +1,15 @@
 ## Changelog
 
+### 2026-03-22 13:30:01 CST
+- **Added Beta Features dropdown to chart type selector**: New `<optgroup>` in red with 5 experimental chart types:
+  1. **Temperature Differential** — Line chart showing indoor minus outdoor temperature per room over time. Positive = building trapping heat, negative = cooler inside.
+  2. **Decrement Factor** — Bar chart showing ratio of indoor to outdoor daily temperature swing per room. Lower = better thermal damping.
+  3. **Thermal Lag** — Bar chart showing average hours the indoor peak trails the outdoor peak per room. Longer lag = better thermal mass.
+  4. **Data Quality** — Timeline visualization per sensor showing coverage (green), gaps >6h (orange), and outlier readings >3σ from rolling mean (red markers).
+  5. **Cross-Building Comparison** — Side-by-side grouped bar charts comparing House 5 and Schoolteacher's House on mean temperature, decrement factor, and thermal lag.
+- All beta features include bilingual i18n (English/Kiswahili), info tooltips, and respect the current time range selection.
+- Beta charts hide advanced settings and irrelevant sidebar controls. Logger selection remains available.
+
 ### 2026-03-23 00:30:00 CST
 - **Merged GitHub Actions into single daily workflow**: Combined `update-cycle-data.yml` into `update-dashboard-data.yml`. One workflow now fetches cycles (ENSO/IOD/MJO), Open-Meteo, and Omnisense data daily at 04:00 UTC, then rebuilds. Deleted `update-cycle-data.yml`.
 - **Dashboard data action → once daily**: Changed cron from twice daily (04:00 & 16:00 UTC) to once daily (04:00 UTC).

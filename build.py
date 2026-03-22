@@ -987,6 +987,9 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 select, button, input { font-family: inherit; }
 select { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; background: white; cursor: pointer; max-width: 100%; }
 select:focus { outline: none; border-color: #4a90d9; }
+#chart-type optgroup[label="Beta Features"], #chart-type optgroup[label="Vipengele vya Beta"] { color: #c0392b; font-weight: 700; font-style: normal; }
+#chart-type optgroup[label="Beta Features"] option, #chart-type optgroup[label="Vipengele vya Beta"] option { color: #c0392b; font-weight: 400; }
+.beta-tag { display:inline-block; background:#c0392b; color:white; font-size:9px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; letter-spacing:0.03em; }
 .cb-label { display: flex; align-items: center; gap: 5px; padding: 1px 0; cursor: pointer; line-height: 1.4; font-size: 12px; }
 .cb-label:hover { color: #1f77b4; }
 [data-tooltip] { position: relative; }
@@ -1304,6 +1307,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="comfort" data-i18n="adaptiveComfort">Adaptive Comfort</option>
             <option value="histogram" data-i18n="histogram">Histogram</option>
             <option value="periodic" data-i18n="averageProfiles">Average Profiles</option>
+            <optgroup label="Beta Features" data-i18n-group="betaFeatures">
+              <option value="beta-diff" data-i18n="betaDiff">Temperature Differential</option>
+              <option value="beta-decrement" data-i18n="betaDecrement">Decrement Factor</option>
+              <option value="beta-lag" data-i18n="betaLag">Thermal Lag</option>
+              <option value="beta-quality" data-i18n="betaQuality">Data Quality</option>
+              <option value="beta-crossbuild" data-i18n="betaCrossBuild">Cross-Building Compare</option>
+            </optgroup>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -1481,6 +1491,25 @@ const I18N = {
     histogram: 'Histogram',
     adaptiveComfort: 'Adaptive Comfort',
     averageProfiles: 'Average Profiles',
+    betaFeatures: 'Beta Features',
+    betaDiff: 'Temperature Differential',
+    betaDecrement: 'Decrement Factor',
+    betaLag: 'Thermal Lag',
+    betaQuality: 'Data Quality',
+    betaCrossBuild: 'Cross-Building Compare',
+    betaDiffTitle: 'Indoor\u2013Outdoor Temperature Differential',
+    betaDecrementTitle: 'Decrement Factor by Room',
+    betaLagTitle: 'Diurnal Thermal Lag by Room',
+    betaQualityTitle: 'Data Quality & Anomaly Detection',
+    betaCrossBuildTitle: 'Cross-Building Comparison',
+    betaDiffAxis: 'Temperature Differential (\u00b0C)',
+    betaDecrementAxis: 'Decrement Factor (indoor swing / outdoor swing)',
+    betaLagAxis: 'Thermal Lag (hours)',
+    infoBetaDiff: 'Shows the difference between indoor and outdoor temperature at each time step. Positive = hotter inside than outside (building trapping heat). Negative = cooler inside (building providing relief). Per-room lines let you compare which spaces perform best.',
+    infoBetaDecrement: 'The decrement factor is the ratio of indoor to outdoor daily temperature swing. If outside swings 12\u00b0C but inside only 4\u00b0C, the factor is 0.33. Lower is better \u2014 it means the building dampens outdoor extremes more effectively.',
+    infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\u2019s thermal mass absorbs heat slowly and releases it later, ideally when it\u2019s cooler outside.',
+    infoBetaQuality: 'Data health overview showing per-sensor coverage, gap detection (periods >6h with no readings), and outlier flags (readings >3\u03c3 from the local 24h rolling mean). Green = good data, orange = gap, red = suspect reading.',
+    infoBetaCrossBuild: 'Side-by-side comparison of House 5 and Schoolteacher\u2019s House using summary statistics: mean temperature, decrement factor, and thermal lag for each monitored room.',
     stacked: 'Stacked',
     overlay: 'Overlay',
     belowUpper: 'Below upper boundary',
@@ -1603,6 +1632,25 @@ const I18N = {
     histogram: 'Histogramu',
     adaptiveComfort: 'Adaptive Comfort',
     averageProfiles: 'Wastani wa Profaili',
+    betaFeatures: 'Vipengele vya Beta',
+    betaDiff: 'Tofauti ya Joto',
+    betaDecrement: 'Kipengele cha Kupunguza',
+    betaLag: 'Ucheleweshaji wa Joto',
+    betaQuality: 'Ubora wa Data',
+    betaCrossBuild: 'Kulinganisha Majengo',
+    betaDiffTitle: 'Tofauti ya Joto Ndani\u2013Nje',
+    betaDecrementTitle: 'Kipengele cha Kupunguza kwa Chumba',
+    betaLagTitle: 'Ucheleweshaji wa Joto kwa Chumba',
+    betaQualityTitle: 'Ubora wa Data na Ugunduzi wa Kasoro',
+    betaCrossBuildTitle: 'Kulinganisha Majengo',
+    betaDiffAxis: 'Tofauti ya Joto (\u00b0C)',
+    betaDecrementAxis: 'Kipengele cha Kupunguza',
+    betaLagAxis: 'Ucheleweshaji (masaa)',
+    infoBetaDiff: 'Inaonyesha tofauti kati ya joto la ndani na nje. Chanya = ndani ni moto zaidi kuliko nje. Hasi = ndani ni baridi zaidi.',
+    infoBetaDecrement: 'Uwiano wa mabadiliko ya joto la ndani na nje kwa siku. Nambari ndogo ni bora \u2014 inamaanisha jengo linapunguza joto la nje vizuri.',
+    infoBetaLag: 'Masaa mangapi kilele cha joto la ndani kinachelewa nyuma ya kilele cha nje. Ucheleweshaji mrefu = thermal mass nzuri.',
+    infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor, mapungufu, na masomo yasiyo ya kawaida.',
+    infoBetaCrossBuild: 'Kulinganisha kando kwa kando kwa Nyumba 5 na Nyumba ya Mwalimu.',
     stacked: 'Stacked',
     overlay: 'Overlay',
     belowUpper: 'Chini ya mpaka wa juu',
@@ -1692,6 +1740,10 @@ function applyLanguage() {
   // All elements with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
+  });
+  // Translate optgroup labels
+  document.querySelectorAll('[data-i18n-group]').forEach(el => {
+    el.label = t(el.dataset.i18nGroup);
   });
 
   // Checkbox labels: text node after checkbox input
@@ -3251,6 +3303,7 @@ function setupStaticListeners() {
     const isHistogram = state.chartType === 'histogram';
     const isComfort = state.chartType === 'comfort';
     const isPeriodic = state.chartType === 'periodic';
+    const isBeta = state.chartType.startsWith('beta-');
     const m = dataset().meta;
     const syncRoomSet = new Set(m.roomLoggers || []);
     // Sync selections between line/histogram ↔ adaptive comfort (room loggers only; structural defaults off)
@@ -3273,7 +3326,7 @@ function setupStaticListeners() {
         cb.checked = state.selectedRoomLoggers.has(cb.dataset.loggerId);
       });
     }
-    document.getElementById('line-controls').classList.toggle('hidden', isComfort);
+    document.getElementById('line-controls').classList.toggle('hidden', isComfort || isBeta);
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
     document.getElementById('histogram-stats').classList.toggle('hidden', !isHistogram);
     if (!isPeriodic) document.getElementById('periodic-completeness').classList.add('hidden');
@@ -3292,7 +3345,7 @@ function setupStaticListeners() {
       anchor.parentNode.insertBefore(advWrap, anchor.nextSibling);
     }
     const hasAnomalousData = dataset().meta.anomalousRanges && Object.keys(dataset().meta.anomalousRanges).length > 0;
-    advWrap.style.display = ''; // always show — compare mode is available for all chart types
+    advWrap.style.display = isBeta ? 'none' : ''; // hide advanced settings for beta charts
     document.querySelectorAll('.substrat-only').forEach(el => { el.style.display = (showSubstrat && !state.compareEnabled) ? '' : 'none'; });
     const advBody = document.getElementById('advanced-settings-body');
     advBody.style.display = (advBody.dataset.open === '1') ? 'block' : 'none';
@@ -3302,7 +3355,16 @@ function setupStaticListeners() {
     }
     document.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     document.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
-    if (isPeriodic) {
+    if (isBeta) {
+      // Beta charts: hide most sidebar controls, show line-controls for logger selection
+      document.getElementById('line-controls').classList.remove('hidden');
+      document.getElementById('line-options-section').style.display = 'none';
+      document.getElementById('line-options-divider').style.display = 'none';
+      if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
+      document.getElementById('humidity-label').style.display = state.chartType === 'beta-diff' ? '' : 'none';
+      document.getElementById('cb-threshold').parentElement.style.display = 'none';
+      document.getElementById('cb-seasons').parentElement.style.display = 'none';
+    } else if (isPeriodic) {
       document.getElementById('line-options-section').style.display = state.periodCycle === 'year' ? '' : 'none';
       document.getElementById('line-options-divider').style.display = state.periodCycle === 'year' ? '' : 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
@@ -5381,6 +5443,590 @@ function emptyPeriodicResult(msg) {
   };
 }
 
+// ── Beta Feature: Interpolation helper ───────────────────────────────────────
+// Given sorted external timestamps + temperatures, return interpolated temp at target ms
+function interpolateExtTemp(extTs, extTemp, targetMs) {
+  if (!extTs || extTs.length === 0) return null;
+  if (targetMs <= extTs[0]) return extTemp[0];
+  if (targetMs >= extTs[extTs.length - 1]) return extTemp[extTs.length - 1];
+  // Binary search for bracket
+  let lo = 0, hi = extTs.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (extTs[mid] <= targetMs) lo = mid; else hi = mid;
+  }
+  const t0 = extTs[lo], t1 = extTs[hi];
+  if (t1 === t0) return extTemp[lo];
+  const frac = (targetMs - t0) / (t1 - t0);
+  return extTemp[lo] + frac * (extTemp[hi] - extTemp[lo]);
+}
+
+// Get the primary external logger series for the current dataset
+function getExternalSeries() {
+  const m = dataset().meta;
+  const extIds = m.externalLoggers || [];
+  // Prefer the non-forecast historical logger
+  for (const id of extIds) {
+    if (isOpenMeteo(id) && !isForecast(id) && dataset().series[id]) return {id, series: dataset().series[id]};
+  }
+  // Fallback to any external logger
+  for (const id of extIds) {
+    if (dataset().series[id]) return {id, series: dataset().series[id]};
+  }
+  return null;
+}
+
+// ── Beta Feature 1: Temperature Differential ─────────────────────────────────
+function renderBetaDifferential() {
+  const {start, end} = getTimeRange();
+  const m = dataset().meta;
+  const ext = getExternalSeries();
+  if (!ext) return {traces: [], layout: {autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:'No external temperature data available',xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaDiffTitle'), _noData: true};
+
+  const extFiltered = filterSeries(ext.series, start, end);
+  if (!extFiltered) return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:t('noDataRange'),xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaDiffTitle'), _noData: true};
+
+  const traces = [];
+  const roomSet = new Set(m.roomLoggers || []);
+  let hasData = false;
+
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!roomSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+
+    // Compute differential: T_indoor - T_outdoor (interpolated)
+    const diffX = [], diffY = [];
+    for (let i = 0; i < filtered.timestamps.length; i++) {
+      const tMs = filtered.timestamps[i];
+      const tIndoor = filtered.temperature[i];
+      if (tIndoor == null) continue;
+      const tOutdoor = interpolateExtTemp(extFiltered.timestamps, extFiltered.temperature, tMs);
+      if (tOutdoor == null) continue;
+      diffX.push(toEATString(tMs));
+      diffY.push(+(tIndoor - tOutdoor).toFixed(2));
+    }
+    if (diffX.length === 0) continue;
+    hasData = true;
+
+    const color = m.colors[loggerId];
+    const name = ln(loggerId);
+    traces.push({
+      x: diffX, y: diffY, type: 'scatter', mode: 'lines',
+      name: name, line: {color, width: 1.4}, opacity: 0.6,
+      hovertemplate: `${name}<br>%{x|%d/%m/%Y %H:%M}<br>\u0394T: %{y:+.1f}\u00b0C<extra></extra>`
+    });
+  }
+
+  // Zero reference line
+  traces.push({x:[null],y:[null], type:'scatter', mode:'lines', name:'\u0394T = 0 (no difference)', line:{color:'#999',width:1,dash:'dash'}, hoverinfo:'skip', showlegend:true});
+
+  const sm = window.innerWidth < 680;
+  const dsl = dsLabel();
+  const title = `${dsl} \u2013 ${t('betaDiffTitle')}`;
+  return {
+    traces, title,
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm?45:65, r: sm?8:20, t: sm?6:10, b: sm?40:60},
+      xaxis: {title: t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type: 'date', showgrid: true, gridcolor: '#eee'},
+      yaxis: {title: t('betaDiffAxis'), showgrid: true, gridcolor: '#eee', zeroline: true, zerolinecolor: '#999', zerolinewidth: 1},
+      legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', itemclick: false, itemdoubleclick: false},
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+      shapes: [{type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:0, y1:0, line:{color:'#999',width:1,dash:'dash'}}],
+      hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
+    },
+    _noData: !hasData,
+  };
+}
+
+// ── Beta Feature 2: Decrement Factor ─────────────────────────────────────────
+function renderBetaDecrement() {
+  const {start, end} = getTimeRange();
+  const m = dataset().meta;
+  const ext = getExternalSeries();
+  if (!ext) return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:'No external temperature data available',xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaDecrementTitle'), _noData: true};
+
+  const extFiltered = filterSeries(ext.series, start, end);
+  if (!extFiltered) return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:t('noDataRange'),xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaDecrementTitle'), _noData: true};
+
+  // Group external data by day (EAT)
+  const extByDay = {};
+  for (let i = 0; i < extFiltered.timestamps.length; i++) {
+    const d = toEATString(extFiltered.timestamps[i]).slice(0, 10);
+    if (!extByDay[d]) extByDay[d] = [];
+    extByDay[d].push(extFiltered.temperature[i]);
+  }
+
+  const roomSet = new Set(m.roomLoggers || []);
+  const loggerNames = [], loggerDecrement = [], loggerColors = [];
+  let hasData = false;
+
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!roomSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+
+    // Group indoor data by day
+    const indoorByDay = {};
+    for (let i = 0; i < filtered.timestamps.length; i++) {
+      const d = toEATString(filtered.timestamps[i]).slice(0, 10);
+      if (!indoorByDay[d]) indoorByDay[d] = [];
+      indoorByDay[d].push(filtered.temperature[i]);
+    }
+
+    // Compute daily decrement factors
+    const factors = [];
+    for (const day of Object.keys(indoorByDay)) {
+      if (!extByDay[day]) continue;
+      const extArr = extByDay[day];
+      const indArr = indoorByDay[day];
+      if (extArr.length < 4 || indArr.length < 4) continue; // need enough data points
+      const extSwing = Math.max(...extArr) - Math.min(...extArr);
+      const indSwing = Math.max(...indArr) - Math.min(...indArr);
+      if (extSwing < 0.5) continue; // skip days with negligible outdoor swing
+      factors.push(indSwing / extSwing);
+    }
+
+    if (factors.length === 0) continue;
+    hasData = true;
+    const avgFactor = factors.reduce((a, b) => a + b, 0) / factors.length;
+    loggerNames.push(ln(loggerId));
+    loggerDecrement.push(+avgFactor.toFixed(3));
+    loggerColors.push(m.colors[loggerId] || '#1f77b4');
+  }
+
+  const traces = [{
+    x: loggerNames, y: loggerDecrement, type: 'bar',
+    marker: {color: loggerColors, opacity: 0.8},
+    text: loggerDecrement.map(v => v.toFixed(2)),
+    textposition: 'outside',
+    hovertemplate: '%{x}<br>Decrement factor: %{y:.3f}<extra></extra>',
+  }];
+
+  // Reference line at 1.0
+  const sm = window.innerWidth < 680;
+  const dsl = dsLabel();
+  const title = `${dsl} \u2013 ${t('betaDecrementTitle')}`;
+  return {
+    traces, title,
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm?45:65, r: sm?8:20, t: sm?30:40, b: sm?80:100},
+      xaxis: {title: '', tickangle: -30, automargin: true},
+      yaxis: {title: t('betaDecrementAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(1.2, ...loggerDecrement) * 1.15], zeroline: true},
+      shapes: [{type:'line', xref:'paper', yref:'y', x0:0, x1:1, y0:1, y1:1, line:{color:'#e74c3c',width:1.5,dash:'dash'}}],
+      annotations: [{x:1, y:1, xref:'paper', yref:'y', text:'1.0 = no damping', showarrow:false, font:{size:10,color:'#e74c3c'}, xanchor:'right', yanchor:'bottom'}],
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+      hovermode: 'closest',
+    },
+    _noData: !hasData,
+  };
+}
+
+// ── Beta Feature 3: Thermal Lag ──────────────────────────────────────────────
+function renderBetaLag() {
+  const {start, end} = getTimeRange();
+  const m = dataset().meta;
+  const ext = getExternalSeries();
+  if (!ext) return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:'No external temperature data available',xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaLagTitle'), _noData: true};
+
+  const extFiltered = filterSeries(ext.series, start, end);
+  if (!extFiltered) return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:t('noDataRange'),xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaLagTitle'), _noData: true};
+
+  // Group external data by day, find peak hour
+  const extPeakByDay = {};
+  const extByDay = {};
+  for (let i = 0; i < extFiltered.timestamps.length; i++) {
+    const ds = toEATString(extFiltered.timestamps[i]);
+    const day = ds.slice(0, 10);
+    const hour = parseInt(ds.slice(11, 13), 10) + parseInt(ds.slice(14, 16), 10) / 60;
+    if (!extByDay[day]) extByDay[day] = [];
+    extByDay[day].push({temp: extFiltered.temperature[i], hour});
+  }
+  for (const day of Object.keys(extByDay)) {
+    const pts = extByDay[day];
+    if (pts.length < 6) continue; // need reasonable coverage
+    let maxT = -Infinity, peakH = 0;
+    for (const p of pts) { if (p.temp > maxT) { maxT = p.temp; peakH = p.hour; } }
+    extPeakByDay[day] = peakH;
+  }
+
+  const roomSet = new Set(m.roomLoggers || []);
+  const loggerNames = [], loggerLag = [], loggerColors = [];
+  let hasData = false;
+
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    if (!roomSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+
+    // Group indoor data by day, find peak hour
+    const indoorByDay = {};
+    for (let i = 0; i < filtered.timestamps.length; i++) {
+      const ds = toEATString(filtered.timestamps[i]);
+      const day = ds.slice(0, 10);
+      const hour = parseInt(ds.slice(11, 13), 10) + parseInt(ds.slice(14, 16), 10) / 60;
+      if (!indoorByDay[day]) indoorByDay[day] = [];
+      indoorByDay[day].push({temp: filtered.temperature[i], hour});
+    }
+
+    const lags = [];
+    for (const day of Object.keys(indoorByDay)) {
+      if (extPeakByDay[day] === undefined) continue;
+      const pts = indoorByDay[day];
+      if (pts.length < 6) continue;
+      let maxT = -Infinity, peakH = 0;
+      for (const p of pts) { if (p.temp > maxT) { maxT = p.temp; peakH = p.hour; } }
+      let lag = peakH - extPeakByDay[day];
+      if (lag < -12) lag += 24; // handle day-wrap
+      if (lag > 12) lag -= 24;
+      if (lag >= 0) lags.push(lag); // only positive lags (indoor trails outdoor)
+    }
+
+    if (lags.length === 0) continue;
+    hasData = true;
+    const avgLag = lags.reduce((a, b) => a + b, 0) / lags.length;
+    loggerNames.push(ln(loggerId));
+    loggerLag.push(+avgLag.toFixed(1));
+    loggerColors.push(m.colors[loggerId] || '#1f77b4');
+  }
+
+  const traces = [{
+    x: loggerNames, y: loggerLag, type: 'bar',
+    marker: {color: loggerColors, opacity: 0.8},
+    text: loggerLag.map(v => v.toFixed(1) + 'h'),
+    textposition: 'outside',
+    hovertemplate: '%{x}<br>Avg thermal lag: %{y:.1f} hours<extra></extra>',
+  }];
+
+  const sm = window.innerWidth < 680;
+  const dsl = dsLabel();
+  const title = `${dsl} \u2013 ${t('betaLagTitle')}`;
+  return {
+    traces, title,
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm?45:65, r: sm?8:20, t: sm?30:40, b: sm?80:100},
+      xaxis: {title: '', tickangle: -30, automargin: true},
+      yaxis: {title: t('betaLagAxis'), showgrid: true, gridcolor: '#eee', range: [0, Math.max(8, ...loggerLag) * 1.2]},
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+      hovermode: 'closest',
+    },
+    _noData: !hasData,
+  };
+}
+
+// ── Beta Feature 4: Data Quality ─────────────────────────────────────────────
+function renderBetaQuality() {
+  const m = dataset().meta;
+  const {start, end} = getTimeRange();
+  const traces = [];
+  let hasData = false;
+  let yIdx = 0;
+
+  const GAP_THRESH = 6 * 3600 * 1000; // 6 hours
+  const OUTLIER_WINDOW = 24; // readings for rolling stats (not hours — depends on frequency)
+
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series || !series.timestamps || series.timestamps.length === 0) continue;
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+
+    hasData = true;
+    const name = ln(loggerId);
+    const ts = filtered.timestamps;
+    const temp = filtered.temperature;
+    const y = yIdx;
+
+    // Good data segments (green blocks)
+    let segStart = 0;
+    for (let i = 0; i <= ts.length; i++) {
+      const isGap = i === ts.length || (i > 0 && ts[i] - ts[i-1] > GAP_THRESH);
+      if (isGap) {
+        if (i > segStart) {
+          traces.push({
+            x: [toEATString(ts[segStart]), toEATString(ts[i-1])],
+            y: [y, y], type: 'scatter', mode: 'lines',
+            line: {color: '#27ae60', width: 8}, showlegend: false,
+            hovertemplate: `${name}<br>Good data<br>%{x}<extra></extra>`,
+          });
+        }
+        if (i < ts.length && i > 0) {
+          // Gap segment (orange)
+          const gapHours = ((ts[i] - ts[i-1]) / 3600000).toFixed(1);
+          traces.push({
+            x: [toEATString(ts[i-1]), toEATString(ts[i])],
+            y: [y, y], type: 'scatter', mode: 'lines',
+            line: {color: '#e67e22', width: 8}, showlegend: false,
+            hovertemplate: `${name}<br>Gap: ${gapHours}h<br>%{x}<extra></extra>`,
+          });
+        }
+        segStart = i;
+      }
+    }
+
+    // Outlier detection: readings > 3σ from local rolling mean
+    if (temp.length > OUTLIER_WINDOW * 2) {
+      const outlierX = [], outlierY = [];
+      for (let i = OUTLIER_WINDOW; i < temp.length - OUTLIER_WINDOW; i++) {
+        let sum = 0, sumSq = 0, cnt = 0;
+        for (let j = i - OUTLIER_WINDOW; j <= i + OUTLIER_WINDOW; j++) {
+          if (temp[j] != null) { sum += temp[j]; sumSq += temp[j] * temp[j]; cnt++; }
+        }
+        if (cnt < OUTLIER_WINDOW) continue;
+        const mean = sum / cnt;
+        const std = Math.sqrt(sumSq / cnt - mean * mean);
+        if (std > 0 && temp[i] != null && Math.abs(temp[i] - mean) > 3 * std) {
+          outlierX.push(toEATString(ts[i]));
+          outlierY.push(y);
+        }
+      }
+      if (outlierX.length > 0) {
+        traces.push({
+          x: outlierX, y: outlierY, type: 'scatter', mode: 'markers',
+          marker: {color: '#e74c3c', size: 6, symbol: 'x'},
+          showlegend: false,
+          hovertemplate: `${name}<br>Suspect reading<br>%{x}<extra></extra>`,
+        });
+      }
+    }
+
+    yIdx++;
+  }
+
+  // Legend entries
+  traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Good data',line:{color:'#27ae60',width:8},showlegend:true,hoverinfo:'skip'});
+  traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Gap (>6h)',line:{color:'#e67e22',width:8},showlegend:true,hoverinfo:'skip'});
+  traces.push({x:[null],y:[null],type:'scatter',mode:'markers',name:'Suspect reading (>3\u03c3)',marker:{color:'#e74c3c',size:6,symbol:'x'},showlegend:true,hoverinfo:'skip'});
+
+  // Build y-axis tick labels
+  const tickVals = [], tickText = [];
+  let idx = 0;
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series || !series.timestamps || series.timestamps.length === 0) continue;
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    tickVals.push(idx);
+    tickText.push(ln(loggerId));
+    idx++;
+  }
+
+  const sm = window.innerWidth < 680;
+  const dsl = dsLabel();
+  const title = `${dsl} \u2013 ${t('betaQualityTitle')}`;
+  return {
+    traces, title,
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm?120:180, r: sm?8:20, t: sm?6:10, b: sm?40:60},
+      xaxis: {title: t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type: 'date', showgrid: true, gridcolor: '#eee'},
+      yaxis: {tickvals: tickVals, ticktext: tickText, showgrid: false, zeroline: false, automargin: true},
+      legend: {orientation: 'h', x: 0.5, y: -0.15, xanchor: 'center', itemclick: false, itemdoubleclick: false},
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+      hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
+    },
+    _noData: !hasData,
+  };
+}
+
+// ── Beta Feature 5: Cross-Building Comparison ────────────────────────────────
+function renderBetaCrossBuilding() {
+  const {start, end} = getTimeRange();
+  const buildings = [];
+
+  for (const dsKey of Object.keys(ALL_DATA)) {
+    const ds = ALL_DATA[dsKey];
+    const m = ds.meta;
+    const dsName = dsKey === 'house5' ? t('house5') : dsKey === 'schoolteacher' ? t('schoolteacher') : dsKey;
+    const roomSet = new Set(m.roomLoggers || []);
+    const extIds = m.externalLoggers || [];
+
+    // Get external series for this dataset
+    let extSeries = null;
+    for (const id of extIds) {
+      if (id.indexOf('(Open-Meteo)') !== -1 && id.indexOf('Forecast') === -1 && ds.series[id]) { extSeries = ds.series[id]; break; }
+    }
+    if (!extSeries) {
+      for (const id of extIds) { if (ds.series[id]) { extSeries = ds.series[id]; break; } }
+    }
+    const extFiltered = extSeries ? filterSeries(extSeries, start, end) : null;
+
+    // Group external by day
+    const extByDay = {};
+    if (extFiltered) {
+      for (let i = 0; i < extFiltered.timestamps.length; i++) {
+        const d = toEATString(extFiltered.timestamps[i]).slice(0, 10);
+        if (!extByDay[d]) extByDay[d] = [];
+        extByDay[d].push(extFiltered.temperature[i]);
+      }
+    }
+    // External peak hours by day
+    const extPeakByDay = {};
+    if (extFiltered) {
+      const dayPts = {};
+      for (let i = 0; i < extFiltered.timestamps.length; i++) {
+        const ds2 = toEATString(extFiltered.timestamps[i]);
+        const day = ds2.slice(0, 10);
+        const hour = parseInt(ds2.slice(11, 13), 10) + parseInt(ds2.slice(14, 16), 10) / 60;
+        if (!dayPts[day]) dayPts[day] = [];
+        dayPts[day].push({temp: extFiltered.temperature[i], hour});
+      }
+      for (const day of Object.keys(dayPts)) {
+        const pts = dayPts[day];
+        if (pts.length < 6) continue;
+        let maxT = -Infinity, peakH = 0;
+        for (const p of pts) { if (p.temp > maxT) { maxT = p.temp; peakH = p.hour; } }
+        extPeakByDay[day] = peakH;
+      }
+    }
+
+    for (const loggerId of m.loggers) {
+      if (!roomSet.has(loggerId)) continue;
+      const series = ds.series[loggerId];
+      if (!series) continue;
+      let filtered = filterSeries(series, start, end);
+      if (!filtered || filtered.timestamps.length < 10) continue;
+      filtered = applyAnomalousFilter(filtered, loggerId);
+      if (!filtered) continue;
+
+      const name = ln(loggerId);
+
+      // Mean temperature
+      let tSum = 0, tCnt = 0;
+      for (const v of filtered.temperature) { if (v != null) { tSum += v; tCnt++; } }
+      const meanT = tCnt > 0 ? tSum / tCnt : null;
+
+      // Decrement factor
+      const indoorByDay = {};
+      for (let i = 0; i < filtered.timestamps.length; i++) {
+        const d = toEATString(filtered.timestamps[i]).slice(0, 10);
+        if (!indoorByDay[d]) indoorByDay[d] = [];
+        indoorByDay[d].push(filtered.temperature[i]);
+      }
+      const factors = [];
+      for (const day of Object.keys(indoorByDay)) {
+        if (!extByDay[day]) continue;
+        const ea = extByDay[day], ia = indoorByDay[day];
+        if (ea.length < 4 || ia.length < 4) continue;
+        const es = Math.max(...ea) - Math.min(...ea);
+        const is2 = Math.max(...ia) - Math.min(...ia);
+        if (es < 0.5) continue;
+        factors.push(is2 / es);
+      }
+      const decrement = factors.length > 0 ? factors.reduce((a, b) => a + b, 0) / factors.length : null;
+
+      // Thermal lag
+      const indoorDayPts = {};
+      for (let i = 0; i < filtered.timestamps.length; i++) {
+        const ds2 = toEATString(filtered.timestamps[i]);
+        const day = ds2.slice(0, 10);
+        const hour = parseInt(ds2.slice(11, 13), 10) + parseInt(ds2.slice(14, 16), 10) / 60;
+        if (!indoorDayPts[day]) indoorDayPts[day] = [];
+        indoorDayPts[day].push({temp: filtered.temperature[i], hour});
+      }
+      const lags = [];
+      for (const day of Object.keys(indoorDayPts)) {
+        if (extPeakByDay[day] === undefined) continue;
+        const pts = indoorDayPts[day];
+        if (pts.length < 6) continue;
+        let maxT2 = -Infinity, peakH = 0;
+        for (const p of pts) { if (p.temp > maxT2) { maxT2 = p.temp; peakH = p.hour; } }
+        let lag = peakH - extPeakByDay[day];
+        if (lag < -12) lag += 24;
+        if (lag > 12) lag -= 24;
+        if (lag >= 0) lags.push(lag);
+      }
+      const avgLag = lags.length > 0 ? lags.reduce((a, b) => a + b, 0) / lags.length : null;
+
+      buildings.push({dsKey, dsName, loggerId, name, meanT, decrement, avgLag});
+    }
+  }
+
+  if (buildings.length === 0) {
+    return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:t('noDataRange'),xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaCrossBuildTitle'), _noData: true};
+  }
+
+  // Group by building for grouped bar chart
+  const dsKeys = [...new Set(buildings.map(b => b.dsKey))];
+  const buildingColors = {house5: '#1f77b4', schoolteacher: '#e67e22'};
+  const metrics = [
+    {key: 'meanT', label: 'Mean Temp (\u00b0C)', format: v => v != null ? v.toFixed(1) : 'N/A'},
+    {key: 'decrement', label: 'Decrement Factor', format: v => v != null ? v.toFixed(2) : 'N/A'},
+    {key: 'avgLag', label: 'Thermal Lag (h)', format: v => v != null ? v.toFixed(1) : 'N/A'},
+  ];
+
+  // Create a subplot-like layout with 3 bar charts side by side using subplots
+  const traces = [];
+  for (let mi = 0; mi < metrics.length; mi++) {
+    const metric = metrics[mi];
+    for (const dsKey of dsKeys) {
+      const blds = buildings.filter(b => b.dsKey === dsKey);
+      const xAxis = mi === 0 ? 'x' : 'x' + (mi + 1);
+      const yAxis = mi === 0 ? 'y' : 'y' + (mi + 1);
+      traces.push({
+        x: blds.map(b => b.name),
+        y: blds.map(b => b[metric.key]),
+        type: 'bar',
+        name: blds[0]?.dsName || dsKey,
+        marker: {color: buildingColors[dsKey] || '#999', opacity: 0.8},
+        text: blds.map(b => metric.format(b[metric.key])),
+        textposition: 'outside',
+        xaxis: xAxis, yaxis: yAxis,
+        legendgroup: dsKey,
+        showlegend: mi === 0,
+        hovertemplate: `%{x}<br>${metric.label}: %{y:.2f}<extra>${blds[0]?.dsName || ''}</extra>`,
+      });
+    }
+  }
+
+  const sm = window.innerWidth < 680;
+  const title = t('betaCrossBuildTitle');
+  return {
+    traces, title,
+    layout: {
+      autosize: true, font: {family: 'Ubuntu, sans-serif'},
+      margin: {l: sm?40:50, r: sm?8:20, t: sm?30:45, b: sm?80:100},
+      grid: {rows: 1, columns: 3, pattern: 'independent', xgap: 0.1},
+      xaxis:  {title: '', tickangle: -30, automargin: true, domain: [0, 0.3]},
+      xaxis2: {title: '', tickangle: -30, automargin: true, domain: [0.36, 0.66]},
+      xaxis3: {title: '', tickangle: -30, automargin: true, domain: [0.72, 1]},
+      yaxis:  {title: 'Mean Temp (\u00b0C)', showgrid: true, gridcolor: '#eee'},
+      yaxis2: {title: 'Decrement Factor', showgrid: true, gridcolor: '#eee'},
+      yaxis3: {title: 'Thermal Lag (h)', showgrid: true, gridcolor: '#eee'},
+      legend: {orientation: 'h', x: 0.5, y: 1.08, xanchor: 'center', itemclick: false, itemdoubleclick: false},
+      annotations: [
+        {text: '<b>Mean Temperature</b>', xref: 'paper', yref: 'paper', x: 0.15, y: 1.02, showarrow: false, font: {size: 11}},
+        {text: '<b>Decrement Factor</b>', xref: 'paper', yref: 'paper', x: 0.51, y: 1.02, showarrow: false, font: {size: 11}},
+        {text: '<b>Thermal Lag</b>', xref: 'paper', yref: 'paper', x: 0.86, y: 1.02, showarrow: false, font: {size: 11}},
+      ],
+      plot_bgcolor: 'white', paper_bgcolor: 'white',
+      barmode: 'group',
+      hovermode: 'closest',
+    },
+    _noData: false,
+  };
+}
+
 function renderPeriodicAverages() {
   const {start, end} = getTimeRange();
   const m = dataset().meta;
@@ -5799,6 +6445,11 @@ function _doRender() {
   let result = state.chartType === 'line' ? renderLineGraph()
     : state.chartType === 'histogram' ? renderHistogram()
     : state.chartType === 'periodic' ? renderPeriodicAverages()
+    : state.chartType === 'beta-diff' ? renderBetaDifferential()
+    : state.chartType === 'beta-decrement' ? renderBetaDecrement()
+    : state.chartType === 'beta-lag' ? renderBetaLag()
+    : state.chartType === 'beta-quality' ? renderBetaQuality()
+    : state.chartType === 'beta-crossbuild' ? renderBetaCrossBuilding()
     : renderAdaptiveComfort();
   // Replace with empty message if no actual data
   if (result._noData) {
@@ -5920,7 +6571,7 @@ function updatePlot(forceLoader) {
   if (renderKey !== _lastRenderKey) _zoomReset = true; // reset zoom on chart/dataset switch
   _lastRenderKey = renderKey;
   // Always show loading bar - slower estimate for chart/dataset switches, short for other updates
-  const ms = isSlowOp ? (state.chartType === 'comfort' ? 1500 : 800) : 350;
+  const ms = isSlowOp ? (state.chartType === 'comfort' ? 1500 : state.chartType.startsWith('beta-') ? 1000 : 800) : 350;
   showLoadingBar(ms);
   setTimeout(_doRender, 30);
 }
@@ -5954,6 +6605,11 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     histogram: () => state.histogramBarmode === 'stack' ? t('infoHistogramStack') : t('infoHistogramOverlay'),
     comfort: () => t('infoComfort'),
     periodic: () => t('infoPeriodic'),
+    'beta-diff': () => t('infoBetaDiff'),
+    'beta-decrement': () => t('infoBetaDecrement'),
+    'beta-lag': () => t('infoBetaLag'),
+    'beta-quality': () => t('infoBetaQuality'),
+    'beta-crossbuild': () => t('infoBetaCrossBuild'),
   };
   icon.addEventListener('mouseenter', () => {
     const fn = textKeys[state.chartType];
