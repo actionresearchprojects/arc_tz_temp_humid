@@ -1505,7 +1505,7 @@ const I18N = {
     humidAxis: 'Humidity (%RH)',
     tempHumidAxis: 'Temperature (\u00b0C) / Humidity (%RH)',
     airTempAxis: 'Air temperature (\u00b0C)  [\u2248 operative temp.]',
-    runningMeanAxis: '7-day running mean external temperature (\u00b0C)',
+    runningMeanAxis: 'Running mean external temperature (°C)',
     proportionAxis: 'Proportion of readings per sensor',
     sumAxis: 'Sum of reading distribution across sensors',
     // Dynamic text
@@ -1612,7 +1612,7 @@ const I18N = {
     humidAxis: 'Unyevunyevu (%RH)',
     tempHumidAxis: 'Joto (\u00b0C) / Unyevunyevu (%RH)',
     airTempAxis: 'Joto la hewa (\u00b0C)  [\u2248 joto la uendeshaji]',
-    runningMeanAxis: 'Wastani wa joto la nje wa siku 7 (\u00b0C)',
+    runningMeanAxis: 'Wastani wa joto la nje (°C)',
     proportionAxis: 'Uwiano wa masomo kwa kila sensor',
     sumAxis: 'Jumla ya usambazaji wa masomo kwa sensors',
     dataRangesFrom: 'Data kuanzia',

@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-22 20:20:00 CST
+- **Simplify adaptive comfort x-axis label**: Changed from "7-day running mean external temperature (°C)" to "Running mean external temperature (°C)" in both English and Kiswahili.
+
 ### 2026-03-22 20:15:00 CST
 - **Remove forecast Open-Meteo from Schoolteacher's House**: Removed `OPENMETEO_FORECAST_ID` from the schoolteacher dataset's `external_sensors` and `sidebar_order` config. Added filtering in both the full build and `--auto` build paths so only the Open-Meteo logger IDs listed in a dataset's `external_sensors` are merged. House 5 still includes forecast data as before.
 
