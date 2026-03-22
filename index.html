@@ -29,9 +29,11 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 #bar-title { font-size: 14px; font-weight: 600; color: #222; white-space: nowrap; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
 #time-bar-right { flex: 1; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 #chart { flex: 1; min-height: 0; }
-#chart .annotation { transition: opacity 0.2s; }
-#chart .annotation rect { pointer-events: all; cursor: default; }
-#chart .annotation:hover { opacity: 0.08; }
+#chart .annotation { transition: opacity 0.2s !important; }
+#chart .annotation rect { pointer-events: all !important; cursor: default; }
+#chart .annotation:hover { opacity: 0.08 !important; }
+#chart .annotation:hover rect { fill-opacity: 0.08 !important; }
+#chart .annotation:hover text { fill-opacity: 0.08 !important; }
 .section-title { font-weight: 600; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .section { display: flex; flex-direction: column; gap: 2px; }
 select, button, input { font-family: inherit; }
@@ -3365,31 +3367,20 @@ function positionComfortOverlays() {
   const chartEl = document.getElementById('chart');
   const rmIcon = document.getElementById('rm-xaxis-info-icon');
   if (state.chartType !== 'comfort') { rmIcon.style.display = 'none'; return; }
-  // Try multiple selectors for x-axis title (Plotly versions vary)
-  const xTitleEl = chartEl.querySelector('.g-xtitle') || chartEl.querySelector('.xtitle') || chartEl.querySelector('[data-unformatted]');
-  if (xTitleEl) {
-    const xr = xTitleEl.getBoundingClientRect();
-    if (xr.width > 0) {
-      rmIcon.style.display = '';
-      rmIcon.style.left = (xr.right + 4) + 'px';
-      rmIcon.style.top = (xr.top + (xr.height - 14) / 2) + 'px';
-    } else {
-      rmIcon.style.display = 'none';
-    }
+  // Use Plotly's internal layout to find the x-axis title position
+  const fl = chartEl._fullLayout;
+  if (fl && fl.xaxis && fl.xaxis._offset !== undefined) {
+    const cr = chartEl.getBoundingClientRect();
+    // _offset is the left edge of the axis, _length is its width
+    const axisCenterX = cr.left + fl.xaxis._offset + fl.xaxis._length / 2;
+    // Title sits below the tick labels; use the full height minus a small offset from bottom
+    const titleY = cr.top + cr.height - fl.margin.b / 3;
+    rmIcon.style.display = '';
+    // Place to the right of where the title text ends (estimate ~half title width from center)
+    rmIcon.style.left = (axisCenterX + 140) + 'px';
+    rmIcon.style.top = (titleY - 7) + 'px';
   } else {
-    // Fallback: position based on chart layout
-    const fl = chartEl._fullLayout;
-    if (fl) {
-      const cr = chartEl.getBoundingClientRect();
-      const plotCenterX = cr.left + fl.margin.l + fl.width / 2;
-      const plotBottom = cr.top + fl.margin.t + fl.height;
-      // x-axis title sits in the bottom margin, roughly 30px below plot
-      rmIcon.style.display = '';
-      rmIcon.style.left = (plotCenterX + 120) + 'px';
-      rmIcon.style.top = (plotBottom + 18) + 'px';
-    } else {
-      rmIcon.style.display = 'none';
-    }
+    rmIcon.style.display = 'none';
   }
 
   // Handled by CSS: #chart .annotation:hover { opacity: 0.1 }
@@ -5394,7 +5385,7 @@ function _doRender() {
   }
   _zoomReset = false;
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
-  chartEl_.once('plotly_afterplot', positionComfortOverlays);
+  chartEl_.once('plotly_afterplot', () => setTimeout(positionComfortOverlays, 100));
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
   const histTip = document.getElementById('hist-hover-tip');
   histTip.style.display = 'none';
