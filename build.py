@@ -1076,7 +1076,14 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 #dataset-select { font-weight: 600; font-size: 13px; padding: 3px 7px; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
 #sidebar-toggle { display: none; background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 7px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; flex-shrink: 0; }
 #sidebar-toggle:hover { background: #f0f0f0; }
-#lang-select { font-size: 11px; padding: 2px 5px; border: 1px solid #ccc; border-radius: 4px; background: #f5f5f5; cursor: pointer; margin-left: auto; flex-shrink: 0; }
+#lang-wrap { margin-left: auto; position: relative; flex-shrink: 0; }
+#lang-btn { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; display: flex; align-items: center; }
+#lang-btn:hover { background: #f0f0f0; border-color: #aaa; }
+#lang-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 200; min-width: 110px; }
+#lang-menu.open { display: block; }
+#lang-menu button { display: block; width: 100%; text-align: left; padding: 6px 10px; border: none; background: none; cursor: pointer; font-size: 12px; font-family: inherit; color: #333; }
+#lang-menu button:hover { background: #f0f4ff; }
+#lang-menu button.active { font-weight: 600; color: #1f77b4; }
 #sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 9; }
 @media (max-width: 900px) {
   #sidebar { width: 190px; padding: 8px; }
@@ -1109,10 +1116,13 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
   <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
   <h1 data-i18n="title">ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
-  <select id="lang-select" onchange="setLanguage(this.value)">
-    <option value="en">English</option>
-    <option value="sw">Kiswahili</option>
-  </select>
+  <div id="lang-wrap">
+    <button id="lang-btn" onclick="document.getElementById('lang-menu').classList.toggle('open')" title="Language">&#127760;</button>
+    <div id="lang-menu">
+      <button onclick="setLanguage('en')">English</button>
+      <button onclick="setLanguage('sw')">Kiswahili</button>
+    </div>
+  </div>
 </div>
 
 <div id="main">
@@ -1635,8 +1645,12 @@ function ln(id) {
 function setLanguage(lang) {
   currentLang = lang;
   localStorage.setItem('arcLang', lang);
-  const sel = document.getElementById('lang-select');
-  if (sel) sel.value = lang;
+  // Update menu active state and close
+  const menu = document.getElementById('lang-menu');
+  if (menu) {
+    menu.classList.remove('open');
+    menu.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.textContent === (lang === 'sw' ? 'Kiswahili' : 'English')));
+  }
   document.documentElement.lang = lang === 'sw' ? 'sw' : 'en';
   applyLanguage();
 }
@@ -2732,11 +2746,13 @@ async function init() {
   }
   setupStaticListeners();
   loadDataset('house5');
-  // Apply saved language preference
+  // Apply saved language preference and mark active button
   const savedLang = localStorage.getItem('arcLang') || 'en';
-  const langSel = document.getElementById('lang-select');
-  if (langSel) langSel.value = savedLang;
   if (savedLang !== 'en') setLanguage(savedLang);
+  else {
+    const menu = document.getElementById('lang-menu');
+    if (menu) menu.querySelector('button').classList.add('active');
+  }
 }
 
 function loadDataset(key) {
@@ -3171,6 +3187,13 @@ function svgToCanvas(svgStr, W, H, scale) {
 function setupStaticListeners() {
   document.getElementById('reset-line-btn').addEventListener('click', resetLineDefaults);
   document.getElementById('reset-comfort-btn').addEventListener('click', resetComfortDefaults);
+
+  // Close language menu on click outside
+  document.addEventListener('click', e => {
+    const wrap = document.getElementById('lang-wrap');
+    const menu = document.getElementById('lang-menu');
+    if (menu && wrap && !wrap.contains(e.target)) menu.classList.remove('open');
+  });
 
   // Substratification combine logic
   document.querySelectorAll('input[name="substrat-combine"]').forEach(r => {
