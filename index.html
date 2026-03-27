@@ -2778,7 +2778,6 @@ function setupStaticListeners() {
   }
 
   let savedBeforeHistoric = null;
-  let _historicEnteredOnce = false;
   document.getElementById('cb-historic-mode').addEventListener('change', e => {
     state.historicMode = e.target.checked;
     const cbHumidity  = document.getElementById('cb-humidity');
@@ -2804,15 +2803,12 @@ function setupStaticListeners() {
       // Always: hide humidity
       cbHumidity.checked = false; state.selectedMetrics.delete('humidity');
       document.getElementById('humidity-label').style.display = 'none';
-      // First entry only: force loggers to Open-Meteo only
-      if (!_historicEnteredOnce) {
-        _historicEnteredOnce = true;
-        state.selectedLoggers.clear();
-        m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
-        document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
-          cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
-        });
-      }
+      // Force loggers to Open-Meteo only
+      state.selectedLoggers.clear();
+      m.loggers.forEach(lid => { if (isOpenMeteo(lid)) state.selectedLoggers.add(lid); });
+      document.getElementById('logger-checkboxes').querySelectorAll('input[type=checkbox]').forEach(cb => {
+        cb.checked = state.selectedLoggers.has(cb.dataset.loggerId);
+      });
       // Line-graph only: hide options section, turn off threshold/seasons
       if (state.chartType !== 'histogram') {
         cbThreshold.checked = false; state.showThreshold = false;

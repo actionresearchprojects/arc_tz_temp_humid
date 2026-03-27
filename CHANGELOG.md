@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-27 23:15:00 CST
+- **Fix: Long-Term Mode not resetting loggers on re-entry** — The `_historicEnteredOnce` flag caused non-Open-Meteo loggers to only be unchecked the first time Long-Term Mode was activated. Removed the flag so loggers are always reset to Open-Meteo-only on every entry into Long-Term Mode.
+
 ### 2026-03-27 22:30:00 CST
 - **Fix: Periodic averages y-axis inflated by threshold band** — When TinyTag data peaked around 28°C, the 32–35°C threshold shape forced the y-axis up to 35, wasting chart space. Now computes y-axis range from actual trace data when the max value is below 30°C, so the threshold band no longer inflates the axis for cooler datasets.
 
