@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-27 17:45:00 CST
+- **Fix: Season labels and details disappearing on hover** — The CSS that fades annotations on hover was targeting all `#chart .annotation` elements, causing season labels and date-range details to disappear on hover across all chart types. Scoped the CSS to `#chart.comfort-mode .annotation` so the fade-on-hover behavior only applies to the adaptive comfort chart, where it is intended.
+
 ### 2026-03-27 14:15:00 CST
 - **UI: Added explainer page links** — Added three info links to external explainer pages on the main site:
   1. Header info icon (left of language toggle) linking to `/explainers/arc-tz-temp-humid` (dashboard overview).

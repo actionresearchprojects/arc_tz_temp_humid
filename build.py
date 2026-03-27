@@ -977,11 +977,11 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 #bar-title { font-size: 14px; font-weight: 600; color: #222; white-space: nowrap; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
 #time-bar-right { flex: 1; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 #chart { flex: 1; min-height: 0; }
-#chart .annotation { transition: opacity 0.5s !important; }
-#chart .annotation rect { pointer-events: all !important; cursor: default; }
-#chart .annotation:hover { opacity: 0.08 !important; }
-#chart .annotation:hover rect { fill-opacity: 0.08 !important; }
-#chart .annotation:hover text { fill-opacity: 0.08 !important; }
+#chart.comfort-mode .annotation { transition: opacity 0.5s !important; }
+#chart.comfort-mode .annotation rect { pointer-events: all !important; cursor: default; }
+#chart.comfort-mode .annotation:hover { opacity: 0.08 !important; }
+#chart.comfort-mode .annotation:hover rect { fill-opacity: 0.08 !important; }
+#chart.comfort-mode .annotation:hover text { fill-opacity: 0.08 !important; }
 .section-title { font-weight: 600; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 .section { display: flex; flex-direction: column; gap: 2px; }
 select, button, input { font-family: inherit; }
@@ -4571,7 +4571,7 @@ function positionComfortOverlays() {
     rmIcon.style.display = 'none';
   }
 
-  // Handled by CSS: #chart .annotation:hover { opacity: 0.1 }
+  // Handled by CSS: #chart.comfort-mode .annotation:hover { opacity: 0.08 }
 }
 
 // ── Histogram ────────────────────────────────────────────────────────────────
@@ -6496,6 +6496,7 @@ function _doRender() {
     }
   }
   _zoomReset = false;
+  chartEl_.classList.toggle('comfort-mode', state.chartType === 'comfort');
   Plotly.react('chart', traces, layout, PLOTLY_CONFIG);
   chartEl_.once('plotly_afterplot', () => setTimeout(positionComfortOverlays, 100));
   chartEl_.on('plotly_doubleclick', () => { _zoomReset = true; setTimeout(updatePlot, 0); });
