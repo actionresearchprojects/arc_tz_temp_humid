@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2026-03-27 14:15:00 CST
+- **UI: Added explainer page links** — Added three info links to external explainer pages on the main site:
+  1. Header info icon (left of language toggle) linking to `/explainers/arc-tz-temp-humid` (dashboard overview).
+  2. Sidebar data freshness section info icon linking to `/explainers/data-flow` (how data is collected).
+  3. Running mean tooltip now includes a "Read more" link to `/explainers/running-mean` (both English and Kiswahili).
+
 ### 2026-03-27 12:36:02 CST
 - **UI: Week dropdown format changed** — Week labels in dropdowns now show `W/s dd/mm/yy` (e.g. "W/s 13/03/23") instead of `Week X, yyyy`. Updated both the Python data generation and the JS complete-period search labels.
 

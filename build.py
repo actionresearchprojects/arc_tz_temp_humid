@@ -1085,7 +1085,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 #dataset-select { font-weight: 600; font-size: 13px; padding: 3px 7px; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
 #sidebar-toggle { display: none; background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 7px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; flex-shrink: 0; }
 #sidebar-toggle:hover { background: #f0f0f0; }
-#lang-wrap { margin-left: auto; position: relative; flex-shrink: 0; }
+#lang-wrap { position: relative; flex-shrink: 0; }
 #lang-btn { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; display: flex; align-items: center; }
 #lang-btn:hover { background: #f0f0f0; border-color: #aaa; }
 #lang-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: white; border: 1px solid #ccc; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); z-index: 200; min-width: 110px; }
@@ -1125,6 +1125,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
   <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
   <h1 data-i18n="title">ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
+  <a href="https://actionresearchprojects.net/explainers/arc-tz-temp-humid" target="_blank" class="info-i" id="about-info-icon" title="About this dashboard" style="text-decoration:none;margin-left:auto;">i</a>
   <div id="lang-wrap">
     <button id="lang-btn" onclick="document.getElementById('lang-menu').classList.toggle('open')" title="Language"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
     <div id="lang-menu">
@@ -1290,7 +1291,10 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
     </div>
 
-    <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;margin-top:auto;padding-top:8px;border-top:1px solid #eee"></div>
+    <div style="margin-top:auto;padding-top:8px;border-top:1px solid #eee;display:flex;align-items:flex-start;gap:6px;">
+      <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;flex:1"></div>
+      <a href="https://actionresearchprojects.net/explainers/data-flow" target="_blank" class="info-i" id="dataflow-info-icon" title="How data is collected" style="text-decoration:none;flex-shrink:0;margin-top:2px;">i</a>
+    </div>
   </div>
 
   <div id="chart-area">
@@ -1579,7 +1583,7 @@ const I18N = {
     infoCompare: 'Compare different time periods on the same chart to see how conditions have changed, e.g. this month vs last month, or dry season vs wet season. Each set can have its own loggers and date range.',
     infoLongTerm: 'Places current sensor readings in a longer climate context. Shows historic temperature data back to 1940 and future projections under different climate scenarios, so you can see how today\'s conditions relate to past and expected trends.',
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
-    infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures, shifting the comfort band upward.',
+    infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures, shifting the comfort band upward. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
   },
   sw: {
     title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
@@ -1712,7 +1716,7 @@ const I18N = {
     infoCompare: 'Linganisha vipindi tofauti vya wakati kwenye chati moja ili kuona jinsi hali zilivyobadilika, k.m. mwezi huu dhidi ya mwezi uliopita, au kiangazi dhidi ya masika. Kila seti inaweza kuwa na sensors na tarehe zake.',
     infoLongTerm: 'Inaweka masomo ya sasa ya sensor katika muktadha wa hali ya hewa ya muda mrefu. Inaonyesha data ya joto ya kihistoria tangu 1940 na makadirio ya siku zijazo chini ya hali tofauti za hali ya hewa.',
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
-    infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia.',
+    infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -6631,7 +6635,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     { iconId: 'compare-info-icon', tipId: 'compare-info-tip', key: 'infoCompare' },
     { iconId: 'longterm-info-icon', tipId: 'longterm-info-tip', key: 'infoLongTerm' },
     { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip', key: 'infoComfortBand', hasLink: true },
-    { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip', key: 'infoRunningMean' },
+    { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip', key: 'infoRunningMean', hasLink: true },
   ];
   items.forEach(({iconId, tipId, key, hasLink}) => {
     const icon = document.getElementById(iconId);
