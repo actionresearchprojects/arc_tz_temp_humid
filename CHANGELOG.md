@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-28 00:30:00 CST
+- **Improve: Mobile layout and touch usability** — Restructured the time-bar controls for mobile viewports (≤680px): left and right control groups now stack vertically so no controls are clipped or crammed on narrow screens. Removed the period title label (`#bar-title`) on mobile to recover vertical space. Increased `select` and `input[type=date]` font-size to 16px on mobile to prevent iOS browser auto-zoom when tapping form elements (overrides inline style with `!important`). Added `min-height: 32px` to selects and date inputs for adequate touch targets. Increased checkbox size to 16×16px and `.cb-label` padding/gap for easier tapping. Made sidebar width responsive (`min(300px, 88vw)`) so it fits on very narrow screens without clipping. Cleaned up the 420px breakpoint (removed redundant date-input override, improved download button padding). Desktop layout is completely unaffected.
+
 ### 2026-03-27 23:15:00 CST
 - **Fix: Long-Term Mode not resetting loggers on re-entry** — The `_historicEnteredOnce` flag caused non-Open-Meteo loggers to only be unchecked the first time Long-Term Mode was activated. Removed the flag so loggers are always reset to Open-Meteo-only on every entry into Long-Term Mode.
 

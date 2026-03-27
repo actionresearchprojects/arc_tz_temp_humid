@@ -1100,21 +1100,24 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 }
 @media (max-width: 680px) {
   #sidebar-toggle { display: block; }
-  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 300px; transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
+  #sidebar { position: absolute; top: 0; left: 0; height: 100%; width: min(300px, 88vw); transform: translateX(-100%); box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
   #sidebar.open { transform: translateX(0); }
   #sidebar-backdrop.open { display: block; }
   #header { padding: 5px 8px; gap: 6px; }
   #header h1 { font-size: 12px; }
-  #time-bar { padding: 5px 8px; gap: 3px; }
-  #time-bar-top { gap: 5px; }
-  #bar-title { font-size: 12px; }
-  select { font-size: 11px; }
-  .cb-label { font-size: 11px; }
+  #time-bar { padding: 5px 8px; gap: 4px; }
+  #time-bar-top { flex-wrap: wrap; gap: 4px; }
+  #time-bar-left { flex: 0 0 100%; }
+  #bar-title { display: none; }
+  #time-bar-right { flex: 0 0 100%; justify-content: flex-start; gap: 6px; }
+  select { font-size: 16px !important; min-height: 32px; }
+  input[type=date] { font-size: 16px !important; min-height: 32px; }
+  input[type=checkbox] { width: 16px; height: 16px; min-width: 16px; }
+  .cb-label { font-size: 13px; padding: 3px 0; gap: 8px; }
 }
 @media (max-width: 420px) {
   #header h1 { display: none; }
-  #download-btn { font-size: 11px; padding: 3px 7px; }
-  input[type=date] { font-size: 11px; max-width: 110px; }
+  #download-btn { padding: 5px 8px; }
 }
 </style>
 </head>
