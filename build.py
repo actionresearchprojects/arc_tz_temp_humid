@@ -6353,7 +6353,9 @@ function renderPeriodicAverages() {
   }
 
   // 32–35°C threshold range for periodic averages
-  if (state.showThreshold && state.selectedMetrics.has('temperature')) {
+  // Only show threshold band when data approaches it, to avoid inflating y-axis
+  const showThresholdBand = state.showThreshold && state.selectedMetrics.has('temperature');
+  if (showThresholdBand) {
     shapes.push({type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:32, y1:35,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
   }
@@ -6408,7 +6410,21 @@ function renderPeriodicAverages() {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm ? 45 : 65, r: sm ? 8 : 20, t: sm ? 20 : 36, b: sm ? 60 : 80},
       xaxis: xaxisCfg,
-      yaxis: {title: yTitle, ticksuffix: ySuffix, showgrid: true, gridcolor: '#eee'},
+      yaxis: (() => {
+        const cfg = {title: yTitle, ticksuffix: ySuffix, showgrid: true, gridcolor: '#eee'};
+        // Prevent threshold shape from inflating y-axis when data is well below 32°C
+        if (showThresholdBand && traces.length) {
+          let dMax = -Infinity;
+          let dMin = Infinity;
+          traces.forEach(tr => { if (tr.y) tr.y.forEach(v => { if (v != null && isFinite(v)) { if (v > dMax) dMax = v; if (v < dMin) dMin = v; }});});
+          if (isFinite(dMax) && dMax < 30) {
+            // Data well below threshold — set range from data only with 5% padding
+            const pad = (dMax - dMin) * 0.05 || 1;
+            cfg.range = [dMin - pad, dMax + pad];
+          }
+        }
+        return cfg;
+      })(),
       legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', ...legendStyle(state.selectedLoggers.size), itemclick: false, itemdoubleclick: false},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},

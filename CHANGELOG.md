@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-27 22:30:00 CST
+- **Fix: Periodic averages y-axis inflated by threshold band** — When TinyTag data peaked around 28°C, the 32–35°C threshold shape forced the y-axis up to 35, wasting chart space. Now computes y-axis range from actual trace data when the max value is below 30°C, so the threshold band no longer inflates the axis for cooler datasets.
+
 ### 2026-03-27 17:45:00 CST
 - **Fix: Season labels and details disappearing on hover** — The CSS that fades annotations on hover was targeting all `#chart .annotation` elements, causing season labels and date-range details to disappear on hover across all chart types. Scoped the CSS to `#chart.comfort-mode .annotation` so the fade-on-hover behavior only applies to the adaptive comfort chart, where it is intended.
 
