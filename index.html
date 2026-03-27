@@ -7,6 +7,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// On page load, snap viewport back to scale 1 — handles arriving from a zoomed/rotated page
+// (e.g. after a password screen or landscape rotation on iOS).
+// Briefly sets maximum-scale=1 to force the browser to scale 1.0, then removes it so
+// the user can still pinch-zoom the Plotly chart afterwards.
+(function(){var m=document.querySelector('meta[name=viewport]');if(!m)return;var c=m.content;m.content=c+',maximum-scale=1';requestAnimationFrame(function(){m.content=c;});})();
+</script>
 <title>Ecovillage Temperature &amp; Humidity</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +21,7 @@
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; color: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 #header { background: white; border-bottom: 1px solid #ddd; padding: 6px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; min-height: 40px; }
 #header h1 { font-size: 18px; font-weight: 500; color: #222; margin-right: 2px; white-space: nowrap; }
 #logo { height: 32px; width: auto; flex-shrink: 0; vertical-align: middle; }
@@ -3164,6 +3171,16 @@ function setupStaticListeners() {
   window.addEventListener('resize', () => {
     if (window.innerWidth > 680) closeSidebar();
     Plotly.relayout('chart', {autosize: true}).then(positionComfortOverlays);
+  });
+  // On orientation change: snap viewport back to scale 1, then resize chart.
+  // iOS fires orientationchange before the resize event, so we handle it explicitly.
+  window.addEventListener('orientationchange', () => {
+    const m = document.querySelector('meta[name=viewport]');
+    if (m) { const c = m.content; m.content = c + ',maximum-scale=1'; requestAnimationFrame(() => { m.content = c; }); }
+    setTimeout(() => {
+      if (window.innerWidth > 680) closeSidebar();
+      Plotly.relayout('chart', {autosize: true}).then(positionComfortOverlays);
+    }, 300);
   });
 }
 

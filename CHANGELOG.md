@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-28 01:15:00 CST
+- **Fix: Mobile viewport zoom snap on page load and orientation change** — When navigating to the dashboard from another page that is zoomed (e.g. arriving from a rotated landscape page or after a password screen on the parent site), the page could load visibly over-zoomed. Added an inline script in `<head>` that briefly sets `maximum-scale=1` on the viewport meta tag on load and then removes it, forcing iOS/Android to snap back to scale 1.0 while still allowing pinch-zoom of the Plotly chart afterwards. Also added an `orientationchange` event listener that repeats this zoom reset and triggers a Plotly resize (with a 300 ms delay for iOS to settle) whenever the device is rotated. Added `-webkit-text-size-adjust: 100%` to `body` to prevent iOS from auto-inflating text size on rotation.
+
 ### 2026-03-28 00:30:00 CST
 - **Improve: Mobile layout and touch usability** — Restructured the time-bar controls for mobile viewports (≤680px): left and right control groups now stack vertically so no controls are clipped or crammed on narrow screens. Removed the period title label (`#bar-title`) on mobile to recover vertical space. Increased `select` and `input[type=date]` font-size to 16px on mobile to prevent iOS browser auto-zoom when tapping form elements (overrides inline style with `!important`). Added `min-height: 32px` to selects and date inputs for adequate touch targets. Increased checkbox size to 16×16px and `.cb-label` padding/gap for easier tapping. Made sidebar width responsive (`min(300px, 88vw)`) so it fits on very narrow screens without clipping. Cleaned up the 420px breakpoint (removed redundant date-input override, improved download button padding). Desktop layout is completely unaffected.
 
