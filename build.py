@@ -926,7 +926,7 @@ def build_dataset_json(key, df, logger_overrides=None):
                 for y, s in available_seasons
             ],
             "availableWeeks": [
-                {"label": f"Week {w}, {y}", "year": y, "week": w}
+                {"label": "W/s " + date.fromisocalendar(y, w, 1).strftime("%d/%m/%y"), "year": y, "week": w}
                 for y, w in available_weeks
             ],
             "availableDays": [
@@ -5205,7 +5205,7 @@ function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
       if (r.s > rangeEnd || r.e < rangeStart) continue;
       const ol = Math.min(r.e, rangeEnd) - Math.max(r.s, rangeStart);
       if (ol / (r.e - r.s) < 0.75) continue;
-      if (allOK(r.s, r.e)) { results.push({label: `Week ${aw.week}, ${aw.year}`, gran: 'week', y: aw.year, w: aw.week, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
+      if (allOK(r.s, r.e)) { const wd = new Date(r.s); results.push({label: `W/s ${String(wd.getUTCDate()).padStart(2,'0')}/${String(wd.getUTCMonth()+1).padStart(2,'0')}/${String(wd.getUTCFullYear()).slice(-2)}`, gran: 'week', y: aw.year, w: aw.week, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
     }
   }
   if (!found && (rangeEnd - rangeStart) / 86400000 <= 366) {

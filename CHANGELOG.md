@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-03-27 12:36:02 CST
+- **UI: Week dropdown format changed** — Week labels in dropdowns now show `W/s dd/mm/yy` (e.g. "W/s 13/03/23") instead of `Week X, yyyy`. Updated both the Python data generation and the JS complete-period search labels.
+
 ### 2026-03-22 16:05:00 CST
 - **Fix: Humidity option hidden on all beta charts** — previously Temperature Differential showed a humidity checkbox; now all beta charts hide it since they're temperature-only.
 - **Fix: Zoom resets on time range changes** — added `_zoomReset = true` to all time-mode, day/week/month/year/season/between change handlers and long-term mode toggle. Previously stale zoom persisted when switching to a narrower range (e.g. day view).
