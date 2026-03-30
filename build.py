@@ -933,6 +933,7 @@ def build_dataset_json(key, df, logger_overrides=None):
                 {"label": d.strftime("%d %b %Y"), "ts": int(d.timestamp() * 1000)}
                 for d in available_days
             ],
+            "totalReadings": len(df),
             "dateRange": {
                 "min": int(df.index.min().timestamp() * 1000),
                 "max": int(df.index.max().timestamp() * 1000),
@@ -1301,9 +1302,12 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
     </div>
 
-    <div style="margin-top:auto;padding-top:8px;border-top:1px solid #eee;display:flex;align-items:flex-start;gap:6px;">
-      <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;flex:1"></div>
-      <a href="https://actionresearchprojects.net/explainers/data-flow" target="_blank" class="info-i" id="dataflow-info-icon" title="How data is collected" style="text-decoration:none;flex-shrink:0;margin-top:2px;">i</a>
+    <div style="margin-top:auto;padding-top:8px;border-top:1px solid #eee;">
+      <div style="display:flex;align-items:flex-start;gap:6px;">
+        <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;flex:1"></div>
+        <a href="https://actionresearchprojects.net/explainers/data-flow" target="_blank" class="info-i" id="dataflow-info-icon" title="How data is collected" style="text-decoration:none;flex-shrink:0;margin-top:2px;">i</a>
+      </div>
+      <div id="dataset-reading-count" style="font-size:10px;color:#888;line-height:1.6;margin-top:2px;"></div>
     </div>
   </div>
 
@@ -3163,6 +3167,14 @@ function loadDataset(key) {
   const isLineChart = state.chartType === 'line';
   const showSubstratNow = !isLineChart;
   document.getElementById('advanced-settings-wrap').style.display = (showSubstratNow || hasAnomalous) ? '' : 'none';
+
+  // Update reading count in sidebar footer
+  const rcEl = document.getElementById('dataset-reading-count');
+  if (rcEl && m.totalReadings) {
+    const minDate = new Date(m.dateRange.min).toISOString().slice(0, 10);
+    const maxDate = new Date(m.dateRange.max).toISOString().slice(0, 10);
+    rcEl.textContent = m.totalReadings + ' readings, ' + minDate + ' to ' + maxDate;
+  }
 
   updatePlot();
 }
