@@ -1958,13 +1958,13 @@ async function init() {
       const warn = staleCheck(df.openmeteo_fetch_ms, df.openmeteo_last_ms, 2);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
       const dataDate = formatDataDate(df.openmeteo_last_ms);
-      lines.push(`Open-Meteo data to: ${dataDate || FETCH_TIMES.openmeteo}${warnHtml}`);
+      lines.push(`Open-Meteo last updated: ${dataDate || FETCH_TIMES.openmeteo}${warnHtml}`);
     }
     if (FETCH_TIMES.omnisense) {
       const warn = staleCheck(df.omnisense_fetch_ms, df.omnisense_last_ms, 2);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
       const dataDate = formatDataDate(df.omnisense_last_ms);
-      lines.push(`Omnisense data to: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
+      lines.push(`Omnisense last updated: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
     }
     if (FETCH_TIMES.cycles) {
       const warn = cycleStaleCheck(df.openmeteo_fetch_ms || Date.now());
