@@ -1,5 +1,9 @@
 ## Changelog
 
+### 2026-04-06 19:30:00 CST
+- **Improve: Sidebar data freshness section** — Removed the `i` info tooltip icon from the data freshness footer. The entire text section is now a clickable hyperlink that opens the data-flow explainer page in a new tab. Changed "last updated" labels to show the actual last date the data extends to (from `omnisense_last_ms` / `openmeteo_last_ms` timestamps) instead of the fetch timestamp, so users see e.g. "31st March 2026" rather than the date the script ran.
+- **Fix: Guard against empty Omnisense CSV in build** — Added early-return in `load_omnisense_csv` when the CSV has fewer than 4 lines (empty download), and a bounds check before accessing `lines[i + 2]` for column headers. Prevents the `IndexError: list index out of range` crash that occurred on April 1 when omnisense.com returned an empty file.
+
 ### 2026-03-28 01:15:00 CST
 - **Fix: Mobile viewport zoom snap on page load and orientation change** — When navigating to the dashboard from another page that is zoomed (e.g. arriving from a rotated landscape page or after a password screen on the parent site), the page could load visibly over-zoomed. Added an inline script in `<head>` that briefly sets `maximum-scale=1` on the viewport meta tag on load and then removes it, forcing iOS/Android to snap back to scale 1.0 while still allowing pinch-zoom of the Plotly chart afterwards. Also added an `orientationchange` event listener that repeats this zoom reset and triggers a Plotly resize (with a 300 ms delay for iOS to settle) whenever the device is rotated. Added `-webkit-text-size-adjust: 100%` to `body` to prevent iOS from auto-inflating text size on rotation.
 

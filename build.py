@@ -541,10 +541,16 @@ def load_omnisense_csv(path, sensor_filter=None):
     """
     with open(path) as f:
         lines = f.readlines()
+    if len(lines) < 4:
+        print(f"  ⚠ Omnisense CSV is empty or too short ({len(lines)} lines), skipping")
+        return []
     all_dfs = []
     i = 0
     while i < len(lines):
         if "sensor_desc,site_name" in lines[i]:
+            if i + 2 >= len(lines):
+                i += 1
+                continue
             col_headers = lines[i + 2].strip().split(",")
             if "temperature" not in col_headers or "humidity" not in col_headers:
                 i += 1
@@ -1303,10 +1309,9 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     </div>
 
     <div style="margin-top:auto;padding-top:8px;border-top:1px solid #eee;">
-      <div style="display:flex;align-items:flex-start;gap:6px;">
-        <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;flex:1"></div>
-        <a href="https://actionresearchprojects.net/explainers/data-flow" target="_blank" class="info-i" id="dataflow-info-icon" title="How data is collected" style="text-decoration:none;flex-shrink:0;margin-top:2px;">i</a>
-      </div>
+      <a href="https://actionresearchprojects.net/explainers/data-flow" target="_blank" style="text-decoration:none;display:block;">
+        <div id="fetch-time-notes" style="font-size:10px;color:#888;line-height:1.6;cursor:pointer;"></div>
+      </a>
       <div id="dataset-reading-count" style="font-size:10px;color:#888;line-height:1.6;margin-top:2px;"></div>
     </div>
   </div>
@@ -2894,21 +2899,32 @@ async function init() {
       }
       return issues.length ? issues.join('; ') : null;
     }
+    function formatDataDate(ms) {
+      if (!ms) return null;
+      // Timestamps are UTC ms; display in EAT (UTC+3)
+      const d = new Date(ms + 3 * 3600000);
+      const day = d.getUTCDate();
+      const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      const suffix = (day === 1 || day === 21 || day === 31) ? 'st' : (day === 2 || day === 22) ? 'nd' : (day === 3 || day === 23) ? 'rd' : 'th';
+      return `${day}${suffix} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    }
     const lines = [];
     if (FETCH_TIMES.openmeteo) {
       const warn = staleCheck(df.openmeteo_fetch_ms, df.openmeteo_last_ms, 2);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
-      lines.push(`Open-Meteo last updated: ${FETCH_TIMES.openmeteo}${warnHtml}`);
+      const dataDate = formatDataDate(df.openmeteo_last_ms);
+      lines.push(`Open-Meteo data to: ${dataDate || FETCH_TIMES.openmeteo}${warnHtml}`);
     }
     if (FETCH_TIMES.omnisense) {
       const warn = staleCheck(df.omnisense_fetch_ms, df.omnisense_last_ms, 2);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
-      lines.push(`Omnisense last updated: ${FETCH_TIMES.omnisense}${warnHtml}`);
+      const dataDate = formatDataDate(df.omnisense_last_ms);
+      lines.push(`Omnisense data to: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
     }
     if (FETCH_TIMES.cycles) {
       const warn = cycleStaleCheck(df.openmeteo_fetch_ms || Date.now());
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
-      lines.push(`Cycles (ENSO/IOD/MJO) last updated: ${FETCH_TIMES.cycles}${warnHtml}`);
+      lines.push(`Cycles (ENSO/IOD/MJO) updated: ${FETCH_TIMES.cycles}${warnHtml}`);
     }
     ftDiv.innerHTML = lines.join('<br>');
   }
