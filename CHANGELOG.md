@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-04-06 21:00:00 CST
+- **Fix: Logger checkbox selection no longer preserves stale x-axis range in "all time" mode** — When changing logger selection (individual checkboxes, All, None, TinyTag, Omnisense source buttons) while `timeMode === 'all'`, `_zoomReset` is now set to `true` before calling `updatePlot()`. Previously the zoom-preservation logic held the old x-axis range (derived from all loggers), causing Omnisense-only selections to appear as a narrow sliver against the full TinyTag date range. For specific time-period modes (month, year, etc.), the zoom is intentionally preserved so user drag-zoom within the selected period is not lost when toggling loggers.
+
 ### 2026-04-06 19:30:00 CST
 - **Improve: Sidebar data freshness section** — Removed the `i` info tooltip icon from the data freshness footer. The entire text section is now a clickable hyperlink that opens the data-flow explainer page in a new tab. Changed "last updated" labels to show the actual last date the data extends to (from `omnisense_last_ms` / `openmeteo_last_ms` timestamps) instead of the fetch timestamp, so users see e.g. "31st March 2026" rather than the date the script ran.
 - **Fix: Guard against empty Omnisense CSV in build** — Added early-return in `load_omnisense_csv` when the CSV has fewer than 4 lines (empty download), and a bounds check before accessing `lines[i + 2]` for column headers. Prevents the `IndexError: list index out of range` crash that occurred on April 1 when omnisense.com returned an empty file.

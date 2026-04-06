@@ -2974,7 +2974,7 @@ function loadDataset(key) {
     lbl.innerHTML = `<input type="checkbox" data-logger-id="${id}" ${stateSet.has(id) ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${m.colors[id]};vertical-align:middle"></span> <span class="logger-name" data-lid="${id}">${ln(id)}</span>${meteoSuffix(id)}${omniSuffix(m.loggerSources[id] || '')}${extraLabel || ''}${anomSuffix}`;
     lbl.querySelector('input').addEventListener('change', e => {
       e.target.checked ? stateSet.add(id) : stateSet.delete(id);
-      updatePlot();
+      if (state.timeMode === 'all') _zoomReset = true; updatePlot();
     });
     if (hasAnom) {
       const warn = lbl.querySelector('.anomalous-warn');
@@ -3004,12 +3004,12 @@ function loadDataset(key) {
     btnRow.appendChild(mkSelBtn(t('btnAll'), () => {
       ids.forEach(id => { stateSet.add(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = true; });
       if (sectionKey) { state.showSectionAvg[sectionKey] = true; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = true; }
-      updatePlot();
+      if (state.timeMode === 'all') _zoomReset = true; updatePlot();
     }, 'btnAll'));
     btnRow.appendChild(mkSelBtn(t('btnNone'), () => {
       ids.forEach(id => { stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = false; });
       if (sectionKey) { state.showSectionAvg[sectionKey] = false; const cb = container.querySelector(`input[data-section-avg="${sectionKey}"]`); if (cb) cb.checked = false; }
-      updatePlot();
+      if (state.timeMode === 'all') _zoomReset = true; updatePlot();
     }, 'btnNone'));
     if (sectionKey) {
       const lockBtn = document.createElement('button');
@@ -3047,8 +3047,8 @@ function loadDataset(key) {
     const hasOS = ids.some(id => m.loggerSources[id] === 'Omnisense');
     if (!hasTT || !hasOS) return null;
     return [
-      mkSelBtn('TinyTag',  () => { ids.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
-      mkSelBtn('Omnisense',() => { ids.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); updatePlot(); }),
+      mkSelBtn('TinyTag',  () => { ids.forEach(id => { const is = m.loggerSources[id]==='TinyTag';  is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); if (state.timeMode === 'all') _zoomReset = true; updatePlot(); }),
+      mkSelBtn('Omnisense',() => { ids.forEach(id => { const is = m.loggerSources[id]==='Omnisense'; is ? stateSet.add(id) : stateSet.delete(id); container.querySelector(`input[data-logger-id="${id}"]`).checked = is; }); if (state.timeMode === 'all') _zoomReset = true; updatePlot(); }),
     ];
   }
   const extSet   = new Set(m.externalLoggers || []);
