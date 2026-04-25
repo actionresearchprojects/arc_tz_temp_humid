@@ -6786,7 +6786,128 @@ let _lastRenderKey = null;
 let _zoomReset = false; // set true by double-click or chart switch to allow autorange
 let _currentTitle = '';
 let _currentLayout = {};
+
+// ── Period dropdown sync ───────────────────────────────────────────────────────
+// Rebuilds the year/season/month/week/day dropdowns to only show periods that
+// have actual data for the currently selected loggers, across all chart types.
+let _lastDropdownKey = '';
+function syncPeriodDropdowns() {
+  const isComfort = state.chartType === 'comfort';
+  const activeSet = isComfort ? state.selectedRoomLoggers : state.selectedLoggers;
+  const key = [...activeSet].sort().join(',') + '|' + state.datasetKey;
+  if (key === _lastDropdownKey) return;
+  _lastDropdownKey = key;
+
+  const EAT = 3 * 3600 * 1000;
+  const TZ_SI = [0,0,1,1,1,2,2,2,2,2,3,3];
+  const TZ_SN = ['Kiangazi (Jan–Feb)','Masika (Mar–May)','Kiangazi (Jun–Oct)','Vuli (Nov–Dec)'];
+  const MN_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MN_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  const data = dataset();
+  const yearsSet = new Set();
+  const seasonsMap = new Map();
+  const monthsMap = new Map();
+  const weeksMap = new Map();
+  const daysSet = new Set();
+
+  for (const id of activeSet) {
+    const s = data.series[id];
+    if (!s || !s.timestamps) continue;
+    for (const ts of s.timestamps) {
+      const d = new Date(ts + EAT);
+      const y = d.getUTCFullYear(), mo = d.getUTCMonth();
+      const wkStr = getISOWeekStr(ts);
+      const dashIdx = wkStr.indexOf('-W');
+      const wy = parseInt(wkStr.slice(0, dashIdx)), wk = parseInt(wkStr.slice(dashIdx + 2));
+      const dayMs = Math.floor((ts + EAT) / 86400000) * 86400000 - EAT;
+      yearsSet.add(y);
+      seasonsMap.set(`${y}-${TZ_SI[mo]}`, {y, season: TZ_SI[mo]});
+      monthsMap.set(`${y}-${mo+1}`, {y, month: mo+1});
+      weeksMap.set(`${wy}-${wk}`, {wy, wk});
+      daysSet.add(dayMs);
+    }
+  }
+
+  if (yearsSet.size === 0) return;
+
+  const years = [...yearsSet].sort((a,b) => a-b);
+  const seasons = [...seasonsMap.values()].sort((a,b) => a.y !== b.y ? a.y-b.y : a.season-b.season);
+  const months = [...monthsMap.values()].sort((a,b) => a.y !== b.y ? a.y-b.y : a.month-b.month);
+  const weeks = [...weeksMap.values()].sort((a,b) => a.wy !== b.wy ? a.wy-b.wy : a.wk-b.wk).map(({wy, wk}) => {
+    const jan4 = new Date(Date.UTC(wy, 0, 4));
+    const dow = jan4.getUTCDay() || 7;
+    const ws = new Date(jan4.getTime() - (dow-1)*86400000 + (wk-1)*7*86400000);
+    const dd = String(ws.getUTCDate()).padStart(2,'0');
+    const mm = String(ws.getUTCMonth()+1).padStart(2,'0');
+    const yy = String(ws.getUTCFullYear()).slice(-2);
+    return {label: `W/s ${dd}/${mm}/${yy}`, year: wy, week: wk};
+  });
+  const days = [...daysSet].sort((a,b) => a-b).map(ts => {
+    const d = new Date(ts + EAT);
+    return {label: `${String(d.getUTCDate()).padStart(2,'0')} ${MN_SHORT[d.getUTCMonth()]} ${d.getUTCFullYear()}`, ts};
+  });
+
+  const ysel = document.getElementById('year-select');
+  const ssel = document.getElementById('season-select');
+  const mosel = document.getElementById('month-select');
+  const wsel = document.getElementById('week-select');
+  const dsel = document.getElementById('day-select');
+
+  ysel.innerHTML = '';
+  years.forEach(y => ysel.add(new Option(y, y)));
+  if (state.selectedYear !== null && years.includes(state.selectedYear)) {
+    ysel.value = state.selectedYear;
+  } else if (years.length) {
+    state.selectedYear = years[years.length-1];
+    ysel.value = state.selectedYear;
+  }
+
+  ssel.innerHTML = '';
+  seasons.forEach(({y, season}) => ssel.add(new Option(`${TZ_SN[season]} ${y}`, `${y}-${season}`)));
+  const curSK = state.selectedSeason ? `${state.selectedSeason.year}-${state.selectedSeason.season}` : '';
+  if (state.selectedSeason && seasons.some(s => `${s.y}-${s.season}` === curSK)) {
+    ssel.value = curSK;
+  } else if (seasons.length) {
+    const last = seasons[seasons.length-1];
+    state.selectedSeason = {year: last.y, season: last.season};
+    ssel.value = `${last.y}-${last.season}`;
+  }
+
+  mosel.innerHTML = '';
+  months.forEach(({y, month}) => mosel.add(new Option(`${MN_LONG[month-1]} ${y}`, `${y}-${month}`)));
+  const curMK = state.selectedMonth ? `${state.selectedMonth.year}-${state.selectedMonth.month}` : '';
+  if (state.selectedMonth && months.some(m => `${m.y}-${m.month}` === curMK)) {
+    mosel.value = curMK;
+  } else if (months.length) {
+    const last = months[months.length-1];
+    state.selectedMonth = {year: last.y, month: last.month};
+    mosel.value = `${last.y}-${last.month}`;
+  }
+
+  wsel.innerHTML = '';
+  weeks.forEach(({label, year, week}) => wsel.add(new Option(label, `${year}-${week}`)));
+  const curWK = state.selectedWeek ? `${state.selectedWeek.year}-${state.selectedWeek.week}` : '';
+  if (state.selectedWeek && weeks.some(w => `${w.year}-${w.week}` === curWK)) {
+    wsel.value = curWK;
+  } else if (weeks.length) {
+    const last = weeks[weeks.length-1];
+    state.selectedWeek = {year: last.year, week: last.week};
+    wsel.value = `${last.year}-${last.week}`;
+  }
+
+  dsel.innerHTML = '';
+  days.forEach(({label, ts}) => dsel.add(new Option(label, ts)));
+  if (state.selectedDay !== null && days.some(d => d.ts === state.selectedDay)) {
+    dsel.value = state.selectedDay;
+  } else if (days.length) {
+    state.selectedDay = days[days.length-1].ts;
+    dsel.value = state.selectedDay;
+  }
+}
+
 function updatePlot(forceLoader) {
+  syncPeriodDropdowns();
   const renderKey = state.chartType + '|' + state.datasetKey;
   const isSlowOp = forceLoader || renderKey !== _lastRenderKey;
   if (renderKey !== _lastRenderKey) _zoomReset = true; // reset zoom on chart/dataset switch

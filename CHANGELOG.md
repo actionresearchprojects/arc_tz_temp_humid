@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-04-25 15:16:49 CST
+- **Fix: Period-specific dropdowns now filter to data present in selected loggers** — The year/season/month/week/day dropdowns previously listed every period ever recorded in the dataset regardless of which logger checkboxes were ticked. A new `syncPeriodDropdowns()` function runs at the start of every `updatePlot()` call, computing available periods from the union of timestamps across all currently selected loggers (EAT-adjusted). If the current selection has no data for the chosen loggers the dropdown snaps to the most recent valid period. Applies to all chart types (line, histogram, adaptive comfort, periodic averages, beta charts) and to the comfort panel's room-logger set. Results are cached by logger key so the computation only re-runs when the selection actually changes.
+
 ### 2026-04-25 16:30:00 CST
 - **Fix: RH > 99% readings now clamped rather than gapped in wet bulb calculation** — Several TinyTag loggers report thousands of readings above 99% RH (sensor saturation artefact; physically impossible). The previous guard returned `null` for these, creating gaps during the wettest periods. RH is now clamped to 99% before the Stull formula runs: at saturation the formula gives Tw ≈ T − 0.03°C, within the formula's own ±0.3°C accuracy and correct to the physical truth. Values below 5% RH still produce gaps. Tooltip updated to explain the clamping behaviour. Added `wetbulb_rh_clamping.md` explaining the reasoning.
 
