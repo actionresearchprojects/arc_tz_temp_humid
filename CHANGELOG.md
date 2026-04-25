@@ -1,5 +1,22 @@
 ## Changelog
 
+### 2026-04-25 15:50:00 CST
+- **Fix: Wet bulb now shows gaps for out-of-range inputs** — `stullWetBulb` now returns `null` for T outside –20 to 50°C or RH outside 5–99% (the formula's stated valid range), producing chart gaps rather than silently inaccurate values. Both call sites (line graph and periodic averages) updated to handle the nullable return. Info tooltip updated to note the valid range and gap behaviour.
+
+### 2026-04-25 15:30:00 CST
+- **Improve: Wet bulb legend no longer adds extra entries** — When both a logger and its wet bulb are shown, the wet bulb trace is hidden from the legend (`showlegend: false`) and the parent's first-metric legend entry gains a grey `+ (Wet bulb)` annotation so the legend count never grows. When only the wet bulb is shown (parent deselected) on the line graph, it keeps its own legend entry as before. Applied to both line graph and periodic averages.
+
+### 2026-04-25 14:15:00 CST
+- **Improve: Wet bulb hover now shows Temperature and Humidity source lines separately** — Instead of `From: Logger Name T & RH`, the hover now shows two explicit lines: `Temperature: Logger Name · TinyTag · ID: 780981` and `Humidity: Logger Name · TinyTag · ID: 780981`, making it unambiguous exactly which sensor's T and RH readings were used in the Stull calculation regardless of sensor type.
+
+### 2026-04-25 14:04:02 CST
+- **Improve: Wet bulb — All/None/TinyTag/Omnisense buttons now include wet bulb sub-checkboxes** — When wet bulb is enabled, clicking any section selection button also checks/unchecks the wet bulb sub-checkbox for each logger in that section, keeping the two in sync. Uses a shared `syncWb` helper in `mkSourceBtns` and inline logic in the All/None closures.
+- **Improve: Wet bulb legend and chart title now read "(Wet bulb)" instead of "(Tw)"** — Both line graph and periodic average traces now use `t('wetBulbSuffix')` for the trace name, keeping it consistent with the sidebar sub-label text and localised.
+- **Fix: Wet bulb-only selections no longer show "no data"** — The `renderLineGraph` main loop now uses a combined guard: proceeds if the logger is selected OR if its wet bulb trace is requested. Wet bulb traces track `dataMinMs`/`dataMaxMs` independently so the x-axis is correctly bounded even when all main logger checkboxes are off.
+
+### 2026-04-25 13:44:43 CST
+- **Feature: Wet bulb temperature overlay on line graph and average profiles** — Added a "Wet Bulb (Tw)" master toggle inside Advanced Settings. When enabled, a dashed-line sub-checkbox appears directly below each eligible logger's existing checkbox (external and room loggers only), labelled "Logger Name (Wet bulb)" with a tiny SVG dashed-line icon in the sensor's colour instead of a colour swatch. Each sub-checkbox defaults to off. Wet bulb is calculated per-sensor using the Stull (2011) approximation, accurate to ±0.3°C in tropical/sea-level conditions. Hover shows wet bulb value plus the specific T and RH series used for the calculation. Supported on line graph and average profiles only; toggle hidden automatically in Long-Term Mode and on histogram/comfort/beta chart types. Advanced Settings now also visible on the line graph. Reset to defaults unsets all selections. Both English and Kiswahili i18n keys added.
+
 ### 2026-04-06 21:00:00 CST
 - **Fix: Logger checkbox selection no longer preserves stale x-axis range in "all time" mode** — When changing logger selection (individual checkboxes, All, None, TinyTag, Omnisense source buttons) while `timeMode === 'all'`, `_zoomReset` is now set to `true` before calling `updatePlot()`. Previously the zoom-preservation logic held the old x-axis range (derived from all loggers), causing Omnisense-only selections to appear as a narrow sliver against the full TinyTag date range. For specific time-period modes (month, year, etc.), the zoom is intentionally preserved so user drag-zoom within the selected period is not lost when toggling loggers.
 
