@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-04-25 16:30:00 CST
+- **Fix: RH > 99% readings now clamped rather than gapped in wet bulb calculation** — Several TinyTag loggers report thousands of readings above 99% RH (sensor saturation artefact; physically impossible). The previous guard returned `null` for these, creating gaps during the wettest periods. RH is now clamped to 99% before the Stull formula runs: at saturation the formula gives Tw ≈ T − 0.03°C, within the formula's own ±0.3°C accuracy and correct to the physical truth. Values below 5% RH still produce gaps. Tooltip updated to explain the clamping behaviour. Added `wetbulb_rh_clamping.md` explaining the reasoning.
+
 ### 2026-04-25 15:50:00 CST
 - **Fix: Wet bulb now shows gaps for out-of-range inputs** — `stullWetBulb` now returns `null` for T outside –20 to 50°C or RH outside 5–99% (the formula's stated valid range), producing chart gaps rather than silently inaccurate values. Both call sites (line graph and periodic averages) updated to handle the nullable return. Info tooltip updated to note the valid range and gap behaviour.
 

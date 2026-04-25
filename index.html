@@ -657,7 +657,7 @@ const I18N = {
     wetBulb: 'Wet Bulb',
     wetBulbSuffix: '(Wet bulb)',
     wetBulbHover: 'Wet bulb (Tw)',
-    infoWetBulb: 'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH; values outside this range are shown as gaps. Shown as a dashed line in the same colour as the parent sensor.',
+    infoWetBulb: 'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
     infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
   },
@@ -794,7 +794,7 @@ const I18N = {
     wetBulb: 'Joto la Mvua (Tw)',
     wetBulbSuffix: '(Joto la mvua)',
     wetBulbHover: 'Joto la mvua (Tw)',
-    infoWetBulb: 'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH; maadili nje ya masafa haya yanaonyeshwa kama mapengo. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
+    infoWetBulb: 'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
     infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
   }
@@ -1865,7 +1865,8 @@ function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMe
 // Stull (2011) wet-bulb approximation — accurate to ±0.3°C for tropical conditions
 // Valid range: T -20 to 50°C, RH 5 to 99%
 function stullWetBulb(T, RH) {
-  if (T < -20 || T > 50 || RH < 5 || RH > 99) return null;
+  if (T < -20 || T > 50 || RH < 5) return null;
+  if (RH > 99) RH = 99; // sensor saturation artefact — clamp to valid ceiling
   return T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
     + Math.atan(T + RH)
     - Math.atan(RH - 1.676331)
