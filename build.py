@@ -2353,11 +2353,12 @@ function renderCompareSets() {
     }
 
     // Add sections (external, room, structural) with per-section buttons
-    function addCmpSection(title, ids) {
+    function addCmpSection(i18nKey, ids) {
       if (ids.length === 0) return;
       const titleEl = document.createElement('div');
       titleEl.className = 'sub-section-title';
-      titleEl.textContent = title;
+      titleEl.textContent = t(i18nKey);
+      titleEl.dataset.i18n = i18nKey;
       loggerWrap.appendChild(titleEl);
       // Per-section buttons: All / None / TinyTag / Omnisense
       const secBtnRow = document.createElement('div');
@@ -2402,14 +2403,14 @@ function renderCompareSets() {
     if (isComfort) {
       const comfortRoomIds = (m.comfortLoggers || m.roomLoggers || []).filter(id => (m.roomLoggers || []).includes(id));
       const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-      addCmpSection(t('sectionRoom'), comfortRoomIds);
-      addCmpSection(t('sectionStructural'), comfortStructIds);
+      addCmpSection('sectionRoom', comfortRoomIds);
+      addCmpSection('sectionStructural', comfortStructIds);
     } else {
-      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection(t('sectionExternal'), m.externalLoggers);
+      if (m.externalLoggers && m.externalLoggers.length > 0) addCmpSection('sectionExternal', m.externalLoggers);
       const roomLoggers = m.loggers.filter(id => !extSet.has(id) && roomSet.has(id) && lineSet.has(id));
       const midLoggers = m.loggers.filter(id => !extSet.has(id) && !roomSet.has(id) && lineSet.has(id));
-      addCmpSection(t('sectionRoom'), roomLoggers);
-      addCmpSection(t('sectionStructural'), midLoggers);
+      addCmpSection('sectionRoom', roomLoggers);
+      addCmpSection('sectionStructural', midLoggers);
     }
 
     // Cross-dataset loggers (other buildings)
@@ -3042,11 +3043,14 @@ function loadDataset(key) {
       container.appendChild(wbWrap);
     }
   }
-  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey, skipWb) {
+  function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, sectionKey, skipWb, titleI18nKey) {
     if (ids.length === 0) return;
     const titleEl = document.createElement('div');
     titleEl.className = 'sub-section-title';
     titleEl.textContent = title;
+    const _sectionI18nMap = { external: 'sectionExternal', room: 'sectionRoom', structural: 'sectionStructural' };
+    const _titleKey = titleI18nKey || _sectionI18nMap[sectionKey];
+    if (_titleKey) titleEl.dataset.i18n = _titleKey;
     container.appendChild(titleEl);
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;';
@@ -3129,13 +3133,14 @@ function loadDataset(key) {
   const extTTLabel = id => (extSet.has(id) && m.loggerSources[id] === 'TinyTag') ? '<span style="color:#aaa"> (TinyTag)</span>' : '';
   // Section average checkbox helper (only shown in periodic mode)
   const sectionAvgColors = {external: '#1a1a1a', room: '#333399', structural: '#663300'};
-  function addSectionAvgCheckbox(container, sectionKey, label) {
+  function addSectionAvgCheckbox(container, sectionKey) {
     const lbl = document.createElement('label');
     lbl.className = 'cb-label periodic-avg-cb';
     lbl.style.display = 'none'; // shown only in periodic mode
     const color = sectionAvgColors[sectionKey];
     const isLocked = state.lockedAvg[sectionKey] !== null;
-    lbl.innerHTML = `<input type="checkbox" data-section-avg="${sectionKey}" ${state.showSectionAvg[sectionKey] ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};vertical-align:middle"></span> ${label} Average<span class="lock-indicator" data-lock-ind="${sectionKey}" style="display:${isLocked ? 'inline' : 'none'}; color:#999; font-size:10px; margin-left:3px;"><svg style="vertical-align:middle" width="8" height="10" viewBox="0 0 8 10"><rect x="0" y="4" width="8" height="6" rx="1" fill="#aaa"/><path d="M2 4V3a2 2 0 0 1 4 0v1" fill="none" stroke="#aaa" stroke-width="1.2"/></svg></span>`;
+    const avgKey = sectionKey + 'Avg';
+    lbl.innerHTML = `<input type="checkbox" data-section-avg="${sectionKey}" ${state.showSectionAvg[sectionKey] ? 'checked' : ''}> <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};vertical-align:middle"></span> <span data-i18n="${avgKey}">${t(avgKey)}</span><span class="lock-indicator" data-lock-ind="${sectionKey}" style="display:${isLocked ? 'inline' : 'none'}; color:#999; font-size:10px; margin-left:3px;"><svg style="vertical-align:middle" width="8" height="10" viewBox="0 0 8 10"><rect x="0" y="4" width="8" height="6" rx="1" fill="#aaa"/><path d="M2 4V3a2 2 0 0 1 4 0v1" fill="none" stroke="#aaa" stroke-width="1.2"/></svg></span>`;
     lbl.querySelector('input').addEventListener('change', e => {
       state.showSectionAvg[sectionKey] = e.target.checked; updatePlot();
     });
@@ -3146,19 +3151,19 @@ function loadDataset(key) {
   // External section
   if (m.externalLoggers && m.externalLoggers.length > 0) {
     addSection(loggerDiv, state.selectedLoggers, t('sectionExternal'), m.externalLoggers, null, extTTLabel, 'external');
-    addSectionAvgCheckbox(loggerDiv, 'external', t('sectionExternal'));
+    addSectionAvgCheckbox(loggerDiv, 'external');
     const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr);
   }
   // Room loggers section
   if (roomLoggers.length > 0) {
     addSection(loggerDiv, state.selectedLoggers, t('sectionRoom'), roomLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, roomLoggers), null, 'room');
-    addSectionAvgCheckbox(loggerDiv, 'room', t('sectionRoom'));
+    addSectionAvgCheckbox(loggerDiv, 'room');
   }
   // Structural section
   if (midLoggers.length > 0) {
     if (roomLoggers.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; loggerDiv.appendChild(hr); }
     addSection(loggerDiv, state.selectedLoggers, t('sectionStructural'), midLoggers, mkSourceBtns(loggerDiv, state.selectedLoggers, midLoggers), null, 'structural');
-    addSectionAvgCheckbox(loggerDiv, 'structural', t('sectionStructural'));
+    addSectionAvgCheckbox(loggerDiv, 'structural');
   }
   if (roomLoggers.length === 0 && midLoggers.length === 0) {
     const allNonExt = m.loggers.filter(id => !extSet.has(id));
@@ -3170,10 +3175,10 @@ function loadDataset(key) {
   roomDiv.innerHTML = '';
   const comfortRoomIds = (m.comfortLoggers || m.roomLoggers).filter(id => (m.roomLoggers || []).includes(id));
   const comfortStructIds = (m.comfortLoggers || []).filter(id => (m.structuralLoggers || []).includes(id));
-  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds), null, null, true);
+  addSection(roomDiv, state.selectedRoomLoggers, t('sectionRoom'), comfortRoomIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortRoomIds), null, null, true, 'sectionRoom');
   if (comfortStructIds.length > 0) {
     if (comfortRoomIds.length > 0) { const hr = document.createElement('hr'); hr.className = 'divider'; roomDiv.appendChild(hr); }
-    addSection(roomDiv, state.selectedRoomLoggers, 'Structural', comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds), null, null, true);
+    addSection(roomDiv, state.selectedRoomLoggers, t('sectionStructural'), comfortStructIds, mkSourceBtns(roomDiv, state.selectedRoomLoggers, comfortStructIds), null, null, true, 'sectionStructural');
   }
 
   // Show historic section if data available
@@ -3592,10 +3597,11 @@ function setupStaticListeners() {
       const loggerDiv = document.getElementById('logger-checkboxes');
       for (const child of loggerDiv.children) { child.style.display = ''; }
     }
-    // Re-apply periodic-only controls after section restore (which resets all display styles)
+    // Re-apply controls whose visibility was clobbered by the display reset above
     const _loggerDiv = document.getElementById('logger-checkboxes');
     _loggerDiv.querySelectorAll('.periodic-avg-cb').forEach(el => { el.style.display = isPeriodic ? '' : 'none'; });
     _loggerDiv.querySelectorAll('.lock-btn').forEach(el => { el.style.display = isPeriodic ? 'inline-block' : 'none'; });
+    if (!state.wetBulbEnabled) _loggerDiv.querySelectorAll('.wb-sub-label').forEach(el => { el.style.display = 'none'; });
     if (isBeta) {
       // already handled above
     } else if (isPeriodic) {
