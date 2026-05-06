@@ -1205,7 +1205,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
           <label class="cb-label" id="anomalous-label" style="display:none"><input type="checkbox" id="cb-exclude-anomalous"> Exclude anomalous data</label>
           <div id="wetbulb-adv-wrap" style="display:none">
             <hr class="divider">
-            <label class="cb-label"><input type="checkbox" id="cb-wetbulb"> Wet Bulb (Tw) <span class="info-i" id="wetbulb-info-icon">i</span></label>
+            <label class="cb-label"><input type="checkbox" id="cb-wetbulb"> <span data-i18n="wetBulbLabel">Wet Bulb (Tw)</span> <span class="info-i" id="wetbulb-info-icon">i</span></label>
             <div class="info-tip-fixed" id="wetbulb-info-tip"></div>
           </div>
           <hr class="divider" id="compare-divider">
@@ -1247,7 +1247,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label"><input type="checkbox" id="cb-historic-mode"> <b>Long-Term Mode</b> <span class="info-i" id="longterm-info-icon">i</span></label>
         <div class="info-tip-fixed" id="longterm-info-tip"></div>
         <div id="historic-series-checkboxes" style="display:none;margin-top:4px"></div>
-        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3">Long-term historic and projected future data generated from <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> information 2026.</div>
+        <div style="font-size:10px;color:#888;margin-top:4px;line-height:1.3"><span id="longterm-note-pre" data-i18n="longTermNotePre">Long-term historic and projected future data generated from</span> <a href="https://atlas.climate.copernicus.eu/atlas" target="_blank" style="color:#6a9fd8">Copernicus Climate Change Service</a> <span id="longterm-note-post" data-i18n="longTermNotePost">information 2026.</span></div>
       </div>
       <hr class="divider">
       <div id="periodic-completeness" class="hidden">
@@ -1286,8 +1286,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
             <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
             <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
-            <option value="default">Default comfort model</option>
-            <option value="none">No comfort band</option>
+            <option value="default" data-i18n="comfortModelDefault">Default comfort model</option>
+            <option value="none" data-i18n="comfortModelNone">No comfort band</option>
           </select>
         </div>
       </div>
@@ -1375,7 +1375,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       </div>
     </div>
     <div id="ext-data-warning" class="hidden" style="background:#fff3cd;border:1px solid #ffc107;border-radius:4px;padding:6px 10px;margin:4px 10px;font-size:12px;color:#856404;flex-shrink:0;">
-      &#9888; Open-Meteo external temperature data only covers to <b id="ext-data-end"></b>. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.
+      &#9888; <span id="ext-data-warning-pre">Open-Meteo external temperature data only covers to</span> <b id="ext-data-end"></b><span id="ext-data-warning-post">. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.</span>
     </div>
     <div id="chart"></div>
     <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:fixed;z-index:60;">i</span>
@@ -1615,21 +1615,55 @@ const I18N = {
     infoWetBulb: 'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
     infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
+    // Wet bulb checkbox label
+    wetBulbLabel: 'Wet Bulb (Tw)',
+    // Comfort model dropdown
+    comfortModelDefault: 'Default comfort model',
+    comfortModelNone: 'No comfort band',
+    // External data warning
+    extDataWarningPre: 'Open-Meteo external temperature data only covers to',
+    extDataWarningPost: '. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.',
+    // Long-term historic note
+    longTermNotePre: 'Long-term historic and projected future data generated from',
+    longTermNotePost: 'information 2026.',
+    // Substrat filter labels
+    filterBy: 'Filter by',
+    optNone: 'None',
+    dayOfMonth: 'Day of Month',
+    rangeToggle: 'range',
+    singleToggle: 'single',
+    // Synoptic period labels
+    lateNight: 'Late Night',
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    evening: 'Evening',
+    // Compare/filter description fragments
+    noLoggers: 'No loggers',
+    noFilter: 'No filter',
+    // Beta data quality legend
+    goodData: 'Good data',
+    gapLegend: 'Gap (>6h)',
+    adminFlagged: 'Admin flagged',
+    noDifference: 'no difference',
+    // Average profiles group-by labels
+    phase18: 'Phase (1–8)',
+    phasePNN: 'Phase (+/−/Neutral)',
+    phaseENSO: 'Phase (Niño/Niña/Neutral)',
   },
   sw: {
     title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
     periodSettings: 'Mipangilio ya Kipindi',
     histogramSettings: 'Mipangilio ya Histogramu',
     advancedSettings: 'Mipangilio ya Juu',
-    loggers: 'Loggers',
+    loggers: 'Vihisi',
     metrics: 'Vipimo',
     options: 'Chaguo',
-    roomLoggers: 'Room Loggers',
+    roomLoggers: 'Vihisi vya Chumba',
     groupBy: 'Panga kwa',
     cycle: 'Mzunguko',
-    barMode: 'Bar Mode',
-    range: 'Kipindi:',
-    comfortBand: 'Comfort band',
+    barMode: 'Mtindo wa Mhimili',
+    range: 'Muda:',
+    comfortBand: 'Bendi ya Starehe',
     pctCalc: 'Hesabu ya asilimia',
     numSets: 'Idadi ya seti:',
     from: 'Kutoka ',
@@ -1639,7 +1673,7 @@ const I18N = {
     threshold: 'Kiwango cha 32\u201335\u00b0C',
     seasonLines: 'Mistari ya Msimu',
     longTermMode: 'Hali ya Muda Mrefu',
-    densityHeatmap: 'Density Heatmap',
+    densityHeatmap: 'Ramani ya Msongamano',
     compareMode: 'Hali ya Kulinganisha',
     excludeAnomalous: 'Ondoa data isiyo ya kawaida',
     downloadPng: 'Pakua PNG',
@@ -1651,10 +1685,10 @@ const I18N = {
     noDataFilter: 'Hakuna data inayolingana na chujio',
     btnAll: 'Zote',
     btnNone: 'Hakuna',
-    lockAvg: 'Lock Avg',
-    unlockAvg: 'Unlock Avg',
+    lockAvg: 'Funga Wastani',
+    unlockAvg: 'Fungua Wastani',
     hour: 'Saa',
-    synopticHours: 'Synoptic Hours',
+    synopticHours: 'Saa za Sinoptiki',
     day: 'Siku',
     week: 'Wiki',
     month: 'Mwezi',
@@ -1664,19 +1698,17 @@ const I18N = {
     betweenDates: 'Kati ya tarehe',
     lineGraph: 'Grafu ya Mstari',
     histogram: 'Histogramu',
-    adaptiveComfort: 'Adaptive Comfort',
+    adaptiveComfort: 'Faraja ya Kubadilika',
     averageProfiles: 'Wastani wa Profaili',
     betaFeatures: 'Vipengele vya Beta',
     betaDiff: 'Tofauti ya Joto',
     betaDecrement: 'Kipengele cha Kupunguza',
     betaLag: 'Ucheleweshaji wa Joto',
     betaQuality: 'Ubora wa Data',
-    betaCrossBuild: 'Kulinganisha Majengo',
     betaDiffTitle: 'Tofauti ya Joto Ndani\u2013Nje',
     betaDecrementTitle: 'Kipengele cha Kupunguza kwa Chumba',
     betaLagTitle: 'Ucheleweshaji wa Joto kwa Chumba',
     betaQualityTitle: 'Ubora wa Data na Ugunduzi wa Kasoro',
-    betaCrossBuildTitle: 'Kulinganisha Majengo',
     betaDiffAxis: 'Tofauti ya Joto (\u00b0C)',
     betaDecrementAxis: 'Kipengele cha Kupunguza',
     betaLagAxis: 'Ucheleweshaji (masaa)',
@@ -1685,8 +1717,8 @@ const I18N = {
     infoBetaLag: 'Masaa mangapi kilele cha joto la ndani kinachelewa nyuma ya kilele cha nje. Ucheleweshaji mrefu = thermal mass nzuri.',
     infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor na mapungufu. Kijani = data nzuri, machungwa = pengo. Maeneo yaliyotambuliwa na msimamizi yanaonyeshwa kwa zambarau.',
 
-    stacked: 'Stacked',
-    overlay: 'Overlay',
+    stacked: 'Imerundikwa',
+    overlay: 'Imefunikwa',
     belowUpper: 'Chini ya mpaka wa juu',
     withinComfort: 'Ndani ya eneo la starehe',
     aboveLower: 'Juu ya mpaka wa chini',
@@ -1702,7 +1734,7 @@ const I18N = {
     tempDist: 'Usambazaji wa Joto',
     humidDist: 'Usambazaji wa Unyevunyevu',
     avgProfiles: 'Wastani wa Profaili',
-    adaptiveComfortTitle: 'Adaptive Comfort',
+    adaptiveComfortTitle: 'Faraja ya Kubadilika',
     dateTime: 'Tarehe / Saa',
     hourOfDay: 'Saa ya Siku',
     timeOfDay: 'Wakati wa Siku',
@@ -1715,8 +1747,8 @@ const I18N = {
     tempHumidAxis: 'Joto (\u00b0C) / Unyevunyevu (%RH)',
     airTempAxis: 'Joto la hewa (\u00b0C)  [\u2248 joto la uendeshaji]',
     runningMeanAxis: 'Wastani wa joto la nje (°C)',
-    proportionAxis: 'Uwiano wa masomo kwa kila sensor',
-    sumAxis: 'Jumla ya usambazaji wa masomo kwa sensors',
+    proportionAxis: 'Uwiano wa masomo kwa kila kihisi',
+    sumAxis: 'Jumla ya usambazaji wa masomo kwa vihisi',
     dataRangesFrom: 'Data kuanzia',
     dataRangesTo: 'hadi',
     overall: 'Jumla',
@@ -1733,10 +1765,10 @@ const I18N = {
     structuralAvg: 'Wastani wa Muundo',
     phase: 'Awamu',
     source: 'Chanzo',
-    runningMean: 'Wastani',
+    runningMean: 'Wastani unaoendelea',
     roomTemp: 'Joto la chumba',
     extSource: 'Chanzo cha nje',
-    sensor: 'Sensor',
+    sensor: 'Kihisi',
     // Info tooltip texts
     infoLine: 'Angalia jinsi joto na unyevunyevu unavyobadilika kwa kila sensor. Mistari ya wima inaonyesha mipaka ya misimu na bendi nyekundu inaonyesha kiwango cha joto hatari cha 32-35\u00b0C.',
     infoHistogramStack: 'Inaonyesha ni mara ngapi kiwango fulani cha joto au unyevunyevu kinatokea. Inasaidia kuona hali za kawaida na kulinganisha vyumba. Baa zimepangwa. Elekeza ili kuona thamani za kila sensor.',
@@ -1751,7 +1783,32 @@ const I18N = {
     wetBulbHover: 'Joto la mvua (Tw)',
     infoWetBulb: 'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
-    infoRunningMean: 'Wastani wa running mean ni wastani unaopimwa kwa nguvu zaidi kwa siku za hivi karibuni za joto la nje. Inaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje limekuwa juu, wenyeji wanastahimili joto zaidi ndani, kwa hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
+    infoRunningMean: 'Wastani unaoendelea ni wastani uliopimwa kwa uzito zaidi kwa siku za hivi karibuni za joto la nje. Unaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje likiwa juu, wenyeji wanastahimili joto zaidi ndani, hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
+    wetBulbLabel: 'Joto la Mvua (Tw)',
+    comfortModelDefault: 'Mfumo chaguo-msingi wa starehe',
+    comfortModelNone: 'Bila bendi ya starehe',
+    extDataWarningPre: 'Data ya joto la nje ya Open-Meteo inafika hadi',
+    extDataWarningPost: '. Sasisha CSV ya <code>open-meteo</code> kuona faraja ya kubadilika kwa tarehe za hivi karibuni.',
+    longTermNotePre: 'Data ya kihistoria ya muda mrefu na makadirio ya baadaye yamezalishwa kutoka',
+    longTermNotePost: 'taarifa 2026.',
+    filterBy: 'Chuja kwa',
+    optNone: 'Hakuna',
+    dayOfMonth: 'Siku ya Mwezi',
+    rangeToggle: 'kipindi',
+    singleToggle: 'moja',
+    lateNight: 'Usiku wa Manane',
+    morning: 'Asubuhi',
+    afternoon: 'Mchana',
+    evening: 'Jioni',
+    noLoggers: 'Hakuna vihisi',
+    noFilter: 'Hakuna chujio',
+    goodData: 'Data nzuri',
+    gapLegend: 'Pengo (>6h)',
+    adminFlagged: 'Iliyobainishwa na msimamizi',
+    noDifference: 'hakuna tofauti',
+    phase18: 'Awamu (1–8)',
+    phasePNN: 'Awamu (+/−/Neutral)',
+    phaseENSO: 'Awamu (Niño/Niña/Neutral)',
   }
 };
 function t(key) { return (I18N[currentLang] || I18N.en)[key] || I18N.en[key] || key; }
@@ -1932,6 +1989,31 @@ function applyLanguage() {
   // Update wet bulb suffix text on sub-labels
   document.querySelectorAll('.wb-suffix').forEach(span => { span.textContent = ' ' + t('wetBulbSuffix'); });
 
+  // ext-data-warning: post part contains HTML (<code>), set via innerHTML on the post span
+  const extPost = document.getElementById('ext-data-warning-post');
+  if (extPost) extPost.innerHTML = t('extDataWarningPost');
+  const extPre = document.getElementById('ext-data-warning-pre');
+  if (extPre) extPre.textContent = t('extDataWarningPre');
+
+  // Re-render Average Profiles group-by dropdown so its option labels follow the language
+  if (typeof window.updateGroupByDropdown === 'function') {
+    try { window.updateGroupByDropdown(); } catch(e) {}
+  }
+
+  // Re-render any open substrat filter blocks so their labels follow the language
+  document.querySelectorAll('.substrat-filter .substrat-row > label').forEach(lbl => {
+    const txt = (lbl.textContent || '').trim();
+    if (txt === 'Filter by' || txt === 'Chuja kwa') lbl.textContent = t('filterBy');
+    else if (txt === 'Group By' || txt === 'Panga kwa') lbl.textContent = t('groupBy');
+    else if (txt === 'From' || txt === 'Kutoka') lbl.textContent = t('from').trim();
+    else if (txt === 'To' || txt === 'Hadi') lbl.textContent = t('to').trim();
+  });
+  document.querySelectorAll('.substrat-range-toggle').forEach(el => {
+    const txt = (el.textContent || '').trim();
+    if (txt === 'range' || txt === 'kipindi') el.textContent = t('rangeToggle');
+    else if (txt === 'single' || txt === 'moja') el.textContent = t('singleToggle');
+  });
+
   // Re-render chart with translated labels
   if (typeof updatePlot === 'function') {
     try { updatePlot(); } catch(e) {}
@@ -1991,11 +2073,11 @@ function renderSubstratFilterBlock(f) {
 
   // Tier 1: cycle selector
   block.innerHTML = removeBtn +
-    '<div class="substrat-row"><label>Filter by</label>' +
+    '<div class="substrat-row"><label>' + t('filterBy') + '</label>' +
     '<select class="substrat-cycle" onchange="substratCycleChanged(' + f.id + ', this.value)">' +
-    '<option value="none">None</option>' +
-    '<option value="day">Day</option>' +
-    '<option value="year">Year</option>' +
+    '<option value="none">' + t('optNone') + '</option>' +
+    '<option value="day">' + t('day') + '</option>' +
+    '<option value="year">' + t('year') + '</option>' +
     '<option value="mjo">MJO</option>' +
     '<option value="iod">IOD</option>' +
     '<option value="enso">ENSO</option>' +
@@ -2028,11 +2110,11 @@ function substratCycleChanged(id, cycle) {
     // Tier 2: group-by dropdown
     let opts = '';
     if (cycle === 'day') {
-      opts = '<option value="hour">Hour</option><option value="synoptic">Synoptic Hours</option>';
+      opts = '<option value="hour">' + t('hour') + '</option><option value="synoptic">' + t('synopticHours') + '</option>';
     } else {
-      opts = '<option value="day">Day of Month</option><option value="week">Week</option><option value="month">Month</option><option value="season">Season</option>';
+      opts = '<option value="day">' + t('dayOfMonth') + '</option><option value="week">' + t('week') + '</option><option value="month">' + t('month') + '</option><option value="season">' + t('season') + '</option>';
     }
-    tier2.innerHTML = '<div class="substrat-row"><label>Group By</label>' +
+    tier2.innerHTML = '<div class="substrat-row"><label>' + t('groupBy') + '</label>' +
       '<select class="substrat-group-by" onchange="substratGroupByChanged(' + id + ', this.value)">' + opts + '</select></div>';
     // Auto-select first option
     const firstVal = tier2.querySelector('select').value;
@@ -2073,11 +2155,11 @@ function substratGroupByChanged(id, gran) {
 
   tier3.innerHTML = '<div class="substrat-row">' +
     '<select class="substrat-single" onchange="substratSingleChanged(' + id + ')">' + opts.html + '</select>' +
-    '<span class="substrat-range-toggle" onclick="substratToggleRange(' + id + ')">range</span>' +
+    '<span class="substrat-range-toggle" onclick="substratToggleRange(' + id + ')">' + t('rangeToggle') + '</span>' +
     '</div>' +
     '<div class="substrat-range-row substrat-row" style="display:none">' +
-    '<label>From</label><select class="substrat-from" onchange="substratRangeChanged(' + id + ')">' + opts.html + '</select>' +
-    '<label>To</label><select class="substrat-to" onchange="substratRangeChanged(' + id + ')">' + opts.html + '</select>' +
+    '<label>' + t('from').trim() + '</label><select class="substrat-from" onchange="substratRangeChanged(' + id + ')">' + opts.html + '</select>' +
+    '<label>' + t('to').trim() + '</label><select class="substrat-to" onchange="substratRangeChanged(' + id + ')">' + opts.html + '</select>' +
     '</div>';
   tier3.querySelector('.substrat-to').value = String(opts.lastVal);
   updatePlot();
@@ -2092,7 +2174,7 @@ function substratBuildOptions(cycle, gran) {
     }
     defaultVal = 0; lastVal = 23;
   } else if (cycle === 'day' && gran === 'synoptic') {
-    const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
+    const synLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
     for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + synLabels[s] + '</option>';
     defaultVal = 0; lastVal = 3;
   } else if (cycle === 'year' && gran === 'month') {
@@ -2137,7 +2219,7 @@ function substratToggleRange(id) {
   if (f._rangeMode) {
     singleRow.style.display = 'none';
     rangeRow.style.display = '';
-    toggle.textContent = 'single';
+    toggle.textContent = t('singleToggle');
     // Sync from/to dropdowns from current state
     block.querySelector('.substrat-from').value = String(f.from);
     block.querySelector('.substrat-to').value = String(f.to);
@@ -2146,7 +2228,7 @@ function substratToggleRange(id) {
   } else {
     singleRow.style.display = '';
     rangeRow.style.display = 'none';
-    toggle.textContent = 'range';
+    toggle.textContent = t('rangeToggle');
     // Snap to single: use 'from' value
     f.to = f.from;
     block.querySelector('.substrat-single').value = String(f.from);
@@ -2527,11 +2609,11 @@ function renderCompareSubstratBlock(si, f, container) {
 
   const row = document.createElement('div');
   row.className = 'substrat-row';
-  row.innerHTML = '<label>Filter by</label>' +
+  row.innerHTML = '<label>' + t('filterBy') + '</label>' +
     '<select class="substrat-cycle">' +
-    '<option value="none">None</option>' +
-    '<option value="day">Day</option>' +
-    '<option value="year">Year</option>' +
+    '<option value="none">' + t('optNone') + '</option>' +
+    '<option value="day">' + t('day') + '</option>' +
+    '<option value="year">' + t('year') + '</option>' +
     '<option value="mjo">MJO</option>' +
     '<option value="iod">IOD</option>' +
     '<option value="enso">ENSO</option>' +
@@ -2574,11 +2656,11 @@ function cmpSubstratCycleChanged(si, fid, cycle) {
   if (cycle === 'day' || cycle === 'year') {
     let opts = '';
     if (cycle === 'day') {
-      opts = '<option value="hour">Hour</option><option value="synoptic">Synoptic Hours</option>';
+      opts = '<option value="hour">' + t('hour') + '</option><option value="synoptic">' + t('synopticHours') + '</option>';
     } else {
-      opts = '<option value="day">Day of Month</option><option value="week">Week</option><option value="month">Month</option><option value="season">Season</option>';
+      opts = '<option value="day">' + t('dayOfMonth') + '</option><option value="week">' + t('week') + '</option><option value="month">' + t('month') + '</option><option value="season">' + t('season') + '</option>';
     }
-    tier2.innerHTML = '<div class="substrat-row"><label>Group By</label>' +
+    tier2.innerHTML = '<div class="substrat-row"><label>' + t('groupBy') + '</label>' +
       '<select class="substrat-group-by">' + opts + '</select></div>';
     const sel = tier2.querySelector('select');
     sel.addEventListener('change', function() {
@@ -2628,11 +2710,11 @@ function cmpSubstratGroupByChanged(si, fid, gran) {
 
   tier3.innerHTML = '<div class="substrat-row">' +
     '<select class="substrat-single">' + opts.html + '</select>' +
-    '<span class="substrat-range-toggle">range</span>' +
+    '<span class="substrat-range-toggle">' + t('rangeToggle') + '</span>' +
     '</div>' +
     '<div class="substrat-range-row substrat-row" style="display:none">' +
-    '<label>From</label><select class="substrat-from">' + opts.html + '</select>' +
-    '<label>To</label><select class="substrat-to">' + opts.html + '</select>' +
+    '<label>' + t('from').trim() + '</label><select class="substrat-from">' + opts.html + '</select>' +
+    '<label>' + t('to').trim() + '</label><select class="substrat-to">' + opts.html + '</select>' +
     '</div>';
   tier3.querySelector('.substrat-to').value = String(opts.lastVal);
 
@@ -2650,14 +2732,14 @@ function cmpSubstratGroupByChanged(si, fid, gran) {
     if (f._rangeMode) {
       singleRow.style.display = 'none';
       rangeRow.style.display = '';
-      this.textContent = 'single';
+      this.textContent = t('singleToggle');
       tier3.querySelector('.substrat-from').value = String(f.from);
       tier3.querySelector('.substrat-to').value = String(f.to);
       rangeRow.appendChild(this);
     } else {
       singleRow.style.display = '';
       rangeRow.style.display = 'none';
-      this.textContent = 'range';
+      this.textContent = t('rangeToggle');
       f.to = f.from;
       tier3.querySelector('.substrat-single').value = String(f.from);
       block.classList.remove('invalid');
@@ -2712,7 +2794,7 @@ function describeCompareDiffs() {
     if (!allSameLoggers) {
       const ids = infos[si].loggerIds;
       if (ids.length === 0) {
-        parts.push('No loggers');
+        parts.push(t('noLoggers'));
       } else {
         // Summarise by source type if possible
         const ttCount = ids.filter(id => m.loggerSources[id] === 'TinyTag').length;
@@ -2734,7 +2816,7 @@ function describeCompareDiffs() {
     if (!allSameFilters) {
       const desc = describeFilters(infos[si].filters);
       if (desc) parts.push(desc);
-      else parts.push('No filter');
+      else parts.push(t('noFilter'));
     }
     descriptions.push(parts.length > 0 ? parts.join(' · ') : '');
   }
@@ -2743,7 +2825,7 @@ function describeCompareDiffs() {
 
 function describeFilters(filters) {
   if (!filters || filters.length === 0) return '';
-  const synLabels = ['Late Night (00\u201306)', 'Morning (06\u201312)', 'Afternoon (12\u201318)', 'Evening (18\u201300)'];
+  const synLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
   const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const seasonLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
   const parts = [];
@@ -3751,14 +3833,17 @@ function setupStaticListeners() {
     state.showDensity = e.target.checked; updatePlot();
   });
 
-  // Average profiles controls
-  const groupByOptions = {
-    day:  [{value:'hour', label:'Hour'}, {value:'synoptic', label:'Synoptic Hours'}],
-    year: [{value:'day', label:'Day'}, {value:'week', label:'Week'}, {value:'month', label:'Month'}, {value:'season', label:'Season'}],
-    mjo:  [{value:'phase', label:'Phase (1–8)'}],
-    iod:  [{value:'phase', label:'Phase (+/−/Neutral)'}],
-    enso: [{value:'phase', label:'Phase (Niño/Niña/Neutral)'}],
-  };
+  // Average profiles controls — recomputed on each call so it follows the language
+  function groupByOptionsFor(cycle) {
+    const map = {
+      day:  [{value:'hour', label:t('hour')}, {value:'synoptic', label:t('synopticHours')}],
+      year: [{value:'day', label:t('day')}, {value:'week', label:t('week')}, {value:'month', label:t('month')}, {value:'season', label:t('season')}],
+      mjo:  [{value:'phase', label:t('phase18')}],
+      iod:  [{value:'phase', label:t('phasePNN')}],
+      enso: [{value:'phase', label:t('phaseENSO')}],
+    };
+    return map[cycle] || [];
+  }
   const oscInfoTexts = {
     mjo: 'Madden\u2013Julian Oscillation: a tropical weather pattern that circles the globe every 30\u201360 days, modulating rainfall and temperature. 8 phases track its position \u2014 Phases 2\u20133 (Indian Ocean) and 4\u20135 (Maritime Continent) are most relevant to East Africa. Weekly RMM phase data; weeks with amplitude < 1.0 are excluded.',
     iod: 'Indian Ocean Dipole: a sea-surface temperature gradient between the western and eastern Indian Ocean. Positive IOD brings wetter conditions to East Africa; Negative IOD brings drier conditions. Monthly DMI-based phases: Positive, Negative, or Neutral.',
@@ -3776,10 +3861,10 @@ function setupStaticListeners() {
       infoIcon.onmouseleave = () => { infoTip.style.display = 'none'; };
     }
   }
-  function updateGroupByDropdown() {
+  window.updateGroupByDropdown = function() {
     const gsel = document.getElementById('period-group-by');
     gsel.innerHTML = '';
-    const opts = groupByOptions[state.periodCycle] || [];
+    const opts = groupByOptionsFor(state.periodCycle);
     opts.forEach(o => gsel.add(new Option(o.label, o.value)));
     // Default: month for year, hour for day, phase for oscillations
     const defaults = {year:'month', day:'hour', mjo:'phase', iod:'phase', enso:'phase'};
@@ -5865,7 +5950,7 @@ function renderBetaDifferential() {
   }
 
   // Zero reference line
-  traces.push({x:[null],y:[null], type:'scatter', mode:'lines', name:'\u0394T = 0 (no difference)', line:{color:'#999',width:1,dash:'dash'}, hoverinfo:'skip', showlegend:true});
+  traces.push({x:[null],y:[null], type:'scatter', mode:'lines', name:'\u0394T = 0 (' + t('noDifference') + ')', line:{color:'#999',width:1,dash:'dash'}, hoverinfo:'skip', showlegend:true});
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
@@ -6150,7 +6235,7 @@ function renderBetaQuality() {
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
             hoverlabel: {align: 'left'},
-            hovertemplate: `${nameWithSrc}<br>Admin flagged<br>${reason}<br>%{x}<extra></extra>`,
+            hovertemplate: `${nameWithSrc}<br>${t('adminFlagged')}<br>${reason}<br>%{x}<extra></extra>`,
           });
         }
       }
@@ -6163,7 +6248,7 @@ function renderBetaQuality() {
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
             hoverlabel: {align: 'left'},
-            hovertemplate: `${nameWithSrc}<br>Admin flagged<br>${reason}<br>%{x}<extra></extra>`,
+            hovertemplate: `${nameWithSrc}<br>${t('adminFlagged')}<br>${reason}<br>%{x}<extra></extra>`,
           });
         }
       }
@@ -6173,12 +6258,12 @@ function renderBetaQuality() {
   }
 
   // Legend entries
-  traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Good data',line:{color:'#27ae60',width:8},showlegend:true,hoverinfo:'skip'});
-  traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Gap (>6h)',line:{color:'#e67e22',width:8},showlegend:true,hoverinfo:'skip'});
+  traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:t('goodData'),line:{color:'#27ae60',width:8},showlegend:true,hoverinfo:'skip'});
+  traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:t('gapLegend'),line:{color:'#e67e22',width:8},showlegend:true,hoverinfo:'skip'});
   // Only show admin-flagged legend if any anomalous ranges exist
   const _anomRanges = m.anomalousRanges || {};
   if (Object.keys(_anomRanges).length > 0) {
-    traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:'Admin flagged',line:{color:'#8e44ad',width:12},opacity:0.35,showlegend:true,hoverinfo:'skip'});
+    traces.push({x:[null],y:[null],type:'scatter',mode:'lines',name:t('adminFlagged'),line:{color:'#8e44ad',width:12},opacity:0.35,showlegend:true,hoverinfo:'skip'});
   }
 
   // Build y-axis tick labels
@@ -6239,7 +6324,7 @@ function renderPeriodicAverages() {
     getCategoryIdx = ms => eatDate(ms).getUTCHours();
   } else if (pr === 'day' && pg === 'synoptic') {
     nCats = 4;
-    categoryLabels = ['Late Night (00\u201306)','Morning (06\u201312)','Afternoon (12\u201318)','Evening (18\u201300)'];
+    categoryLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
     getCategoryIdx = ms => {
       const h = eatDate(ms).getUTCHours();
       if (h < 6) return 0; if (h < 12) return 1; if (h < 18) return 2; return 3;
