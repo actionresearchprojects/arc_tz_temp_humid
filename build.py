@@ -591,7 +591,10 @@ def load_omnisense_csv(path, sensor_filter=None):
                         continue
             if data_rows:
                 df = pd.DataFrame(data_rows)
-                df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+                # Detect dd/mm/yyyy format (manual exports) vs yyyy-mm-dd (automated SE format)
+                sample = df["datetime"].iloc[0] if not df.empty else ""
+                dayfirst = bool(re.match(r"\d{2}/\d{2}/\d{4}", str(sample)))
+                df["datetime"] = pd.to_datetime(df["datetime"], dayfirst=dayfirst, errors="coerce")
                 df["temperature"] = pd.to_numeric(df["temperature"], errors="coerce")
                 df["humidity"] = pd.to_numeric(df["humidity"], errors="coerce")
                 df = df.dropna()
