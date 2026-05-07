@@ -173,6 +173,15 @@ def main():
         print(csv_text[:500], file=sys.stderr)
         sys.exit(1)
 
+    # Validate that the CSV contains actual data rows, not just sensor metadata headers.
+    # A valid export has a column-header line with "temperature" and "humidity" followed
+    # by numeric data rows. An empty export contains only sensor_desc/site_name pairs.
+    if "temperature" not in csv_text or "humidity" not in csv_text:
+        print("ERROR: CSV contains no data columns — Omnisense returned an empty export.", file=sys.stderr)
+        print(f"  File size: {len(csv_data)} bytes", file=sys.stderr)
+        print(f"  Content preview:\n{csv_text[:600]}", file=sys.stderr)
+        sys.exit(1)
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     rotate_legacy()
     out_path = OUTPUT_DIR / f"omnisense_{now_tag}.csv"

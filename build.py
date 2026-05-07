@@ -7156,6 +7156,30 @@ def save_sensor_snapshot(datasets_dfs):
     print(f"  Saved sensor snapshot → {SNAPSHOT_PATH} ({size_mb:.1f} MB)")
 
 
+def update_snapshot_omnisense(omnisense_df):
+    """Patch the Omnisense entries in sensor_snapshot.json with fresh data in-place.
+    Called during --auto builds when a valid Omnisense CSV was loaded, so that the
+    snapshot never falls more than one build cycle behind the live data."""
+    if not SNAPSHOT_PATH.exists():
+        return
+    try:
+        snapshot = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return
+    if "house5" not in snapshot:
+        return
+    loggers = snapshot["house5"].setdefault("loggers", {})
+    for logger_id, ldf in omnisense_df.groupby("logger_id"):
+        loggers[logger_id] = {
+            "timestamps": [t.isoformat() for t in ldf.index],
+            "temperature": ldf["temperature"].round(2).tolist(),
+            "humidity": ldf["humidity"].round(2).tolist(),
+        }
+    SNAPSHOT_PATH.write_text(json.dumps(snapshot, separators=(",", ":")), encoding="utf-8")
+    size_mb = SNAPSHOT_PATH.stat().st_size / (1024 * 1024)
+    print(f"  Updated snapshot Omnisense entries → {SNAPSHOT_PATH} ({size_mb:.1f} MB)")
+
+
 def load_sensor_snapshot():
     """Load sensor snapshot and reconstruct DataFrames (without Open-Meteo data)."""
     print(f"Loading sensor snapshot from {SNAPSHOT_PATH}...")
@@ -7334,6 +7358,7 @@ def main():
                 os_df["iso_week"] = os_df.index.isocalendar().week.astype(int)
                 omnisense_df = os_df
                 print(f"  Fresh Omnisense: {len(omnisense_df):,} records (replacing snapshot Omnisense)")
+                update_snapshot_omnisense(omnisense_df)
         else:
             print("  No fresh Omnisense CSV found, using snapshot Omnisense data as fallback.")
 
