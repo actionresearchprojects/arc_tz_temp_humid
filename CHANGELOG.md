@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-05-07 14:20:00 CST
+- **Fix: Recover full Omnisense history and fix auto-build merge logic** — The previous fix replaced snapshot Omnisense wholesale with the fresh 90-day CSV, discarding all historical readings older than the lookback window. `update_snapshot_omnisense` also overwrote rather than merged. Fixed both: `--auto` now keeps snapshot Omnisense records before the fresh CSV window and merges (dedup by timestamp) within it; `update_snapshot_omnisense` similarly merges rather than replaces. Recovered `omnisense_20260415_0602.csv` from git history (Jan 25 – Apr 14) and ran a two-pass rebuild merged with the May 5 CSV (Apr 6 – May 1), restoring the full Jan 25 – May 1 range for all House 5 sensors. There is a real ~8-day sensor outage gap (Mar 29 – Apr 5) for all Omnisense units; this is genuine missing data, not a processing issue.
+
 ### 2026-05-07 13:35:00 CST
 - **Fix: Omnisense data gap (March 15 → May 1)** — The May 6 automated Omnisense fetch returned an empty export (sensor metadata headers only, no column headers or readings). The existing validation in `fetch_omnisense.py` only checked for `sensor_desc` in the response, which was present in the empty file, so the bad 939-byte CSV was saved and committed, and `build.py --auto` fell back to the snapshot (last full build: March 15), reverting the dashboard 7+ weeks.
   - `fetch_omnisense.py`: Added validation that the downloaded CSV contains `temperature` and `humidity` column headers; exits with error if not, preventing empty Omnisense exports from being saved and triggering the fallback.
