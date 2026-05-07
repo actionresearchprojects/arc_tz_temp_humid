@@ -1,5 +1,12 @@
 ## Changelog
 
+### 2026-05-07 13:35:00 CST
+- **Fix: Omnisense data gap (March 15 → May 1)** — The May 6 automated Omnisense fetch returned an empty export (sensor metadata headers only, no column headers or readings). The existing validation in `fetch_omnisense.py` only checked for `sensor_desc` in the response, which was present in the empty file, so the bad 939-byte CSV was saved and committed, and `build.py --auto` fell back to the snapshot (last full build: March 15), reverting the dashboard 7+ weeks.
+  - `fetch_omnisense.py`: Added validation that the downloaded CSV contains `temperature` and `humidity` column headers; exits with error if not, preventing empty Omnisense exports from being saved and triggering the fallback.
+  - `build.py`: Added `update_snapshot_omnisense()`, called in `--auto` mode whenever fresh Omnisense data is successfully parsed. Patches the snapshot's Omnisense entries in-place so a single failed fetch loses at most one day rather than reverting to the last full build.
+  - Restored `omnisense_20260505_0620.csv` from git history (last valid fetch, data through May 1, 2026) and deleted the empty May 6 file.
+  - Rebuilt `index.html` and patched `sensor_snapshot.json`; Omnisense data now current through May 1.
+
 ### 2026-05-06 17:18:00 CST
 - **Swahili audit & fill** — Reviewed every Kiswahili entry in the `I18N.sw` dictionary against its English counterpart. Replaced still-English-in-SW values with proper Swahili: `loggers` → `Vihisi`, `roomLoggers` → `Vihisi vya Chumba`, `barMode` → `Mtindo wa Mhimili`, `range` → `Muda:`, `comfortBand` → `Bendi ya Starehe`, `densityHeatmap` → `Ramani ya Msongamano`, `lockAvg`/`unlockAvg` → `Funga Wastani` / `Fungua Wastani`, `synopticHours` → `Saa za Sinoptiki`, `adaptiveComfort` / `adaptiveComfortTitle` → `Faraja ya Kubadilika`, `stacked` → `Imerundikwa`, `overlay` → `Imefunikwa`. Tightened `runningMean` (`Wastani` → `Wastani unaoendelea`), `sensor` (`Sensor` → `Kihisi`), `proportionAxis` / `sumAxis` (use `kihisi`/`vihisi`), and `infoRunningMean` phrasing.
 - **Removed dead SW keys** — `betaCrossBuild` / `betaCrossBuildTitle` had no English counterparts and weren't referenced anywhere; removed from the SW block. EN/SW key counts now match (156 each).
