@@ -7157,9 +7157,10 @@ def save_sensor_snapshot(datasets_dfs):
 
 
 def update_snapshot_omnisense(omnisense_df):
-    """Patch the Omnisense entries in sensor_snapshot.json with fresh data in-place.
-    Called during --auto builds when a valid Omnisense CSV was loaded, so that the
-    snapshot never falls more than one build cycle behind the live data."""
+    """Merge fresh Omnisense data into sensor_snapshot.json in-place.
+    Existing snapshot entries for each logger are preserved; fresh data is
+    merged in and duplicate timestamps deduplicated, so historical data older
+    than the 90-day CSV window is never discarded."""
     if not SNAPSHOT_PATH.exists():
         return
     try:
@@ -7169,11 +7170,24 @@ def update_snapshot_omnisense(omnisense_df):
     if "house5" not in snapshot:
         return
     loggers = snapshot["house5"].setdefault("loggers", {})
-    for logger_id, ldf in omnisense_df.groupby("logger_id"):
+    for logger_id, fresh_ldf in omnisense_df.groupby("logger_id"):
+        existing = loggers.get(logger_id, {})
+        if existing.get("timestamps"):
+            existing_idx = pd.DatetimeIndex(existing["timestamps"], name="datetime")
+            if existing_idx.tz is not None:
+                existing_idx = existing_idx.tz_convert(TIMEZONE)
+            existing_ldf = pd.DataFrame({
+                "temperature": existing["temperature"],
+                "humidity": existing["humidity"],
+            }, index=existing_idx)
+            merged = pd.concat([existing_ldf, fresh_ldf[["temperature", "humidity"]]])
+            merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+        else:
+            merged = fresh_ldf[["temperature", "humidity"]].sort_index()
         loggers[logger_id] = {
-            "timestamps": [t.isoformat() for t in ldf.index],
-            "temperature": ldf["temperature"].round(2).tolist(),
-            "humidity": ldf["humidity"].round(2).tolist(),
+            "timestamps": [t.isoformat() for t in merged.index],
+            "temperature": merged["temperature"].round(2).tolist(),
+            "humidity": merged["humidity"].round(2).tolist(),
         }
     SNAPSHOT_PATH.write_text(json.dumps(snapshot, separators=(",", ":")), encoding="utf-8")
     size_mb = SNAPSHOT_PATH.stat().st_size / (1024 * 1024)
@@ -7369,10 +7383,16 @@ def main():
                 ext_sensors = set(cfg.get("external_sensors", []))
                 filtered_ext = ext_df[ext_df["logger_id"].isin(ext_sensors)] if ext_sensors else ext_df
                 df = pd.concat([df, filtered_ext]).sort_index()
-            # If fresh Omnisense available, replace snapshot Omnisense for house5
+            # If fresh Omnisense available, merge with snapshot Omnisense for house5.
+            # Preserve snapshot data before the fresh CSV window so historical data
+            # older than the 90-day lookback is never discarded.
             if key == "house5" and not omnisense_df.empty:
+                fresh_start = omnisense_df.index.min()
+                pre_window = df[
+                    df["logger_id"].isin(OMNISENSE_T_H_SENSORS) & (df.index < fresh_start)
+                ]
                 df = df[~df["logger_id"].isin(OMNISENSE_T_H_SENSORS)]
-                df = pd.concat([df, omnisense_df]).sort_index()
+                df = pd.concat([df, pre_window, omnisense_df]).sort_index()
             # Exclude loggers not belonging to this dataset
             exclude = cfg.get("exclude_loggers", set())
             if exclude:
