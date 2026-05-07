@@ -154,6 +154,9 @@ def main():
     row_match = re.search(r"(\d+) rows of data", resp.text)
     row_count = row_match.group(1) if row_match else "?"
     print(f"  Download ready: {row_count} rows → {csv_path}")
+    if row_count == "0":
+        print("ERROR: Server reports 0 rows of data — export is empty.", file=sys.stderr)
+        sys.exit(1)
 
     # Step 4: Download CSV
     print("\n[4/4] Downloading CSV...")
