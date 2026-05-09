@@ -69,13 +69,18 @@ def main():
         start_candidate = (now_eat - timedelta(days=DEFAULT_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
         start_date = max(start_candidate, EARLIEST_DATA)
 
-    # Convert to dd/mm/yyyy (server expects this format for input)
-    start_ddmmyyyy = f"{start_date[8:10]}/{start_date[5:7]}/{start_date[0:4]}"
-    end_ddmmyyyy   = f"{today_str[8:10]}/{today_str[5:7]}/{today_str[0:4]}"
+    # Server expects M/D/YYYY (American format, no leading zeros) for input dates.
+    # Using dd/mm/yyyy causes ambiguous dates (e.g. 08/05 read as August 5 not May 8).
+    def to_mdy(iso: str) -> str:
+        y, m, d = iso.split("-")
+        return f"{int(m)}/{int(d)}/{y}"
+
+    start_mdy = to_mdy(start_date)
+    end_mdy   = to_mdy(today_str)
 
     print(f"Omnisense fetch — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Date range: {start_date} → {today_str}")
-    print(f"  Form dates (dd/mm/yyyy): {start_ddmmyyyy} → {end_ddmmyyyy}")
+    print(f"  Form dates (m/d/yyyy): {start_mdy} → {end_mdy}")
 
     session = requests.Session()
     session.headers.update(HEADERS)
@@ -118,8 +123,8 @@ def main():
         "sensorId": "",
         "gwayId": "",
         "dateFormat": "SE",          # required by server stored proc; SE = yyyy-mm-dd hh:mm:ss
-        "dnldFrDate": start_ddmmyyyy,
-        "dnldToDate": end_ddmmyyyy,
+        "dnldFrDate": start_mdy,
+        "dnldToDate": end_mdy,
         "averaging": "N",
         "btnAct": "Submit",
     }
