@@ -117,6 +117,7 @@ def main():
         "siteNbr": SITE_NBR,
         "sensorId": "",
         "gwayId": "",
+        "dateFormat": "SE",          # required by server stored proc; SE = yyyy-mm-dd hh:mm:ss
         "dnldFrDate": start_ddmmyyyy,
         "dnldToDate": end_ddmmyyyy,
         "averaging": "N",
