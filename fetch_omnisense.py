@@ -141,9 +141,10 @@ def main():
         match = re.search(r"go\(\s*'([^']+)'\)", resp.text)
 
     if not match:
-        print("WARNING: Could not find download link in response.", file=sys.stderr)
-        print("\nDone (no data downloaded).")
-        sys.exit(0)
+        print("ERROR: Could not find download link in response.", file=sys.stderr)
+        print(f"  Response size: {len(resp.text)} bytes", file=sys.stderr)
+        print(f"  Response preview:\n{resp.text[:1000]}", file=sys.stderr)
+        sys.exit(1)
 
     csv_path = match.group(1)
     if not csv_path.startswith("/fileshare/images/"):

@@ -34,7 +34,10 @@ def fetch_all():
         print(f"Fetching {name} from {src['url']} ...")
         try:
             r = requests.get(src["url"], timeout=60, headers={
-                "User-Agent": "Mozilla/5.0 (compatible; ARC-EcovillageBot/1.0)"
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+                )
             })
             r.raise_for_status()
             src["dest"].parent.mkdir(parents=True, exist_ok=True)
