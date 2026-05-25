@@ -101,6 +101,7 @@ jobs:
       - name: Read alert content
         id: alert
         if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
+        continue-on-error: true
         run: |
           if [ -f /tmp/alert_subject.txt ]; then
             echo "subject=$(cat /tmp/alert_subject.txt)" >> $GITHUB_OUTPUT
@@ -108,9 +109,9 @@ jobs:
             echo "subject=⚠️ ARC Dashboard: staleness check failed (${{ steps.staleness.outputs.checked_date }})" >> $GITHUB_OUTPUT
           fi
           {
-            echo 'html_body<<EOF'
+            echo 'html_body<<ARC_HTML_DELIM'
             cat /tmp/alert_body.html 2>/dev/null || echo "<p>Staleness check failed — please check the workflow logs.</p>"
-            echo EOF
+            echo ARC_HTML_DELIM
           } >> $GITHUB_OUTPUT
 
       - name: Send email alert
