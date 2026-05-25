@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARC Data Pipeline Status</title>
+  <style>
+    :root {
+      --ok:      #22c55e;
+      --stale:   #ef4444;
+      --unknown: #a3a3a3;
+      --ok-bg:      #f0fdf4;
+      --stale-bg:   #fef2f2;
+      --unknown-bg: #fafafa;
+      --border:  #e5e7eb;
+      --text:    #111827;
+      --muted:   #6b7280;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); color: var(--text); background: #f9fafb; padding: 1.5rem; }
+
+    .header { max-width: 760px; margin: 0 auto 2rem; }
+    .header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; }
+    .header p  { color: var(--muted); font-size: .9rem; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .6rem 1.2rem; border-radius: 9999px;
+      font-size: 1rem; font-weight: 700; margin: 1.25rem 0;
+    }
+    .badge.ok      { background: var(--ok);    color: #fff; }
+    .badge.stale   { background: var(--stale); color: #fff; }
+    .badge.unknown { background: var(--unknown); color: #fff; }
+    .badge .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.6); }
+
+    .meta { font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
+
+    table { width: 100%; max-width: 760px; margin: 0 auto; border-collapse: collapse;
+            background: #fff; border-radius: 10px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    thead th { background: #f3f4f6; text-align: left; padding: .75rem 1rem;
+               font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--muted); border-bottom: 1px solid var(--border); }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody td { padding: .8rem 1rem; font-size: .9rem; vertical-align: top; }
+    tbody tr.ok      { background: var(--ok-bg); }
+    tbody tr.stale   { background: var(--stale-bg); }
+    tbody tr.unknown { background: var(--unknown-bg); }
+
+    .pill {
+      display: inline-block; padding: .2rem .65rem; border-radius: 9999px;
+      font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .pill.ok      { background: #dcfce7; color: #15803d; }
+    .pill.stale   { background: #fee2e2; color: #b91c1c; }
+    .pill.unknown { background: #f3f4f6; color: var(--muted); }
+
+    .note { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
+
+    .footer { max-width: 760px; margin: 2rem auto 0;
+              font-size: .8rem; color: var(--muted); text-align: center; }
+    .footer a { color: var(--muted); }
+
+    .refresh-btn {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      padding: .3rem .75rem; font-size: .8rem; cursor: pointer; color: var(--muted);
+      margin-left: .75rem; transition: background .15s;
+    }
+    .refresh-btn:hover { background: #f3f4f6; }
+
+    @media (max-width: 600px) {
+      body { padding: 1rem; }
+      table { font-size: .85rem; }
+      tbody td { padding: .65rem .75rem; }
+      thead th { padding: .6rem .75rem; }
+      .col-age, .col-limit { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>ARC Data Pipeline Status</h1>
+  <p>Automated monitoring for the ARC ecovillage near Mkuranga, Tanzania</p>
+</div>
+
+<div style="max-width:760px;margin:0 auto">
+  <div id="overall-badge" class="badge unknown"><span class="dot"></span> Loading…</div>
+  <div id="meta" class="meta">Fetching status…</div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Source</th>
+      <th>Status</th>
+      <th>Latest data</th>
+      <th class="col-age">Age</th>
+      <th class="col-limit">Limit</th>
+    </tr>
+  </thead>
+  <tbody id="rows">
+    <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:2rem">Loading…</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">
+  Updated daily by GitHub Actions &mdash;
+  <a href="https://github.com/actionresearchprojects/arc_tz_temp_humid" target="_blank">source</a>
+  <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+  <div id="next-refresh" style="margin-top:.4rem"></div>
+</div>
+
+<script>
+  // Fetch status.json from the same directory as this page.
+  // On GitHub Pages this is the same repo; on the main site it is pushed there daily.
+  const JSON_URL = "status.json";
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+  function fmtAge(hours) {
+    if (hours === null || hours === undefined) return "—";
+    if (hours < 1)   return Math.round(hours * 60) + " min";
+    if (hours < 48)  return hours.toFixed(1) + " h";
+    return (hours / 24).toFixed(1) + " d";
+  }
+
+  function fmtLimit(hours) {
+    if (hours === null || hours === undefined) return "—";
+    if (hours < 48) return hours + " h";
+    return (hours / 24).toFixed(0) + " d";
+  }
+
+  function load() {
+    fetch(JSON_URL + "?t=" + Date.now())
+      .then(r => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(render)
+      .catch(err => {
+        document.getElementById("meta").textContent = "Could not load status.json: " + err;
+      });
+  }
+
+  function render(data) {
+    // Overall badge
+    const badge = document.getElementById("overall-badge");
+    const overall = data.overall || "unknown";
+    badge.className = "badge " + overall;
+    badge.innerHTML = '<span class="dot"></span> '
+      + (overall === "ok" ? "All systems operational" : "⚠ Data source issue detected");
+
+    // Meta line
+    document.getElementById("meta").innerHTML =
+      "Last checked: <strong>" + (data.checked_at || "unknown") + "</strong>"
+      + ' &mdash; <button class="refresh-btn" onclick="load()">↻ Refresh</button>';
+
+    // Table rows
+    const tbody = document.getElementById("rows");
+    tbody.innerHTML = "";
+    (data.sources || []).forEach(s => {
+      const tr = document.createElement("tr");
+      tr.className = s.status || "unknown";
+      tr.innerHTML = `
+        <td>
+          <strong>${s.label}</strong>
+          ${s.note ? '<div class="note">' + s.note + '</div>' : ''}
+        </td>
+        <td><span class="pill ${s.status || 'unknown'}">${s.status || 'unknown'}</span></td>
+        <td>${s.latest || '—'}</td>
+        <td class="col-age">${fmtAge(s.age_hours)}</td>
+        <td class="col-limit">${fmtLimit(s.threshold_hours)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Auto-refresh countdown
+  let nextRefresh = Date.now() + REFRESH_INTERVAL_MS;
+  function updateCountdown() {
+    const rem = Math.max(0, Math.round((nextRefresh - Date.now()) / 1000));
+    document.getElementById("next-refresh").textContent =
+      rem > 0 ? "Auto-refreshes in " + rem + "s" : "";
+  }
+  setInterval(() => {
+    updateCountdown();
+    if (Date.now() >= nextRefresh) {
+      nextRefresh = Date.now() + REFRESH_INTERVAL_MS;
+      load();
+    }
+  }, 1000);
+
+  load();
+</script>
+</body>
+</html>

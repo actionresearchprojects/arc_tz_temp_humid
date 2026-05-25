@@ -9,6 +9,7 @@ data/*
 !data/hist_proj/
 !data/config.json
 !data/loggers.json
+!data/status.json
 
 # Within cycles/, track everything
 !data/cycles/**

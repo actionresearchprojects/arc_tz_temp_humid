@@ -1,0 +1,47 @@
+name: Test alert system
+
+on:
+  workflow_dispatch:   # run manually from GitHub Actions tab
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send test email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "✅ ARC Monitor test – alert system is working"
+          to: ${{ secrets.ALERT_EMAILS }}
+          from: ARC Monitor <${{ secrets.GMAIL_USERNAME }}>
+          body: |
+            This is a test message from the ARC data pipeline monitor.
+
+            If you received this, email alerts are configured correctly.
+
+            Recipients are controlled by the ALERT_EMAILS secret in:
+            https://github.com/actionresearchprojects/arc_tz_temp_humid/settings/secrets/actions
+
+            To add recipients, edit ALERT_EMAILS (comma-separated addresses).
+
+            Status page: https://actionresearchprojects.github.io/status.html
+
+      - name: Send test ntfy notification
+        run: |
+          curl -s -X POST \
+            -H "Title: ARC Monitor test" \
+            -H "Priority: default" \
+            -H "Tags: white_check_mark" \
+            -d "Test notification from ARC data pipeline monitor. If you see this, ntfy alerts are working." \
+            https://ntfy.sh/arc-ecovillage-status-7k3m
+          echo "ntfy notification sent to arc-ecovillage-status-7k3m"
+
+      - name: Summary
+        run: |
+          echo "Test complete."
+          echo "  Email sent to: ${{ secrets.ALERT_EMAILS }}"
+          echo "  ntfy topic:    arc-ecovillage-status-7k3m"

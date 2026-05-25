@@ -38,6 +38,14 @@ jobs:
           OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
         run: python fetch_omnisense.py
 
+      # ── staleness check ────────────────────────────────────────────────────
+      # Runs after all fetches (even if some fail) and always writes
+      # data/status.json. Exits 1 if any source is stale.
+      - name: Check data staleness
+        id: staleness
+        continue-on-error: true
+        run: python check_staleness.py
+
       - name: Rebuild dashboard
         run: python build.py --auto
 
@@ -46,15 +54,37 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@users.noreply.github.com"
-          git add data/openmeteo/ index.html
+          git add data/openmeteo/ data/status.json index.html status.html
           [ -d data/omnisense ] && git add data/omnisense/ || true
-          [ -d data/cycles ] && git add data/cycles/ || true
+          [ -d data/cycles ]   && git add data/cycles/    || true
           if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "auto-update data $(date -u +%Y-%m-%d)"
             git push
             echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ── push status.json + status.html to main site ────────────────────────
+      - name: Push status page to main site
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.MAIN_SITE_PAT }}
+        run: |
+          git clone --depth 1 \
+            https://x-access-token:${{ secrets.MAIN_SITE_PAT }}@github.com/actionresearchprojects/actionresearchprojects.github.io.git \
+            /tmp/main_site
+          cp data/status.json /tmp/main_site/status.json
+          cp status.html       /tmp/main_site/status.html
+          cd /tmp/main_site
+          git config user.name "github-actions[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git add status.json status.html
+          if git diff --cached --quiet; then
+            echo "Status page unchanged — no commit needed"
+          else
+            git commit -m "auto: update status page $(date -u +%Y-%m-%d)"
+            git push
           fi
 
       - name: Trigger main site sync
@@ -65,3 +95,46 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
             https://api.github.com/repos/actionresearchprojects/actionresearchprojects.github.io/dispatches \
             -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_temp_humid"}}'
+
+      # ── alerts (only fire when staleness check flagged stale data) ─────────
+      - name: Read alert content
+        id: alert
+        if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
+        run: |
+          if [ -f /tmp/alert_subject.txt ]; then
+            echo "subject=$(cat /tmp/alert_subject.txt)" >> $GITHUB_OUTPUT
+          else
+            echo "subject=⚠ ARC Dashboard: staleness check failed (${{ steps.staleness.outputs.checked_date }})" >> $GITHUB_OUTPUT
+          fi
+          {
+            echo 'body<<EOF'
+            cat /tmp/alert_body.txt 2>/dev/null || echo "Staleness check failed — please check the workflow logs."
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
+      - name: Send email alert
+        if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: ${{ steps.alert.outputs.subject }}
+          to: ${{ secrets.ALERT_EMAILS }}
+          from: ARC Monitor <${{ secrets.GMAIL_USERNAME }}>
+          body: ${{ steps.alert.outputs.body }}
+
+      - name: Send ntfy notification
+        if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          MSG=$(cat /tmp/ntfy_body.txt 2>/dev/null || echo "ARC Dashboard: data staleness detected. Check status page.")
+          curl -s -X POST \
+            -H "Title: ARC Data Alert" \
+            -H "Priority: high" \
+            -H "Tags: warning,chart_with_downwards_trend" \
+            -d "$MSG" \
+            https://ntfy.sh/arc-ecovillage-status-7k3m
