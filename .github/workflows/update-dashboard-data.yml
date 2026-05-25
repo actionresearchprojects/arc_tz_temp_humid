@@ -51,6 +51,7 @@ jobs:
 
       - name: Commit and push if changed
         id: push
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "actions@users.noreply.github.com"
@@ -61,7 +62,7 @@ jobs:
             echo "changed=false" >> $GITHUB_OUTPUT
           else
             git commit -m "auto-update data $(date -u +%Y-%m-%d)"
-            git push
+            git pull --rebase && git push
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
@@ -99,7 +100,7 @@ jobs:
       # ── alerts (only fire when staleness check flagged stale data) ─────────
       - name: Read alert content
         id: alert
-        if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
+        if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
         run: |
           if [ -f /tmp/alert_subject.txt ]; then
             echo "subject=$(cat /tmp/alert_subject.txt)" >> $GITHUB_OUTPUT
@@ -113,7 +114,7 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Send email alert
-        if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
+        if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
         continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
@@ -128,7 +129,7 @@ jobs:
           html_body: ${{ steps.alert.outputs.html_body }}
 
       - name: Send ntfy notification
-        if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
+        if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
         continue-on-error: true
         run: |
           MSG=$(cat /tmp/ntfy_body.txt 2>/dev/null || echo "ARC Dashboard: data staleness detected. Check status page: https://actionresearchprojects.net/status")
