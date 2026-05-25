@@ -31,7 +31,7 @@ NOW = datetime.now(timezone.utc)
 
 THRESHOLDS_H = {
     "omnisense_fetch":  36,        # how recently did the action successfully fetch?
-    "omnisense_data":   15,        # TEMP – test alert
+    "omnisense_data":   24,        # flag if no new sensor reading in over a day
     "openmeteo_hist":   36,        # historical data goes to yesterday; 36h gives comfortable margin
     "openmeteo_fc":     36,        # checks fetch date (forecast end is always ~16 days out)
     "enso":             90 * 24,   # NOAA ONI is monthly with up to ~3 month publication lag
