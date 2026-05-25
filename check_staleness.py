@@ -59,7 +59,7 @@ NOTES = {
     "enso": "Monthly index; NOAA publishes with up to ~3 month lag — alerts only if data is >90 days old",
     "iod":  "Weekly index from BoM; up to 14 days lag is normal",
     "mjo":  "Daily index; NOAA typically lags 2–5 days",
-    "openmeteo_fc": "Forecast always extends ~16 days ahead; fetch date is what matters",
+    "openmeteo_fc": "Latest data shows forecast horizon (~16 days out); fetch date is the freshness signal",
 }
 
 STATUS_PAGE = "https://actionresearchprojects.net/status"
@@ -178,12 +178,13 @@ def latest_oni_date(path: str):
 # ── entry builder ──────────────────────────────────────────────────────────────
 
 def age_status(dt, threshold_h):
-    """Return (status, age_hours) for a datetime against a threshold (None = no check)."""
+    """Return (status, age_hours) for a datetime against a threshold (None = no check).
+    Future dates (negative age) return age_hours=None so display omits the age label."""
     if dt is None:
         return "unknown", None
     age_h = (NOW - dt).total_seconds() / 3600
     if threshold_h is None:
-        return "ok", round(age_h, 1)
+        return "ok", round(age_h, 1) if age_h >= 0 else None
     return ("ok" if age_h <= threshold_h else "stale"), round(age_h, 1)
 
 
@@ -231,9 +232,10 @@ def run():
     sources.append(entry("openmeteo_hist",
         fetch_dt=file_date_from_glob("openmeteo/historical_*.csv"),
         data_dt=latest_iso_in_file(hist_files[-1] if hist_files else None, col=0)))
+    fc_files = sorted(glob.glob(os.path.join(DATA, "openmeteo", "forecast_*.csv")))
     sources.append(entry("openmeteo_fc",
         fetch_dt=file_date_from_glob("openmeteo/forecast_*.csv"),
-        data_dt=None))
+        data_dt=latest_iso_in_file(fc_files[-1] if fc_files else None, col=0)))
 
     # Climate cycles – files are overwritten in-place (no timestamp in name)
     # so only data currency is tracked
