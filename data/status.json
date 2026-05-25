@@ -1,12 +1,12 @@
 {
-  "checked_at": "2026-05-25 08:52 UTC",
+  "checked_at": "2026-05-25 08:56 UTC",
   "overall": "ok",
   "sources": [
     {
       "key": "omnisense_fetch",
       "label": "Omnisense (action fetch date)",
       "status": "ok",
-      "latest": "2026-05-25 08:51 UTC",
+      "latest": "2026-05-25 08:56 UTC",
       "age_hours": 0.0,
       "threshold_hours": 36,
       "note": ""
@@ -15,7 +15,7 @@
       "key": "omnisense_data",
       "label": "Omnisense (sensor data currency)",
       "status": "ok",
-      "latest": "2026-05-24 13:04 UTC",
+      "latest": "2026-05-24 13:09 UTC",
       "age_hours": 19.8,
       "threshold_hours": 36,
       "note": ""
@@ -33,7 +33,7 @@
       "key": "openmeteo_fc",
       "label": "Open-Meteo forecast",
       "status": "ok",
-      "latest": "2026-05-25 08:51 UTC",
+      "latest": "2026-05-25 08:55 UTC",
       "age_hours": 0.0,
       "threshold_hours": 36,
       "note": ""
