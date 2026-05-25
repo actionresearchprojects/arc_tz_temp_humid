@@ -55,7 +55,7 @@ NOTES = {
     "mjo":  "Daily index; NOAA typically lags 2–5 days",
 }
 
-STATUS_PAGE = "https://actionresearchprojects.github.io/status.html"
+STATUS_PAGE = "https://actionresearchprojects.net/status"
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────

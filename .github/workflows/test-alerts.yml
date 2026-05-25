@@ -28,7 +28,7 @@ jobs:
 
             To add recipients, edit ALERT_EMAILS (comma-separated addresses).
 
-            Status page: https://actionresearchprojects.github.io/status.html
+            Status page: https://actionresearchprojects.net/status
 
       - name: Send test ntfy notification
         run: |
