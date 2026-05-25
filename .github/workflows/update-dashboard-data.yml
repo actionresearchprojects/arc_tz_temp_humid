@@ -98,36 +98,14 @@ jobs:
             -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_temp_humid"}}'
 
       # ── alerts (only fire when staleness check flagged stale data) ─────────
-      - name: Read alert content
-        id: alert
-        if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
-        continue-on-error: true
-        run: |
-          if [ -f /tmp/alert_subject.txt ]; then
-            echo "subject=$(cat /tmp/alert_subject.txt)" >> $GITHUB_OUTPUT
-          else
-            echo "subject=⚠️ ARC Dashboard: staleness check failed (${{ steps.staleness.outputs.checked_date }})" >> $GITHUB_OUTPUT
-          fi
-          {
-            echo 'html_body<<ARC_HTML_DELIM'
-            cat /tmp/alert_body.html 2>/dev/null || echo "<p>Staleness check failed — please check the workflow logs.</p>"
-            echo ARC_HTML_DELIM
-          } >> $GITHUB_OUTPUT
-
       - name: Send email alert
         if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
         continue-on-error: true
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.GMAIL_USERNAME }}
-          password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: ${{ steps.alert.outputs.subject }}
-          to: ${{ secrets.ALERT_EMAILS }}
-          from: ARC Monitor <${{ secrets.GMAIL_USERNAME }}>
-          html_body: ${{ steps.alert.outputs.html_body }}
+        env:
+          GMAIL_USERNAME: ${{ secrets.GMAIL_USERNAME }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ALERT_EMAILS: ${{ secrets.ALERT_EMAILS }}
+        run: python send_alert_email.py
 
       - name: Send ntfy notification
         if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
