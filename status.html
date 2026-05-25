@@ -1,196 +1,311 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ARC Data Pipeline Status</title>
+  <meta name="viewport" content="width=1440">
+  <title>Data Pipeline Status – ARC</title>
+  <link rel="icon" type="image/png" sizes="any" href="assets/images/favicon.png">
+  <link href="assets/images/favicon.png" rel="icon" media="(prefers-color-scheme: light)">
+  <link href="assets/images/favicon.png" rel="icon" media="(prefers-color-scheme: dark)">
+  <link rel="apple-touch-icon" href="assets/images/favicon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#333333">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --ok:      #22c55e;
-      --stale:   #ef4444;
-      --unknown: #a3a3a3;
-      --ok-bg:      #f0fdf4;
-      --stale-bg:   #fef2f2;
-      --unknown-bg: #fafafa;
-      --border:  #e5e7eb;
-      --text:    #111827;
-      --muted:   #6b7280;
-      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { height: 100%; background: url('assets/images/support-page-background.webp') center / cover no-repeat fixed; }
+    body {
+      font-family: "Ubuntu", sans-serif;
+      background: transparent;
+      color: #222;
+      min-height: 100%;
+      -webkit-font-smoothing: antialiased;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: var(--font); color: var(--text); background: #f9fafb; padding: 1.5rem; }
 
-    .header { max-width: 760px; margin: 0 auto 2rem; }
-    .header h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; }
-    .header p  { color: var(--muted); font-size: .9rem; }
-
-    .badge {
-      display: inline-flex; align-items: center; gap: .5rem;
-      padding: .6rem 1.2rem; border-radius: 9999px;
-      font-size: 1rem; font-weight: 700; margin: 1.25rem 0;
+    /* ── header (matches contact page exactly) ─────────────────────────────── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 36px 72px 0;
     }
-    .badge.ok      { background: var(--ok);    color: #fff; }
-    .badge.stale   { background: var(--stale); color: #fff; }
-    .badge.unknown { background: var(--unknown); color: #fff; }
-    .badge .dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.6); }
+    .page-header .logo img { height: 54px; width: auto; }
+    .page-header nav { display: flex; align-items: center; gap: 24px; }
+    .page-header nav a {
+      font-size: 14px;
+      font-weight: 400;
+      color: #888;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .page-header nav a:hover { color: #222; }
+    .linkedin-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.45;
+      transition: opacity 0.2s;
+    }
+    .linkedin-icon:hover { opacity: 0.8; }
+    .linkedin-icon svg { width: 22px; height: 22px; fill: #222; }
 
-    .meta { font-size: .85rem; color: var(--muted); margin-bottom: 1.75rem; }
+    /* ── hero ──────────────────────────────────────────────────────────────── */
+    .page-hero {
+      text-align: center;
+      padding: 48px 80px 16px;
+    }
+    .page-hero h1 {
+      font-size: 46px;
+      font-weight: 500;
+      color: #111;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+    .page-hero .tagline {
+      font-size: 18px;
+      font-weight: 300;
+      color: #666;
+      max-width: 680px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
 
-    table { width: 100%; max-width: 760px; margin: 0 auto; border-collapse: collapse;
-            background: #fff; border-radius: 10px; overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    thead th { background: #f3f4f6; text-align: left; padding: .75rem 1rem;
-               font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
-               color: var(--muted); border-bottom: 1px solid var(--border); }
-    tbody tr { border-bottom: 1px solid var(--border); }
+    /* ── body layout ───────────────────────────────────────────────────────── */
+    .page-body {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 72px 80px;
+    }
+
+    /* ── overall badge ─────────────────────────────────────────────────────── */
+    .overall-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 400;
+      margin-bottom: 8px;
+    }
+    .overall-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .overall-badge.ok      { background: rgba(34,197,94,0.12); color: #15803d; }
+    .overall-badge.ok .dot { background: #22c55e; }
+    .overall-badge.stale      { background: rgba(239,68,68,0.1); color: #b91c1c; }
+    .overall-badge.stale .dot { background: #ef4444; }
+    .overall-badge.unknown      { background: rgba(0,0,0,0.06); color: #888; }
+    .overall-badge.unknown .dot { background: #bbb; }
+
+    .meta-line {
+      font-size: 13px;
+      font-weight: 300;
+      color: #888;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── card (matches contact-form-card) ──────────────────────────────────── */
+    .status-card {
+      background: rgba(255,255,255,0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 36px;
+    }
+
+    /* ── section heading (matches contact-info h2) ─────────────────────────── */
+    .section-heading {
+      font-size: 17px;
+      font-weight: 500;
+      color: #111;
+      letter-spacing: 0.2px;
+      margin-bottom: 20px;
+    }
+    .section-heading::before {
+      content: "";
+      display: inline-block;
+      width: 3px;
+      height: 15px;
+      background: #ccc;
+      border-radius: 2px;
+      margin-right: 10px;
+      vertical-align: middle;
+      position: relative;
+      top: -1px;
+    }
+
+    /* ── table ─────────────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      font-size: 11px;
+      font-weight: 500;
+      color: #bbb;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0 16px 10px 0;
+      text-align: left;
+      border-bottom: 1px solid rgba(0,0,0,0.07);
+    }
+    tbody tr { border-bottom: 1px solid rgba(0,0,0,0.05); }
     tbody tr:last-child { border-bottom: none; }
-    tbody td { padding: .8rem 1rem; font-size: .9rem; vertical-align: top; }
-    tbody tr.ok      { background: var(--ok-bg); }
-    tbody tr.stale   { background: var(--stale-bg); }
-    tbody tr.unknown { background: var(--unknown-bg); }
+    tbody td {
+      padding: 13px 16px 13px 0;
+      font-size: 14px;
+      font-weight: 300;
+      color: #444;
+      vertical-align: top;
+    }
+    .source-name { font-weight: 400; color: #111; margin-bottom: 2px; }
+    .source-note { font-size: 12px; color: #bbb; }
 
+    /* ── status pill ───────────────────────────────────────────────────────── */
     .pill {
-      display: inline-block; padding: .2rem .65rem; border-radius: 9999px;
-      font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
     }
-    .pill.ok      { background: #dcfce7; color: #15803d; }
-    .pill.stale   { background: #fee2e2; color: #b91c1c; }
-    .pill.unknown { background: #f3f4f6; color: var(--muted); }
+    .pill.ok      { background: rgba(34,197,94,0.12); color: #15803d; }
+    .pill.stale   { background: rgba(239,68,68,0.10); color: #b91c1c; }
+    .pill.unknown { background: rgba(0,0,0,0.06);     color: #888; }
 
-    .note { font-size: .78rem; color: var(--muted); margin-top: .2rem; }
-
-    .footer { max-width: 760px; margin: 2rem auto 0;
-              font-size: .8rem; color: var(--muted); text-align: center; }
-    .footer a { color: var(--muted); }
-
+    /* ── refresh button ────────────────────────────────────────────────────── */
     .refresh-btn {
-      background: none; border: 1px solid var(--border); border-radius: 6px;
-      padding: .3rem .75rem; font-size: .8rem; cursor: pointer; color: var(--muted);
-      margin-left: .75rem; transition: background .15s;
+      font-family: "Ubuntu", sans-serif;
+      font-size: 13px;
+      font-weight: 300;
+      color: #888;
+      background: none;
+      border: 1px solid rgba(0,0,0,0.12);
+      border-radius: 8px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
     }
-    .refresh-btn:hover { background: #f3f4f6; }
+    .refresh-btn:hover { color: #222; border-color: rgba(0,0,0,0.3); }
 
-    @media (max-width: 600px) {
-      body { padding: 1rem; }
-      table { font-size: .85rem; }
-      tbody td { padding: .65rem .75rem; }
-      thead th { padding: .6rem .75rem; }
-      .col-age, .col-limit { display: none; }
+    /* ── footer (matches site) ─────────────────────────────────────────────── */
+    #site-footer {
+      position: fixed;
+      bottom: 6px;
+      right: 10px;
+      z-index: 10;
+      font-family: "Ubuntu", sans-serif;
+      font-size: 10px;
+      font-weight: 300;
+      color: rgba(0,0,0,0.4);
+      pointer-events: auto;
     }
+    #site-footer a { color: rgba(0,0,0,0.4); text-decoration: none; }
+    #site-footer a:hover { color: rgba(0,0,0,0.6); }
   </style>
 </head>
 <body>
+<div id="main">
 
-<div class="header">
-  <h1>ARC Data Pipeline Status</h1>
-  <p>Automated monitoring for the ARC ecovillage near Mkuranga, Tanzania</p>
+  <div class="page-header">
+    <a href="/" class="logo"><img src="assets/images/arc-logo.png" alt="ARC" decoding="auto"></a>
+    <nav>
+      <a href="/about">About</a>
+      <a href="/privacy">Privacy</a>
+      <a href="https://www.linkedin.com/company/arc-cool-buildings" target="_blank" rel="noopener" class="linkedin-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      </a>
+    </nav>
+  </div>
+
+  <div class="page-hero">
+    <h1>Data Pipeline Status</h1>
+    <p class="tagline">Live monitoring of ARC ecovillage data sources near Mkuranga, Tanzania</p>
+  </div>
+
+  <div class="page-body">
+    <div id="overall-badge" class="overall-badge unknown">
+      <span class="dot"></span>
+      <span id="overall-text">Loading…</span>
+    </div>
+    <div class="meta-line">
+      <span id="meta">Fetching status…</span>
+      <button class="refresh-btn" onclick="load()" style="margin-left:10px">↻ Refresh</button>
+    </div>
+
+    <div class="status-card">
+      <h2 class="section-heading">Data sources</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Latest data</th>
+            <th>Age</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="4" style="color:#bbb;padding:20px 0">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
-<div style="max-width:760px;margin:0 auto">
-  <div id="overall-badge" class="badge unknown"><span class="dot"></span> Loading…</div>
-  <div id="meta" class="meta">Fetching status…</div>
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th>Source</th>
-      <th>Status</th>
-      <th>Latest data</th>
-      <th class="col-age">Age</th>
-      <th class="col-limit">Limit</th>
-    </tr>
-  </thead>
-  <tbody id="rows">
-    <tr><td colspan="5" style="color:var(--muted);text-align:center;padding:2rem">Loading…</td></tr>
-  </tbody>
-</table>
-
-<div class="footer">
-  Updated daily by GitHub Actions &mdash;
-  <a href="https://github.com/actionresearchprojects/arc_tz_temp_humid" target="_blank">source</a>
-  <button class="refresh-btn" onclick="load()">↻ Refresh</button>
-  <div id="next-refresh" style="margin-top:.4rem"></div>
+<div id="site-footer">
+  © 2026 ARC · <a href="/privacy">Privacy</a>
 </div>
 
 <script>
-  // Fetch status.json from the same directory as this page.
-  // On GitHub Pages this is the same repo; on the main site it is pushed there daily.
   const JSON_URL = "status.json";
-  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const REFRESH_MS = 5 * 60 * 1000;
 
-  function fmtAge(hours) {
-    if (hours === null || hours === undefined) return "—";
-    if (hours < 1)   return Math.round(hours * 60) + " min";
-    if (hours < 48)  return hours.toFixed(1) + " h";
-    return (hours / 24).toFixed(1) + " d";
-  }
-
-  function fmtLimit(hours) {
-    if (hours === null || hours === undefined) return "—";
-    if (hours < 48) return hours + " h";
-    return (hours / 24).toFixed(0) + " d";
+  function fmtAge(h) {
+    if (h === null || h === undefined) return "—";
+    if (h < 1)  return Math.round(h * 60) + " min";
+    if (h < 48) return h.toFixed(1) + "h";
+    return (h / 24).toFixed(1) + "d";
   }
 
   function load() {
     fetch(JSON_URL + "?t=" + Date.now())
-      .then(r => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      })
+      .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(render)
-      .catch(err => {
-        document.getElementById("meta").textContent = "Could not load status.json: " + err;
-      });
+      .catch(err => { document.getElementById("meta").textContent = "Could not load status.json: " + err; });
   }
 
   function render(data) {
-    // Overall badge
-    const badge = document.getElementById("overall-badge");
     const overall = data.overall || "unknown";
-    badge.className = "badge " + overall;
-    badge.innerHTML = '<span class="dot"></span> '
-      + (overall === "ok" ? "All systems operational" : "⚠ Data source issue detected");
+    const badge = document.getElementById("overall-badge");
+    badge.className = "overall-badge " + overall;
+    document.getElementById("overall-text").textContent =
+      overall === "ok" ? "All systems operational" : "⚠️ Data source issue detected";
 
-    // Meta line
     document.getElementById("meta").innerHTML =
-      "Last checked: <strong>" + (data.checked_at || "unknown") + "</strong>"
-      + ' &mdash; <button class="refresh-btn" onclick="load()">↻ Refresh</button>';
+      "Last checked: <strong style='font-weight:400;color:#555'>" + (data.checked_at || "unknown") + "</strong>";
 
-    // Table rows
     const tbody = document.getElementById("rows");
     tbody.innerHTML = "";
     (data.sources || []).forEach(s => {
       const tr = document.createElement("tr");
-      tr.className = s.status || "unknown";
-      tr.innerHTML = `
-        <td>
-          <strong>${s.label}</strong>
-          ${s.note ? '<div class="note">' + s.note + '</div>' : ''}
-        </td>
-        <td><span class="pill ${s.status || 'unknown'}">${s.status || 'unknown'}</span></td>
-        <td>${s.latest || '—'}</td>
-        <td class="col-age">${fmtAge(s.age_hours)}</td>
-        <td class="col-limit">${fmtLimit(s.threshold_hours)}</td>
-      `;
+      tr.innerHTML =
+        "<td><div class='source-name'>" + s.label + "</div>" +
+        (s.note ? "<div class='source-note'>" + s.note + "</div>" : "") + "</td>" +
+        "<td><span class='pill " + (s.status || "unknown") + "'>" + (s.status || "unknown") + "</span></td>" +
+        "<td>" + (s.latest || "—") + "</td>" +
+        "<td>" + fmtAge(s.age_hours) + "</td>";
       tbody.appendChild(tr);
     });
   }
 
-  // Auto-refresh countdown
-  let nextRefresh = Date.now() + REFRESH_INTERVAL_MS;
-  function updateCountdown() {
-    const rem = Math.max(0, Math.round((nextRefresh - Date.now()) / 1000));
-    document.getElementById("next-refresh").textContent =
-      rem > 0 ? "Auto-refreshes in " + rem + "s" : "";
-  }
+  let nextRefresh = Date.now() + REFRESH_MS;
   setInterval(() => {
-    updateCountdown();
-    if (Date.now() >= nextRefresh) {
-      nextRefresh = Date.now() + REFRESH_INTERVAL_MS;
-      load();
-    }
-  }, 1000);
+    if (Date.now() >= nextRefresh) { nextRefresh = Date.now() + REFRESH_MS; load(); }
+  }, 10000);
 
   load();
 </script>
