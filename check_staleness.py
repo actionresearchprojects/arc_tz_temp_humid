@@ -233,50 +233,81 @@ def run():
             f.write(f"checked_date={NOW.strftime('%Y-%m-%d')}\n")
 
     if stale:
-        stale_bullets = "\n".join(
-            f"  • {s['label']}: last data {s['latest'] or 'MISSING'}"
-            + (f" ({s['age_hours']}h ago, limit {s['threshold_hours']}h)" if s['age_hours'] is not None else "")
-            + (f"\n    ({s['note']})" if s['note'] else "")
-            for s in stale
-        )
-        all_lines = "\n".join(
-            f"  {'✓' if s['status'] == 'ok' else '✗'} {s['label']}: {s['latest'] or 'MISSING'}"
-            for s in sources
-        )
-
         subject = (
-            f"⚠ ARC Dashboard: {len(stale)} data source(s) stale "
+            f"⚠️ ARC Dashboard: {len(stale)} data source(s) stale "
             f"({NOW.strftime('%Y-%m-%d %H:%M UTC')})"
         )
-        body = f"""\
-ARC Data Pipeline Alert
-=======================
-Checked: {NOW.strftime('%Y-%m-%d %H:%M UTC')}
-Overall: STALE – {len(stale)} source(s) need attention
 
-Stale sources:
-{stale_bullets}
+        # HTML email body
+        def age_str(s):
+            if s['age_hours'] is None:
+                return ""
+            return f" &mdash; {s['age_hours']}h ago (limit {s['threshold_hours']}h)"
 
-All sources:
-{all_lines}
+        stale_li = "\n    ".join(
+            f"<li><strong>{s['label']}</strong><br>"
+            f"Last data: {s['latest'] or 'MISSING'}{age_str(s)}"
+            + (f"<br><em style='color:#6b7280'>{s['note']}</em>" if s['note'] else "")
+            + "</li>"
+            for s in stale
+        )
+        all_li = "\n    ".join(
+            f"<li>{'✅' if s['status'] == 'ok' else '❌'} "
+            f"<strong>{s['label']}</strong> &mdash; {s['latest'] or 'MISSING'}</li>"
+            for s in sources
+        )
+        html_body = f"""\
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:system-ui,sans-serif;color:#111827;max-width:600px;margin:0 auto;padding:20px;">
+  <h2 style="color:#b91c1c;margin-bottom:4px;">⚠️ ARC Data Pipeline Alert</h2>
+  <p style="color:#6b7280;margin-top:0;">Checked: <strong>{NOW.strftime('%Y-%m-%d %H:%M UTC')}</strong></p>
 
-Status page: {STATUS_PAGE}
+  <h3 style="color:#b91c1c;">❌ Stale sources ({len(stale)})</h3>
+  <ul>
+    {stale_li}
+  </ul>
 
----
-This alert was generated automatically by the ARC monitoring workflow.
-To add or remove alert recipients, edit the ALERT_EMAILS secret in the
-arc_tz_temp_humid GitHub repo settings.
-"""
+  <h3>📋 All sources</h3>
+  <ul>
+    {all_li}
+  </ul>
+
+  <p style="margin-top:24px;">
+    <a href="{STATUS_PAGE}"
+       style="display:inline-block;background:#111827;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
+      View status page &rarr;
+    </a>
+  </p>
+
+  <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px;">
+  <p style="color:#9ca3af;font-size:12px;">
+    Sent automatically by the ARC monitoring workflow.<br>
+    To manage recipients, edit the ALERT_EMAILS secret in the
+    <a href="https://github.com/actionresearchprojects/arc_tz_temp_humid/settings/secrets/actions"
+       style="color:#9ca3af;">arc_tz_temp_humid repo settings</a>.
+  </p>
+</body>
+</html>"""
+
+        # ntfy markdown body (rendered in the ntfy app)
+        stale_md = "\n".join(
+            f"- **{s['label']}**: {s['latest'] or 'MISSING'}"
+            + (f" *({s['age_hours']}h ago)*" if s['age_hours'] is not None else "")
+            for s in stale
+        )
         ntfy = (
-            f"ARC Dashboard: {len(stale)} source(s) stale\n"
-            + "\n".join(f"{s['label']}: {s['age_hours']}h ago" for s in stale)
-            + f"\n{STATUS_PAGE}"
+            f"## ⚠️ ARC Data Alert\n\n"
+            f"**{len(stale)} source(s) stale** · {NOW.strftime('%Y-%m-%d %H:%M UTC')}\n\n"
+            f"### ❌ Stale\n{stale_md}\n\n"
+            f"[View status page]({STATUS_PAGE})"
         )
 
         with open("/tmp/alert_subject.txt", "w") as f:
             f.write(subject)
-        with open("/tmp/alert_body.txt", "w") as f:
-            f.write(body)
+        with open("/tmp/alert_body.html", "w") as f:
+            f.write(html_body)
         with open("/tmp/ntfy_body.txt", "w") as f:
             f.write(ntfy)
 

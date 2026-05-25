@@ -104,11 +104,11 @@ jobs:
           if [ -f /tmp/alert_subject.txt ]; then
             echo "subject=$(cat /tmp/alert_subject.txt)" >> $GITHUB_OUTPUT
           else
-            echo "subject=⚠ ARC Dashboard: staleness check failed (${{ steps.staleness.outputs.checked_date }})" >> $GITHUB_OUTPUT
+            echo "subject=⚠️ ARC Dashboard: staleness check failed (${{ steps.staleness.outputs.checked_date }})" >> $GITHUB_OUTPUT
           fi
           {
-            echo 'body<<EOF'
-            cat /tmp/alert_body.txt 2>/dev/null || echo "Staleness check failed — please check the workflow logs."
+            echo 'html_body<<EOF'
+            cat /tmp/alert_body.html 2>/dev/null || echo "<p>Staleness check failed — please check the workflow logs.</p>"
             echo EOF
           } >> $GITHUB_OUTPUT
 
@@ -125,16 +125,17 @@ jobs:
           subject: ${{ steps.alert.outputs.subject }}
           to: ${{ secrets.ALERT_EMAILS }}
           from: ARC Monitor <${{ secrets.GMAIL_USERNAME }}>
-          body: ${{ steps.alert.outputs.body }}
+          html_body: ${{ steps.alert.outputs.html_body }}
 
       - name: Send ntfy notification
         if: steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure'
         continue-on-error: true
         run: |
-          MSG=$(cat /tmp/ntfy_body.txt 2>/dev/null || echo "ARC Dashboard: data staleness detected. Check status page.")
+          MSG=$(cat /tmp/ntfy_body.txt 2>/dev/null || echo "ARC Dashboard: data staleness detected. Check status page: https://actionresearchprojects.net/status")
           curl -s -X POST \
             -H "Title: ARC Data Alert" \
             -H "Priority: high" \
             -H "Tags: warning,chart_with_downwards_trend" \
+            -H "Markdown: yes" \
             -d "$MSG" \
             https://ntfy.sh/arc-ecovillage-status-7k3m
