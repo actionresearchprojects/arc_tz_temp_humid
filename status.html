@@ -244,8 +244,8 @@
           <tr>
             <th>Source</th>
             <th>Status</th>
+            <th>Last fetched</th>
             <th>Latest data</th>
-            <th>Age</th>
           </tr>
         </thead>
         <tbody id="rows">
@@ -266,10 +266,16 @@
   const REFRESH_MS = 5 * 60 * 1000;
 
   function fmtAge(h) {
-    if (h === null || h === undefined) return "—";
-    if (h < 1)  return Math.round(h * 60) + " min";
-    if (h < 48) return h.toFixed(1) + "h";
-    return (h / 24).toFixed(1) + "d";
+    if (h === null || h === undefined) return null;
+    if (h < 1)  return Math.round(h * 60) + " min ago";
+    if (h < 48) return h.toFixed(1) + "h ago";
+    return (h / 24).toFixed(1) + "d ago";
+  }
+
+  function fmtCell(date, age_h) {
+    if (!date) return "<span style='color:#ddd'>—</span>";
+    const age = fmtAge(age_h);
+    return date + (age ? "<br><span style='color:#bbb;font-size:12px'>" + age + "</span>" : "");
   }
 
   function load() {
@@ -297,8 +303,8 @@
         "<td><div class='source-name'>" + s.label + "</div>" +
         (s.note ? "<div class='source-note'>" + s.note + "</div>" : "") + "</td>" +
         "<td><span class='pill " + (s.status || "unknown") + "'>" + (s.status || "unknown") + "</span></td>" +
-        "<td>" + (s.latest || "—") + "</td>" +
-        "<td>" + fmtAge(s.age_hours) + "</td>";
+        "<td>" + fmtCell(s.fetch_date, s.fetch_age_hours) + "</td>" +
+        "<td>" + fmtCell(s.data_date,  s.data_age_hours)  + "</td>";
       tbody.appendChild(tr);
     });
   }

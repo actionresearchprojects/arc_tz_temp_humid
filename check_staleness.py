@@ -5,7 +5,7 @@ Reads all fetched data files under data/ and evaluates whether each source
 is current. Writes data/status.json on every run. When one or more sources
 are stale also writes:
   /tmp/alert_subject.txt  – one-line email subject
-  /tmp/alert_body.txt     – plain-text email body
+  /tmp/alert_body.html    – HTML email body
   /tmp/ntfy_body.txt      – short push-notification message
 
 In a GitHub Actions environment ($GITHUB_OUTPUT is set) writes:
@@ -14,6 +14,12 @@ In a GitHub Actions environment ($GITHUB_OUTPUT is set) writes:
   checked_date=YYYY-MM-DD
 
 Exit 0 if all sources are within tolerance, exit 1 if any are stale.
+
+status.json schema per source:
+  key, label, status        – overall ok/stale/unknown
+  fetch_date, fetch_age_hours, fetch_status  – when the action last fetched
+  data_date,  data_age_hours,  data_status   – latest timestamp in the data
+  note                      – human note about expected lag
 """
 
 import glob
@@ -21,38 +27,39 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(BASE, "data")
 NOW = datetime.now(timezone.utc)
 
-# ── thresholds (hours) ─────────────────────────────────────────────────────────
+# ── thresholds ─────────────────────────────────────────────────────────────────
 
-THRESHOLDS_H = {
-    "omnisense_fetch":  36,        # how recently did the action successfully fetch?
-    "omnisense_data":   24,        # flag if no new sensor reading in over a day
-    "openmeteo_hist":   36,        # historical data goes to yesterday; 36h gives comfortable margin
-    "openmeteo_fc":     36,        # checks fetch date (forecast end is always ~16 days out)
-    "enso":             90 * 24,   # NOAA ONI is monthly with up to ~3 month publication lag
-    "iod":              14 * 24,   # BoM IOD is weekly
-    "mjo":               7 * 24,   # NOAA MJO ROMI is updated daily with a short lag
+FETCH_THRESHOLD_H = 36  # all sources: flag if action hasn't refreshed in >36h
+
+DATA_THRESHOLD_H = {
+    "omnisense":      24,        # flag if no new sensor reading in over a day
+    "openmeteo_hist": 36,        # historical goes to yesterday; 36h gives margin
+    "openmeteo_fc":   None,      # forecast always extends into the future; no data check
+    "enso":           90 * 24,   # NOAA ONI is monthly with up to ~3 month lag
+    "iod":            14 * 24,   # BoM IOD is weekly
+    "mjo":             7 * 24,   # NOAA MJO ROMI updated daily with short lag
 }
 
 LABELS = {
-    "omnisense_fetch": "Omnisense (action fetch date)",
-    "omnisense_data":  "Omnisense (sensor data currency)",
-    "openmeteo_hist":  "Open-Meteo historical",
-    "openmeteo_fc":    "Open-Meteo forecast",
-    "enso":            "ENSO ONI (NOAA PSL)",
-    "iod":             "IOD DMI (Bureau of Meteorology)",
-    "mjo":             "MJO ROMI (NOAA PSL)",
+    "omnisense":      "Omnisense",
+    "openmeteo_hist": "Open-Meteo historical",
+    "openmeteo_fc":   "Open-Meteo forecast",
+    "enso":           "ENSO ONI (NOAA PSL)",
+    "iod":            "IOD DMI (Bureau of Meteorology)",
+    "mjo":            "MJO ROMI (NOAA PSL)",
 }
 
 NOTES = {
     "enso": "Monthly index; NOAA publishes with up to ~3 month lag — alerts only if data is >90 days old",
     "iod":  "Weekly index from BoM; up to 14 days lag is normal",
     "mjo":  "Daily index; NOAA typically lags 2–5 days",
+    "openmeteo_fc": "Forecast always extends ~16 days ahead; fetch date is what matters",
 }
 
 STATUS_PAGE = "https://actionresearchprojects.net/status"
@@ -170,20 +177,40 @@ def latest_oni_date(path: str):
 
 # ── entry builder ──────────────────────────────────────────────────────────────
 
-def entry(key: str, latest) -> dict:
+def age_status(dt, threshold_h):
+    """Return (status, age_hours) for a datetime against a threshold (None = no check)."""
+    if dt is None:
+        return "unknown", None
+    age_h = (NOW - dt).total_seconds() / 3600
+    if threshold_h is None:
+        return "ok", round(age_h, 1)
+    return ("ok" if age_h <= threshold_h else "stale"), round(age_h, 1)
+
+
+def entry(key: str, fetch_dt, data_dt) -> dict:
     label = LABELS[key]
-    threshold_h = THRESHOLDS_H[key]
     note = NOTES.get(key, "")
-    if latest is None:
-        return dict(key=key, label=label, status="unknown", latest=None,
-                    age_hours=None, threshold_hours=threshold_h, note=note)
-    age_h = (NOW - latest).total_seconds() / 3600
+
+    fetch_status, fetch_age = age_status(fetch_dt, FETCH_THRESHOLD_H)
+    data_status,  data_age  = age_status(data_dt,  DATA_THRESHOLD_H[key])
+
+    if fetch_status == "stale" or data_status == "stale":
+        overall = "stale"
+    elif fetch_status == "unknown" and data_status == "unknown":
+        overall = "unknown"
+    else:
+        overall = "ok"
+
     return dict(
-        key=key, label=label,
-        status="ok" if age_h <= threshold_h else "stale",
-        latest=latest.strftime("%Y-%m-%d %H:%M UTC"),
-        age_hours=round(age_h, 1),
-        threshold_hours=threshold_h,
+        key=key,
+        label=label,
+        status=overall,
+        fetch_date=fetch_dt.strftime("%Y-%m-%d %H:%M UTC") if fetch_dt else None,
+        fetch_age_hours=fetch_age,
+        fetch_status=fetch_status,
+        data_date=data_dt.strftime("%Y-%m-%d %H:%M UTC") if data_dt else None,
+        data_age_hours=data_age,
+        data_status=data_status,
         note=note,
     )
 
@@ -193,23 +220,34 @@ def entry(key: str, latest) -> dict:
 def run():
     sources = []
 
-    # Omnisense
+    # Omnisense – timestamped filenames → fetch date available
     omni_files = sorted(glob.glob(os.path.join(DATA, "omnisense", "omnisense_*.csv")))
-    omni_latest = omni_files[-1] if omni_files else None
-    sources.append(entry("omnisense_fetch", file_date_from_glob("omnisense/omnisense_*.csv")))
-    sources.append(entry("omnisense_data",  latest_iso_in_file(omni_latest, col=2)))
+    sources.append(entry("omnisense",
+        fetch_dt=file_date_from_glob("omnisense/omnisense_*.csv"),
+        data_dt=latest_iso_in_file(omni_files[-1] if omni_files else None, col=2)))
 
-    # Open-Meteo
+    # Open-Meteo – timestamped filenames → fetch date available
     hist_files = sorted(glob.glob(os.path.join(DATA, "openmeteo", "historical_*.csv")))
-    sources.append(entry("openmeteo_hist", latest_iso_in_file(hist_files[-1], col=0) if hist_files else None))
-    sources.append(entry("openmeteo_fc",   file_date_from_glob("openmeteo/forecast_*.csv")))
+    sources.append(entry("openmeteo_hist",
+        fetch_dt=file_date_from_glob("openmeteo/historical_*.csv"),
+        data_dt=latest_iso_in_file(hist_files[-1] if hist_files else None, col=0)))
+    sources.append(entry("openmeteo_fc",
+        fetch_dt=file_date_from_glob("openmeteo/forecast_*.csv"),
+        data_dt=None))
 
-    # Climate cycles
-    sources.append(entry("enso", latest_oni_date(os.path.join(DATA, "cycles", "enso", "oni.csv"))))
-    sources.append(entry("iod",  latest_yyyymmdd_in_file(os.path.join(DATA, "cycles", "iod", "iod_1.txt"))))
-    sources.append(entry("mjo",  latest_ymd_cols(os.path.join(DATA, "cycles", "mjo", "romi.cpcolr.1x.txt"))))
+    # Climate cycles – files are overwritten in-place (no timestamp in name)
+    # so only data currency is tracked
+    sources.append(entry("enso",
+        fetch_dt=None,
+        data_dt=latest_oni_date(os.path.join(DATA, "cycles", "enso", "oni.csv"))))
+    sources.append(entry("iod",
+        fetch_dt=None,
+        data_dt=latest_yyyymmdd_in_file(os.path.join(DATA, "cycles", "iod", "iod_1.txt"))))
+    sources.append(entry("mjo",
+        fetch_dt=None,
+        data_dt=latest_ymd_cols(os.path.join(DATA, "cycles", "mjo", "romi.cpcolr.1x.txt"))))
 
-    stale = [s for s in sources if s["status"] != "ok"]
+    stale = [s for s in sources if s["status"] == "stale"]
     overall = "ok" if not stale else "stale"
 
     result = {
@@ -218,7 +256,6 @@ def run():
         "sources": sources,
     }
 
-    # Always write status.json
     with open(os.path.join(DATA, "status.json"), "w") as f:
         json.dump(result, f, indent=2)
 
@@ -238,24 +275,37 @@ def run():
             f"({NOW.strftime('%Y-%m-%d %H:%M UTC')})"
         )
 
-        # HTML email body
-        def age_str(s):
-            if s['age_hours'] is None:
-                return ""
-            return f" &mdash; {s['age_hours']}h ago (limit {s['threshold_hours']}h)"
+        def fmt_li(label, date_val, age_h, threshold_h):
+            if date_val is None:
+                return f"<li>{label}: <strong>MISSING</strong></li>"
+            limit = f" (limit {threshold_h}h)" if threshold_h else ""
+            return f"<li>{label}: {date_val} &mdash; {age_h}h ago{limit}</li>"
 
-        stale_li = "\n    ".join(
-            f"<li><strong>{s['label']}</strong><br>"
-            f"Last data: {s['latest'] or 'MISSING'}{age_str(s)}"
-            + (f"<br><em style='color:#6b7280'>{s['note']}</em>" if s['note'] else "")
-            + "</li>"
-            for s in stale
-        )
+        stale_items = []
+        for s in stale:
+            rows = []
+            if s["fetch_status"] == "stale" or s["fetch_date"]:
+                rows.append(fmt_li("Last fetched", s["fetch_date"],
+                                   s["fetch_age_hours"], FETCH_THRESHOLD_H))
+            if s["data_date"] or s["data_status"] == "stale":
+                rows.append(fmt_li("Latest data",  s["data_date"],
+                                   s["data_age_hours"], DATA_THRESHOLD_H[s["key"]]))
+            note_html = f"<em style='color:#6b7280;font-size:12px'>{s['note']}</em><br>" if s["note"] else ""
+            stale_items.append(
+                f"<li><strong>{s['label']}</strong><br>{note_html}<ul>{''.join(rows)}</ul></li>"
+            )
+        stale_li = "\n    ".join(stale_items)
+
         all_li = "\n    ".join(
-            f"<li>{'✅' if s['status'] == 'ok' else '❌'} "
-            f"<strong>{s['label']}</strong> &mdash; {s['latest'] or 'MISSING'}</li>"
+            "<li>"
+            + ("✅" if s["status"] == "ok" else "❌")
+            + f" <strong>{s['label']}</strong>"
+            + (f" &mdash; fetched {s['fetch_date']}" if s["fetch_date"] else "")
+            + (f" / data {s['data_date']}" if s["data_date"] else "")
+            + "</li>"
             for s in sources
         )
+
         html_body = f"""\
 <!DOCTYPE html>
 <html>
@@ -291,10 +341,12 @@ def run():
 </body>
 </html>"""
 
-        # ntfy markdown body (rendered in the ntfy app)
         stale_md = "\n".join(
-            f"- **{s['label']}**: {s['latest'] or 'MISSING'}"
-            + (f" *({s['age_hours']}h ago)*" if s['age_hours'] is not None else "")
+            f"- **{s['label']}**"
+            + (f": fetched {s['fetch_date']} *({s['fetch_age_hours']}h ago)*"
+               if s["fetch_status"] == "stale" else "")
+            + (f" / data {s['data_date']} *({s['data_age_hours']}h ago)*"
+               if s["data_status"] == "stale" else "")
             for s in stale
         )
         ntfy = (
@@ -314,7 +366,8 @@ def run():
         print(f"\n{'='*60}", file=sys.stderr)
         print(f"STALE: {len(stale)} source(s) flagged", file=sys.stderr)
         for s in stale:
-            print(f"  {s['label']}: {s['latest'] or 'MISSING'}", file=sys.stderr)
+            print(f"  {s['label']}: fetch={s['fetch_date'] or 'N/A'} "
+                  f"data={s['data_date'] or 'MISSING'}", file=sys.stderr)
 
         sys.exit(1)
 
