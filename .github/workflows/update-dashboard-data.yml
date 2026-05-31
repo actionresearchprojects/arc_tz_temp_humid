@@ -110,6 +110,27 @@ jobs:
             https://api.github.com/repos/actionresearchprojects/actionresearchprojects.github.io/dispatches \
             -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_temp_humid"}}'
 
+      # ── cascade: trigger dependent dashboards so they always get fresh data ──
+      - name: Trigger arc_tz_line update
+        if: steps.push.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          curl -sf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
+            https://api.github.com/repos/actionresearchprojects/arc_tz_line/dispatches \
+            -d '{"event_type":"update-from-temp-humid"}'
+
+      - name: Trigger arc_tz_weather update
+        if: steps.push.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          curl -sf -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
+            https://api.github.com/repos/actionresearchprojects/arc_tz_weather/dispatches \
+            -d '{"event_type":"update-from-temp-humid"}'
+
       # ── alerts (only fire when staleness check flagged stale data) ─────────
       - name: Send email alert
         if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
