@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-05-31 09:45:00 CST
+- **Add: MONITORING.md** — Documents the two-layer alerting design: the external `check_staleness.py` freshness checker (daily, with per-source thresholds and email/ntfy alerts) as the total-blackout backstop, and Omnisense's native value alarms (Total Unique Sensors / Vbatt / CSS / Tcup) as push-based detection of per-sensor and connectivity degradation. Records why polling is kept daily rather than hourly.
+
 ### 2026-05-31 09:41:00 CST
 - **Fix: ENSO false-positive staleness alert** — The ENSO ONI staleness threshold was 90 days, essentially equal to NOAA PSL's own normal publishing lag (the source note itself states "up to ~3 month lag"), so a perfectly normal lag tripped the alert. NOAA's latest published ONI value is March 2026 (0.110), confirmed byte-identical to the live `oni.csv` source — the fetch pipeline is healthy; the data simply had not advanced past March. The 90-day threshold first flipped ENSO to `stale` on May 30. Raised the ENSO threshold in `check_staleness.py` to 120 days (4 months) so it tolerates normal monthly lag and only fires on a genuine multi-month stall; updated the accompanying note to match.
 
