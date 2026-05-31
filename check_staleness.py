@@ -41,7 +41,7 @@ DATA_THRESHOLD_H = {
     "omnisense":      24,        # flag if no new sensor reading in over a day
     "openmeteo_hist": 36,        # historical goes to yesterday; 36h gives margin
     "openmeteo_fc":   None,      # forecast always extends into the future; no data check
-    "enso":           90 * 24,   # NOAA ONI is monthly with up to ~3 month lag
+    "enso":           120 * 24,  # NOAA ONI is monthly with up to ~3 month lag; 120d tolerates normal lag, fires only on a genuine stall
     "iod":            14 * 24,   # BoM IOD is weekly
     "mjo":             7 * 24,   # NOAA MJO ROMI updated daily with short lag
 }
@@ -56,7 +56,7 @@ LABELS = {
 }
 
 NOTES = {
-    "enso": "Monthly index; NOAA publishes with up to ~3 month lag — alerts only if data is >90 days old",
+    "enso": "Monthly index; NOAA publishes with up to ~3 month lag — alerts only if data is >120 days old",
     "iod":  "Weekly index from BoM; up to 14 days lag is normal",
     "mjo":  "Daily index; NOAA typically lags 2–5 days",
     "openmeteo_fc": "Latest data shows forecast horizon (~16 days out); fetch date is the freshness signal",
