@@ -3024,15 +3024,22 @@ async function init() {
       const suffix = (day === 1 || day === 21 || day === 31) ? 'st' : (day === 2 || day === 22) ? 'nd' : (day === 3 || day === 23) ? 'rd' : 'th';
       return `${day}${suffix} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
     }
+    function fetchAgeWarn(fetchMs) {
+      if (!fetchMs) return null;
+      const ageDays = (Date.now() - fetchMs) / DAY_MS;
+      if (ageDays <= 2) return null;
+      const d = Math.floor(ageDays);
+      return `Fetched ${d} day${d !== 1 ? 's' : ''} ago — data may be out of date`;
+    }
     const lines = [];
     if (FETCH_TIMES.openmeteo) {
-      const warn = staleCheck(df.openmeteo_fetch_ms, df.openmeteo_last_ms, 2);
+      const warn = staleCheck(df.openmeteo_fetch_ms, df.openmeteo_last_ms, 2) || fetchAgeWarn(df.openmeteo_fetch_ms);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
       const dataDate = formatDataDate(df.openmeteo_last_ms);
       lines.push(`Open-Meteo last updated: ${dataDate || FETCH_TIMES.openmeteo}${warnHtml}`);
     }
     if (FETCH_TIMES.omnisense) {
-      const warn = staleCheck(df.omnisense_fetch_ms, df.omnisense_last_ms, 2);
+      const warn = staleCheck(df.omnisense_fetch_ms, df.omnisense_last_ms, 2) || fetchAgeWarn(df.omnisense_fetch_ms);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
       const dataDate = formatDataDate(df.omnisense_last_ms);
       lines.push(`Omnisense last updated: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
