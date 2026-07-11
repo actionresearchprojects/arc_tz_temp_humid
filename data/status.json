@@ -1,16 +1,16 @@
 {
-  "checked_at": "2026-07-10 07:39 UTC",
+  "checked_at": "2026-07-11 06:17 UTC",
   "overall": "stale",
   "sources": [
     {
       "key": "omnisense",
       "label": "Omnisense",
       "status": "stale",
-      "fetch_date": "2026-07-10 07:38 UTC",
+      "fetch_date": "2026-07-11 06:16 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
       "data_date": "2026-07-08 11:20 UTC",
-      "data_age_hours": 44.3,
+      "data_age_hours": 66.9,
       "data_status": "stale",
       "note": ""
     },
@@ -18,11 +18,11 @@
       "key": "openmeteo_hist",
       "label": "Open-Meteo historical",
       "status": "ok",
-      "fetch_date": "2026-07-10 07:38 UTC",
+      "fetch_date": "2026-07-11 06:16 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
-      "data_date": "2026-07-09 23:00 UTC",
-      "data_age_hours": 8.7,
+      "data_date": "2026-07-10 23:00 UTC",
+      "data_age_hours": 7.3,
       "data_status": "ok",
       "note": ""
     },
@@ -30,10 +30,10 @@
       "key": "openmeteo_fc",
       "label": "Open-Meteo forecast",
       "status": "ok",
-      "fetch_date": "2026-07-10 07:38 UTC",
+      "fetch_date": "2026-07-11 06:16 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
-      "data_date": "2026-07-25 23:00 UTC",
+      "data_date": "2026-07-26 23:00 UTC",
       "data_age_hours": null,
       "data_status": "ok",
       "note": "Latest data shows forecast horizon (~16 days out); fetch date is the freshness signal"
@@ -46,7 +46,7 @@
       "fetch_age_hours": null,
       "fetch_status": "unknown",
       "data_date": "2026-04-01 00:00 UTC",
-      "data_age_hours": 2407.7,
+      "data_age_hours": 2430.3,
       "data_status": "ok",
       "note": "Monthly index; NOAA publishes with up to ~3 month lag \u2014 alerts only if data is >120 days old"
     },
@@ -58,7 +58,7 @@
       "fetch_age_hours": null,
       "fetch_status": "unknown",
       "data_date": "2026-06-29 00:00 UTC",
-      "data_age_hours": 271.7,
+      "data_age_hours": 294.3,
       "data_status": "ok",
       "note": "Weekly index from BoM; up to 14 days lag is normal"
     },
@@ -70,7 +70,7 @@
       "fetch_age_hours": null,
       "fetch_status": "unknown",
       "data_date": "2026-07-02 00:00 UTC",
-      "data_age_hours": 199.7,
+      "data_age_hours": 222.3,
       "data_status": "stale",
       "note": "Daily index; NOAA typically lags 2\u20135 days"
     }
