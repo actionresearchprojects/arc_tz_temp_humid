@@ -5653,30 +5653,31 @@ function updateComfortStats(start, end, params) {
     if (!state.selectedRoomLoggers.has(loggerId)) continue;
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
-    // Detect gaps for this series
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue; // no data in range — excluded from the graph, so no box
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+    filtered = applySubstratFilter(filtered);
+    if (!filtered || !filtered.extTemp) continue;
+    let inZone = 0, count = 0;
+    const mode = state.comfortPctMode || 'below_upper';
+    for (let i = 0; i < filtered.temperature.length; i++) {
+      const ext = filtered.extTemp[i], temp = filtered.temperature[i];
+      if (ext == null || temp == null) continue;
+      const mid = params.m*ext + params.c;
+      const upper = mid + params.delta;
+      const lower = mid - params.delta;
+      if (mode === 'below_upper' && temp <= upper) inZone++;
+      else if (mode === 'within' && temp >= lower && temp <= upper) inZone++;
+      else if (mode === 'above_lower' && temp >= lower) inZone++;
+      count++;
+    }
+    if (count === 0) continue; // no paired comfort points in range — no box
+    const pct = inZone/count*100;
+    totalIn += inZone; totalAll += count;
+    // Detect gaps only for a logger that is actually shown
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
-    let filtered = filterSeries(series, start, end);
-    filtered = filtered ? applyAnomalousFilter(filtered, loggerId) : null;
-    filtered = filtered ? applySubstratFilter(filtered) : null;
-    let pct = null;
-    if (filtered && filtered.extTemp) {
-      let inZone = 0, count = 0;
-      const mode = state.comfortPctMode || 'below_upper';
-      for (let i = 0; i < filtered.temperature.length; i++) {
-        const ext = filtered.extTemp[i], temp = filtered.temperature[i];
-        if (ext == null || temp == null) continue;
-        const mid = params.m*ext + params.c;
-        const upper = mid + params.delta;
-        const lower = mid - params.delta;
-        if (mode === 'below_upper' && temp <= upper) inZone++;
-        else if (mode === 'within' && temp >= lower && temp <= upper) inZone++;
-        else if (mode === 'above_lower' && temp >= lower) inZone++;
-        count++;
-      }
-      pct = count > 0 ? inZone/count*100 : 0;
-      totalIn += inZone; totalAll += count;
-    }
     roomStats.push({id: loggerId, name: ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
   if (roomStats.length === 0) { statsBox.style.display = 'none'; return; }
