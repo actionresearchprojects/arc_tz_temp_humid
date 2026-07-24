@@ -145,11 +145,9 @@ jobs:
         if: always() && (steps.staleness.outputs.stale == 'true' || steps.staleness.outcome == 'failure')
         continue-on-error: true
         run: |
-          MSG=$(cat /tmp/ntfy_body.txt 2>/dev/null || echo "ARC Dashboard: data staleness detected. Check status page: https://actionresearchprojects.net/status")
+          MSG=$(cat /tmp/ntfy_body.txt 2>/dev/null || echo "One or more ARC data sources are out of date. Status page: https://actionresearchprojects.net/status")
           curl -s -X POST \
-            -H "Title: ARC Data Alert" \
+            -H "Title: ARC Data Pipeline Alert" \
             -H "Priority: high" \
-            -H "Tags: warning,chart_with_downwards_trend" \
-            -H "Markdown: yes" \
             -d "$MSG" \
             https://ntfy.sh/arc-ecovillage-status-7k3m

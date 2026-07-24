@@ -272,8 +272,10 @@ def run():
             f.write(f"checked_date={NOW.strftime('%Y-%m-%d')}\n")
 
     if stale:
+        n = len(stale)
+        noun = "source" if n == 1 else "sources"
         subject = (
-            f"⚠️ ARC Dashboard: {len(stale)} data source(s) stale "
+            f"ARC Dashboard Alert: {n} data {noun} out of date "
             f"({NOW.strftime('%Y-%m-%d %H:%M UTC')})"
         )
 
@@ -298,13 +300,20 @@ def run():
             )
         stale_li = "\n    ".join(stale_items)
 
-        all_li = "\n    ".join(
-            "<li>"
-            + ("✅" if s["status"] == "ok" else "❌")
-            + f" <strong>{s['label']}</strong>"
-            + (f" &mdash; fetched {s['fetch_date']}" if s["fetch_date"] else "")
-            + (f" / data {s['data_date']}" if s["data_date"] else "")
-            + "</li>"
+        def status_tag(st):
+            colour = {"ok": "#15803d", "stale": "#b91c1c"}.get(st, "#6b7280")
+            text = {"ok": "OK", "stale": "OUT OF DATE"}.get(st, "UNKNOWN")
+            return (f"<span style='display:inline-block;min-width:96px;font-size:12px;"
+                    f"font-weight:600;color:{colour};'>{text}</span>")
+
+        all_rows = "\n    ".join(
+            "<tr style='border-top:1px solid #e5e7eb;'>"
+            f"<td style='padding:6px 12px 6px 0;vertical-align:top;'>{status_tag(s['status'])}</td>"
+            f"<td style='padding:6px 0;vertical-align:top;'>"
+            f"<strong>{s['label']}</strong>"
+            + (f"<br><span style='color:#6b7280;font-size:12px;'>Last fetched {s['fetch_date']}</span>" if s["fetch_date"] else "")
+            + (f"<br><span style='color:#6b7280;font-size:12px;'>Latest data {s['data_date']}</span>" if s["data_date"] else "")
+            + "</td></tr>"
             for s in sources
         )
 
@@ -312,50 +321,53 @@ def run():
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
-<body style="font-family:system-ui,sans-serif;color:#111827;max-width:600px;margin:0 auto;padding:20px;">
-  <h2 style="color:#b91c1c;margin-bottom:4px;">⚠️ ARC Data Pipeline Alert</h2>
-  <p style="color:#6b7280;margin-top:0;">Checked: <strong>{NOW.strftime('%Y-%m-%d %H:%M UTC')}</strong></p>
+<body style="font-family:system-ui,-apple-system,sans-serif;color:#111827;line-height:1.5;max-width:600px;margin:0 auto;padding:24px;">
+  <h2 style="font-size:18px;margin:0 0 4px;">ARC Data Pipeline Alert</h2>
+  <p style="color:#6b7280;margin:0 0 20px;">
+    {len(stale)} data {noun} {'has' if len(stale) == 1 else 'have'} not updated within the expected window.
+    Checked {NOW.strftime('%Y-%m-%d %H:%M UTC')}.
+  </p>
 
-  <h3 style="color:#b91c1c;">❌ Stale sources ({len(stale)})</h3>
-  <ul>
+  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#b91c1c;margin:0 0 8px;">Out of date</h3>
+  <ul style="margin:0 0 24px;padding-left:18px;">
     {stale_li}
   </ul>
 
-  <h3>📋 All sources</h3>
-  <ul>
-    {all_li}
-  </ul>
+  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#374151;margin:0 0 8px;">All sources</h3>
+  <table style="border-collapse:collapse;width:100%;font-size:14px;margin:0 0 24px;">
+    {all_rows}
+  </table>
 
-  <p style="margin-top:24px;">
+  <p style="margin:0 0 24px;">
     <a href="{STATUS_PAGE}"
-       style="display:inline-block;background:#111827;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
-      View status page &rarr;
+       style="display:inline-block;background:#111827;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
+      View the status page
     </a>
   </p>
 
-  <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:24px;">
+  <hr style="border:none;border-top:1px solid #e5e7eb;">
   <p style="color:#9ca3af;font-size:12px;">
-    Sent automatically by the ARC monitoring workflow.<br>
-    To manage recipients, edit the ALERT_EMAILS secret in the
+    Sent automatically by the ARC monitoring workflow.
+    To change who receives these alerts, edit the ALERT_EMAILS secret in the
     <a href="https://github.com/actionresearchprojects/arc_tz_temp_humid/settings/secrets/actions"
-       style="color:#9ca3af;">arc_tz_temp_humid repo settings</a>.
+       style="color:#9ca3af;">arc_tz_temp_humid repository settings</a>.
   </p>
 </body>
 </html>"""
 
         stale_md = "\n".join(
-            f"- **{s['label']}**"
-            + (f": fetched {s['fetch_date']} *({s['fetch_age_hours']}h ago)*"
+            f"- {s['label']}"
+            + (f": last fetched {s['fetch_date']} ({s['fetch_age_hours']}h ago)"
                if s["fetch_status"] == "stale" else "")
-            + (f" / data {s['data_date']} *({s['data_age_hours']}h ago)*"
+            + (f"; latest data {s['data_date']} ({s['data_age_hours']}h ago)"
                if s["data_status"] == "stale" else "")
             for s in stale
         )
         ntfy = (
-            f"## ⚠️ ARC Data Alert\n\n"
-            f"**{len(stale)} source(s) stale** · {NOW.strftime('%Y-%m-%d %H:%M UTC')}\n\n"
-            f"### ❌ Stale\n{stale_md}\n\n"
-            f"[View status page]({STATUS_PAGE})"
+            f"{len(stale)} data {noun} out of date, checked "
+            f"{NOW.strftime('%Y-%m-%d %H:%M UTC')}.\n\n"
+            f"{stale_md}\n\n"
+            f"Status page: {STATUS_PAGE}"
         )
 
         with open("/tmp/alert_subject.txt", "w") as f:

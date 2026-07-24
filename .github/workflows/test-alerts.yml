@@ -15,27 +15,26 @@ jobs:
           secure: true
           username: ${{ secrets.GMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          subject: "✅ ARC Monitor test – alert system is working"
+          subject: "ARC Monitor: alert system test"
           to: ${{ secrets.ALERT_EMAILS }}
           from: ARC Monitor <${{ secrets.GMAIL_USERNAME }}>
           html_body: |
             <!DOCTYPE html>
             <html>
             <head><meta charset="utf-8"></head>
-            <body style="font-family:system-ui,sans-serif;color:#111827;max-width:600px;margin:0 auto;padding:20px;">
-              <h2 style="color:#15803d;">✅ ARC Monitor – test successful</h2>
-              <p>This is a test message from the ARC data pipeline monitor.</p>
-              <p>If you received this, <strong>email alerts are configured correctly</strong>.</p>
-              <h3>ℹ️ Notes</h3>
-              <ul>
+            <body style="font-family:system-ui,-apple-system,sans-serif;color:#111827;line-height:1.5;max-width:600px;margin:0 auto;padding:24px;">
+              <h2 style="font-size:18px;margin:0 0 4px;">ARC Monitor: test successful</h2>
+              <p style="color:#6b7280;margin:0 0 20px;">This is a test message from the ARC data pipeline monitor. If you received it, email alerts are configured correctly.</p>
+              <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#374151;margin:0 0 8px;">For reference</h3>
+              <ul style="margin:0 0 24px;padding-left:18px;">
                 <li>Recipients are controlled by the <strong>ALERT_EMAILS</strong> secret (comma-separated addresses).</li>
-                <li>Real alerts fire daily at 04:00 UTC if any data source is stale.</li>
-                <li>ntfy push notifications go to topic <strong>arc-ecovillage-status-7k3m</strong>.</li>
+                <li>Real alerts are sent daily at 04:00 UTC only when a data source is out of date.</li>
+                <li>Push notifications are delivered to the ntfy topic <strong>arc-ecovillage-status-7k3m</strong>.</li>
               </ul>
-              <p style="margin-top:24px;">
+              <p style="margin:0;">
                 <a href="https://actionresearchprojects.net/status"
-                   style="display:inline-block;background:#111827;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
-                  View status page &rarr;
+                   style="display:inline-block;background:#111827;color:#ffffff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">
+                  View the status page
                 </a>
               </p>
             </body>
@@ -44,10 +43,9 @@ jobs:
       - name: Send test ntfy notification
         run: |
           curl -s -X POST \
-            -H "Title: ARC Monitor test" \
+            -H "Title: ARC Monitor: alert system test" \
             -H "Priority: default" \
-            -H "Tags: white_check_mark" \
-            -d "Test notification from ARC data pipeline monitor. If you see this, ntfy alerts are working." \
+            -d "Test notification from the ARC data pipeline monitor. If you received this, push alerts are configured correctly." \
             https://ntfy.sh/arc-ecovillage-status-7k3m
           echo "ntfy notification sent to arc-ecovillage-status-7k3m"
 

@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-07-24 20:10:48 CST
+- **Change: Alert copy rewritten to a plain, formal register** — Removed all emoji from the staleness alerts and reworded them for clarity across every surface. In `check_staleness.py`: the email subject now reads "ARC Dashboard Alert: N data source(s) out of date (…)" with correct singular/plural grammar; the email body drops the ⚠️/❌/📋 icons in favour of a plain heading, a one-line summary, and an "All sources" table whose status is a text tag ("OK" / "OUT OF DATE") rather than ✅/❌; the ntfy push is now a single plain sentence plus a bulleted list (no markdown headers or emoji). In `update-dashboard-data.yml`: removed the `Tags:` header (which rendered as emoji in the ntfy app) and the now-unused `Markdown:` header, and reworded the fallback message. In `test-alerts.yml`: the test email and test push were given the same clean styling so a test matches a real alert. No logic, thresholds, or delivery channels changed — copy and presentation only.
+
 ### 2026-05-31 09:45:00 CST
 - **Add: MONITORING.md** — Documents the two-layer alerting design: the external `check_staleness.py` freshness checker (daily, with per-source thresholds and email/ntfy alerts) as the total-blackout backstop, and Omnisense's native value alarms (Total Unique Sensors / Vbatt / CSS / Tcup) as push-based detection of per-sensor and connectivity degradation. Records why polling is kept daily rather than hourly.
 
