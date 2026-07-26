@@ -776,7 +776,7 @@
 - Line graph: default trace opacity lowered to 0.35 so overlapping lines blend visibly. Hover highlight: hovered logger group jumps to full opacity while all others dim to 0.07, restores on unhover. Threshold and season lines unaffected. Rebuilt index.html.
 
 ### 2026-02-28 11:24:31 CST
-- Renamed "Schoolteacher's House" → "Schoolteacher's House" everywhere (dataset label, dropdown, docs). Logger 759498 display name → "Bedroom 1", govee → "Living Space". Govee source type shows "Govee Smart Hygrometer" in hover popup. Updated all MD files. Rebuilt index.html.
+- Anonymised the second dataset's label to "Schoolteacher's House" everywhere (dataset label, dropdown, docs). Logger 759498 display name → "Bedroom 1", govee → "Living Space". Govee source type shows "Govee Smart Hygrometer" in hover popup. Updated all MD files. Rebuilt index.html.
 
 ### 2026-02-28 11:21:04 CST
 - Fixed Open-Meteo color to light cyan (#17becf), swapped with Omnisense 32760371 (Bed 3). Removed hardcoded x-axis tick format/dtick — Plotly now auto-formats labels based on zoom level (shows hours when zoomed in, days/months when zoomed out). Added "Date / Time" x-axis title. Rebuilt index.html.
