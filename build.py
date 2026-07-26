@@ -113,14 +113,14 @@ DATASETS = {
         "external_logger": OPENMETEO_HISTORICAL_ID,
         "external_sensors": [OPENMETEO_HISTORICAL_ID],
         "room_loggers": None,
-        "sidebar_order": [OPENMETEO_HISTORICAL_ID, "759498", "govee"],
+        "sidebar_order": [OPENMETEO_HISTORICAL_ID, "tinytag", "govee"],
         # Per-logger date filters — historical Open-Meteo scoped to monitoring period
         "logger_date_filters": {
-            "759498": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
-            OPENMETEO_HISTORICAL_ID: {"from": "2024-06-02", "before": "2025-10-15"},
+            "tinytag": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
+            OPENMETEO_HISTORICAL_ID: {"from": "2024-06-02", "before": "2026-06-16"},
         },
-        # Per-dataset name overrides (759498 is "Bedroom 3 below metal roof" globally but "Bedroom 1" here)
-        "logger_name_overrides": {"759498": "Bedroom 1"},
+        # Per-dataset name overrides
+        "logger_name_overrides": {"tinytag": "Bedroom 1"},
     },
 }
 
@@ -140,6 +140,7 @@ LOGGER_NAMES = {
     "861034": "Bedroom 3 (above ceiling, above insulation)",
     "759519": "Bedroom 4 (below metal roof)",
     "759489": "Bedroom 4 (above ceiling)",
+    "tinytag": "Bedroom 1",           # Schoolteacher's House TinyTag (data/schoolteacher/tinytag.xlsx)
     "govee":  "Living Space",
     # Omnisense sensors
     "320E02D1": "Weather Station T&RH",
@@ -172,6 +173,7 @@ LOGGER_NAMES_SW = {
     "861034": "Chumba cha kulala 3 (juu ya dari, juu ya insulation)",
     "759519": "Chumba cha kulala 4 (chini ya paa la bati)",
     "759489": "Chumba cha kulala 4 (juu ya dari)",
+    "tinytag": "Chumba cha kulala 1",
     "govee": "Eneo la kuishi",
     "320E02D1": "Kituo cha Hali ya Hewa T&RH",
     "327601CB": "Chumba cha kulala 2",
@@ -193,7 +195,8 @@ LOGGER_SOURCES = {
     "759522": "TinyTag", "759521": "TinyTag", "759209": "TinyTag",
     "759492": "TinyTag", "861968": "TinyTag", "759493": "TinyTag",
     "759498": "TinyTag", "861004": "TinyTag", "861034": "TinyTag",
-    "759519": "TinyTag", "759489": "TinyTag", "govee": "Govee Smart Hygrometer",
+    "759519": "TinyTag", "759489": "TinyTag", "tinytag": "TinyTag",
+    "govee": "Govee Smart Hygrometer",
     "320E02D1": "Omnisense", "327601CB": "Omnisense", "32760371": "Omnisense",
     "3276012B": "Omnisense", "32760164": "Omnisense", "3276003D": "Omnisense",
     "327601CD": "Omnisense", "32760205": "Omnisense", "3276028A": "Omnisense",
