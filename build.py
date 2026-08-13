@@ -42,6 +42,7 @@ OUTPUT_FILE = Path("index.html")
 OMNISENSE_T_H_SENSORS = {
     "320E02D1", "327601CB", "32760371", "3276012B", "32760164",
     "3276003D", "327601CD", "32760205", "3276028A", "32760208",
+    "32760048",
 }
 
 
@@ -61,7 +62,7 @@ DATASETS = {
                          "759492",
                          "327601CD","3276003D","3276028A","32760205",
                          "32760208","327601CB","32760371","3276012B"],
-        "structural_loggers": ["759493","861004","861034","759489","32760164"],
+        "structural_loggers": ["759493","861004","861034","759489","32760164","32760048"],
         # Per-logger date filters: only keep data within [from, before) for that logger
         "logger_date_filters": {
             "759498": {"before": "2024-06-01"},  # moved to Schoolteacher's on 1 Jun; drop Jun 1 entirely
@@ -102,6 +103,7 @@ DATASETS = {
             "759519",                                             # Bedroom 4 below metal (TinyTag)
             "3276012B",                                           # Bedroom 4 (Omnisense)
             "32760164",                                           # Bedroom 4 above ceiling (Omnisense)
+            "32760048",                                           # Bedroom 4 below metal (Omnisense)
             # Washrooms
             "32760208",                                           # Washrooms area (Omnisense)
         ],
@@ -148,6 +150,7 @@ LOGGER_NAMES = {
     "32760371": "Bedroom 3",
     "3276012B": "Bedroom 4",
     "32760164": "Bedroom 4 (above ceiling)",
+    "32760048": "Bedroom 4 (below metal roof)",
     "3276003D": "Kitchen",
     "327601CD": "Living Room",
     "32760205": "Bedroom 1",
@@ -180,6 +183,7 @@ LOGGER_NAMES_SW = {
     "32760371": "Chumba cha kulala 3",
     "3276012B": "Chumba cha kulala 4",
     "32760164": "Chumba cha kulala 4 (juu ya dari)",
+    "32760048": "Chumba cha kulala 4 (chini ya paa la bati)",
     "3276003D": "Jikoni",
     "327601CD": "Sebule",
     "32760205": "Chumba cha kulala 1",
@@ -200,7 +204,7 @@ LOGGER_SOURCES = {
     "320E02D1": "Omnisense", "327601CB": "Omnisense", "32760371": "Omnisense",
     "3276012B": "Omnisense", "32760164": "Omnisense", "3276003D": "Omnisense",
     "327601CD": "Omnisense", "32760205": "Omnisense", "3276028A": "Omnisense",
-    "32760208": "Omnisense",
+    "32760208": "Omnisense", "32760048": "Omnisense",
     OPENMETEO_HISTORICAL_ID: "Open-Meteo",
     OPENMETEO_FORECAST_ID: "Open-Meteo",
     OPENMETEO_LEGACY_ID: "Open-Meteo",

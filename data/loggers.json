@@ -289,6 +289,17 @@
         "external_source": "External Historical (Open-Meteo)"
       },
       {
+        "id": "32760048",
+        "name": "Bedroom 4 (below metal roof)",
+        "source": "Omnisense",
+        "section": "structural",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false,
+        "external_source": "External Historical (Open-Meteo)"
+      },
+      {
         "id": "32760208",
         "name": "Washrooms area",
         "source": "Omnisense",
