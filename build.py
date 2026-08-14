@@ -1001,6 +1001,27 @@ body { font-family: 'Ubuntu', sans-serif; font-size: 13px; background: #f8f9fa; 
 #bar-title { font-size: 14px; font-weight: 600; color: #222; white-space: nowrap; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; }
 #time-bar-right { flex: 1; display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 #chart { flex: 1; min-height: 0; }
+/* Summary Statistics renders a real HTML table rather than a Plotly trace, so
+   that column headers can be clicked to sort and the text renders as text. */
+#stats-table-container { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 24px 12px; }
+.stats-caption { font-family: 'Ubuntu', sans-serif; font-size: 13px; font-weight: 600; color: #33526e; margin: 14px 0 6px 2px; }
+.stats-caption:first-child { margin-top: 2px; }
+.stats-table { border-collapse: separate; border-spacing: 0; font-family: 'Ubuntu', sans-serif; font-size: 12px; width: 100%; }
+.stats-table th, .stats-table td { padding: 5px 9px; border-bottom: 1px solid #ececec; white-space: nowrap; text-align: right; }
+.stats-table th:first-child, .stats-table td:first-child { text-align: left; white-space: normal; min-width: 190px; }
+.stats-table thead th { position: sticky; top: 0; z-index: 2; background: #4a7ba7; color: #fff; font-weight: 500; cursor: pointer; user-select: none; border-bottom: none; }
+.stats-table thead th:hover { background: #3d6b95; }
+.stats-table thead th .unit { color: #cfe0ee; font-weight: 400; }
+.stats-table thead th .arrow { color: #cfe0ee; margin-left: 3px; font-size: 10px; }
+.stats-table thead th.sorted { background: #3a6288; }
+.stats-table thead th.sorted .arrow { color: #fff; }
+.stats-table tbody tr.odd td { background: #fafafa; }
+.stats-table tbody tr.group td { background: #eef6ee; color: #1a3a5a; font-weight: 500; }
+.stats-table tbody tr.overall td { background: #e4ecf5; color: #1a3a5a; font-weight: 600; }
+.stats-table td.low-cov { color: #b06000; }
+.stats-note { font-family: 'Ubuntu', sans-serif; font-size: 11px; color: #888; margin: 8px 2px 0 2px; line-height: 1.5; }
+#stats-col-tip b { color: #9ec9ee; font-weight: 600; }
+#stats-col-tip .tip-hint { display: block; margin-top: 5px; color: #aaa; font-size: 11px; font-style: italic; }
 #chart.comfort-mode .annotation { transition: opacity 0.5s !important; }
 #chart.comfort-mode .annotation rect { pointer-events: all !important; cursor: default; }
 #chart.comfort-mode .annotation:hover { opacity: 0.08 !important; }
@@ -1245,6 +1266,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div class="section-title" data-i18n="metrics">Metrics</div>
         <label class="cb-label"><input type="checkbox" id="cb-temperature" checked> Temperature</label>
         <label class="cb-label" id="humidity-label"><input type="checkbox" id="cb-humidity" checked> Humidity</label>
+        <label class="cb-label" id="delta-label" style="display:none"><input type="checkbox" id="cb-delta"> <span data-i18n="statsVar_delta">Difference from external</span></label>
       </div>
       <hr class="divider">
       <div class="section" id="line-options-section">
@@ -1352,6 +1374,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="beta-decrement" data-i18n="betaDecrement">Decrement Factor</option>
             <option value="beta-lag" data-i18n="betaLag">Thermal Lag</option>
             <option value="beta-quality" data-i18n="betaQuality">Data Quality</option>
+            <option value="beta-stats" data-i18n="betaStats">Summary Statistics</option>
           </select>
           <span class="info-i" id="chart-info-icon">i</span>
           <div id="chart-info-tip"></div>
@@ -1388,6 +1411,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       &#9888; <span id="ext-data-warning-pre">Open-Meteo external temperature data only covers to</span> <b id="ext-data-end"></b><span id="ext-data-warning-post">. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.</span>
     </div>
     <div id="chart"></div>
+    <div id="stats-table-container" style="display:none"></div>
+    <div class="info-tip-fixed" id="stats-col-tip"></div>
     <span class="info-i" id="rm-xaxis-info-icon" style="display:none;position:fixed;z-index:60;">i</span>
     <div class="info-tip-fixed" id="rm-xaxis-info-tip"></div>
     <div id="hist-hover-tip" style="display:none;position:absolute;z-index:100;pointer-events:none;background:rgba(30,30,30,0.92);color:#fff;font-family:'Ubuntu',sans-serif;font-size:12px;padding:6px 10px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);"></div>
@@ -1470,6 +1495,8 @@ const state = {
   substratFilters: [],
   substratCombine: 'all',
   histogramBarmode: 'stack',
+  statsSortKey: null,
+  statsSortDir: 'desc',
   excludeAnomalous: false,
   wetBulbEnabled: false,
   wetBulbLoggers: new Set(),
@@ -1549,6 +1576,46 @@ const I18N = {
     infoBetaDecrement: 'How much the building dampens the outdoor temperature swing each day. Calculated as indoor swing divided by outdoor swing. Example: outdoor high 35\u00b0C, low 23\u00b0C (swing = 12\u00b0C); indoor high 30\u00b0C, low 26\u00b0C (swing = 4\u00b0C). Factor = 4/12 = 0.33. Lower values mean the building smooths out temperature extremes better. A value of 1.0 means no damping at all.',
     infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\'s thermal mass absorbs heat slowly and releases it later, ideally when it\'s cooler outside.',
     infoBetaQuality: 'Data health overview showing per-sensor coverage and gap detection (periods >6h with no readings). Green = good data, orange = gap. Admin-flagged anomalous ranges shown in purple where applicable.',
+    infoBetaStats: 'Descriptive statistics for every selected logger over the chosen period, with group summaries for External, Room and Structural and an overall row. Coverage shows how much of the period each logger actually reported — treat figures with low coverage cautiously. Group rows average the per-logger statistics so that a fast-sampling logger does not outweigh a slower one. Choose "Difference from external" to see how far each space sits above or below outdoor ambient, split by day and night.',
+
+    betaStats: 'Summary Statistics',
+    betaStatsTitle: 'Summary Statistics',
+    downloadCsv: 'Download CSV',
+    statsSortHint: 'Click to sort by this column',
+    // Column tooltips: formal name, then what it actually tells you.
+    statsTip_label:     ['Sensor', 'Which logger this row describes and where it sits. The name in brackets is the system it belongs to, not a second sensor.'],
+    statsTip_n:         ['Sample count (n)', 'How many readings this row is based on. Every logger is averaged into one value per hour first, so a sensor that records every 5 minutes does not count twelve times more than an hourly one.'],
+    statsTip_coverage:  ['Coverage', 'How much of the chosen period this logger actually recorded. 100% means no gaps. A low figure means everything else in the row describes only part of the period, so read it with care.'],
+    statsTip_mean:      ['Arithmetic mean', 'The plain average: every reading added up and divided by how many there are. A few very hot or very cold hours drag it noticeably.'],
+    statsTip_median:    ['Median (50th percentile)', 'The middle reading, with half above and half below. It ignores extremes, so when it sits well away from the mean the readings are lopsided rather than evenly spread.'],
+    statsTip_min:       ['Minimum', 'The single lowest reading recorded in the period.'],
+    statsTip_max:       ['Maximum', 'The single highest reading recorded in the period.'],
+    statsTip_sd:        ['Standard deviation', 'How spread out the readings are around the mean. A small figure means steady conditions; a large one means it swings about a lot.'],
+    statsTip_p5:        ['5th percentile', 'Only 1 reading in 20 falls below this. A fair figure for "how low it typically gets", without being set by a single freak reading the way the minimum is.'],
+    statsTip_p95:       ['95th percentile', 'Only 1 reading in 20 sits above this. A fair figure for "how high it typically gets", without being set by a single freak reading the way the maximum is.'],
+    statsTip_swing:     ['Mean diurnal range', 'On an average day, the gap between that day\'s highest and lowest reading. It shows how much conditions move over 24 hours: a small swing means the building holds steady.'],
+    statsTip_meanDay:   ['Mean daytime difference', 'Average difference from outdoors between 06:00 and 18:00. Positive means warmer inside than out; negative means the space is giving relief from the daytime heat.'],
+    statsTip_meanNight: ['Mean night-time difference', 'Average difference from outdoors between 18:00 and 06:00. Positive means the building is still releasing the day\'s heat after dark.'],
+    statsTip_exceed0:   ['Exceedance, 32°C', 'The share of readings at or above 32°C — the lower edge of the shaded heat band used elsewhere on the dashboard.'],
+    statsTip_exceed1:   ['Exceedance, 35°C', 'The share of readings at or above 35°C — the upper edge of the shaded heat band, and the point at which conditions are hard to tolerate.'],
+    statsNoMetric: 'Select at least one metric to see statistics.',
+    statsFootnote: 'Group and overall rows average the per-logger figures, so each logger counts once regardless of how often it samples; min and max are true extremes across the group. Coverage is the share of the selected period the logger actually reported — figures below 50% are highlighted. Sorting reorders loggers within their group.',
+    statsVar_temperature: 'Temperature',
+    statsVar_humidity: 'Humidity',
+    statsVar_delta: 'Difference from external',
+    statsLogger: 'Logger',
+    statsCoverage: 'Coverage',
+    statsMean: 'Mean',
+    statsMedian: 'Median',
+    statsMin: 'Min',
+    statsMax: 'Max',
+    statsSD: 'SD',
+    statsSwing: 'Swing',
+    statsMeanDay: 'Mean day',
+    statsMeanNight: 'Mean night',
+    statsGroupMean: 'group mean',
+    statsAllSelected: 'All selected',
+    statsNoExternal: 'No external temperature data available',
 
     stacked: 'Stacked',
     overlay: 'Overlay',
@@ -1726,6 +1793,45 @@ const I18N = {
     infoBetaDecrement: 'Uwiano wa mabadiliko ya joto la ndani na nje kwa siku. Nambari ndogo ni bora: inamaanisha jengo linapunguza joto la nje vizuri.',
     infoBetaLag: 'Masaa mangapi kilele cha joto la ndani kinachelewa nyuma ya kilele cha nje. Ucheleweshaji mrefu = thermal mass nzuri.',
     infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor na mapungufu. Kijani = data nzuri, machungwa = pengo. Maeneo yaliyotambuliwa na msimamizi yanaonyeshwa kwa zambarau.',
+    infoBetaStats: 'Takwimu za kila kihisi kwa kipindi kilichochaguliwa, pamoja na muhtasari wa Nje, Chumba na Muundo na safu ya jumla. "Ufikiaji" unaonyesha kiasi cha kipindi ambacho kihisi kilirekodi — takwimu zenye ufikiaji mdogo zichukuliwe kwa tahadhari. Safu za kikundi zinatumia wastani wa takwimu za kila kihisi ili kihisi kinachorekodi mara nyingi kisizidi kile cha polepole. Chagua "Tofauti na nje" kuona jinsi kila chumba kilivyo juu au chini ya joto la nje, kwa mchana na usiku.',
+
+    betaStats: 'Takwimu za Muhtasari',
+    betaStatsTitle: 'Takwimu za Muhtasari',
+    downloadCsv: 'Pakua CSV',
+    statsSortHint: 'Bofya kupanga kwa safu hii',
+    statsTip_label:     ['Kihisi', 'Kihisi kinachoelezwa na safu hii na kilipo. Jina lililo kwenye mabano ni mfumo kinachotumia, si kihisi cha pili.'],
+    statsTip_n:         ['Idadi ya vipimo (n)', 'Idadi ya usomaji uliotumika. Kila kihisi kinakokotolewa kuwa thamani moja kwa saa kwanza, hivyo kihisi kinachorekodi kila dakika 5 hakihesabiwi mara kumi na mbili zaidi ya cha saa.'],
+    statsTip_coverage:  ['Ufikiaji', 'Kiasi cha kipindi kilichochaguliwa ambacho kihisi kilirekodi kweli. 100% inamaanisha hakuna mapengo. Nambari ndogo inamaanisha takwimu nyingine zinaelezea sehemu tu ya kipindi.'],
+    statsTip_mean:      ['Wastani wa hesabu', 'Wastani wa kawaida: usomaji wote ukijumlishwa na kugawanywa kwa idadi yake. Saa chache za joto kali au baridi kali zinauvuta.'],
+    statsTip_median:    ['Wastani wa kati (asilimia 50)', 'Usomaji wa katikati, nusu juu na nusu chini. Hauathiriwi na viwango vikali, hivyo ukitofautiana sana na wastani wa hesabu, data haijasambaa sawasawa.'],
+    statsTip_min:       ['Kiwango cha chini', 'Usomaji mmoja wa chini kabisa katika kipindi.'],
+    statsTip_max:       ['Kiwango cha juu', 'Usomaji mmoja wa juu kabisa katika kipindi.'],
+    statsTip_sd:        ['Mchepuko wa kawaida', 'Jinsi usomaji ulivyotawanyika kuzunguka wastani. Nambari ndogo = hali tulivu; kubwa = mabadiliko makubwa.'],
+    statsTip_p5:        ['Asilimia ya 5', 'Usomaji mmoja tu kati ya 20 uko chini ya hapa. Kipimo bora cha "hushuka kiasi gani kwa kawaida", bila kutegemea usomaji mmoja wa ajabu.'],
+    statsTip_p95:       ['Asilimia ya 95', 'Usomaji mmoja tu kati ya 20 uko juu ya hapa. Kipimo bora cha "hupanda kiasi gani kwa kawaida", bila kutegemea usomaji mmoja wa ajabu.'],
+    statsTip_swing:     ['Mabadiliko ya kila siku', 'Kwa siku ya kawaida, tofauti kati ya usomaji wa juu na wa chini wa siku hiyo. Inaonyesha hali inabadilika kiasi gani kwa saa 24.'],
+    statsTip_meanDay:   ['Tofauti ya wastani mchana', 'Tofauti ya wastani na nje kati ya saa 06:00 na 18:00. Chanya = ndani ni moto zaidi kuliko nje; hasi = chumba kinapunguza joto la mchana.'],
+    statsTip_meanNight: ['Tofauti ya wastani usiku', 'Tofauti ya wastani na nje kati ya saa 18:00 na 06:00. Chanya = jengo bado linatoa joto la mchana baada ya giza.'],
+    statsTip_exceed0:   ['Kuzidi 32°C', 'Sehemu ya usomaji iliyo 32°C au zaidi — mpaka wa chini wa eneo la joto linaloonyeshwa kwenye chati nyingine.'],
+    statsTip_exceed1:   ['Kuzidi 35°C', 'Sehemu ya usomaji iliyo 35°C au zaidi — mpaka wa juu wa eneo la joto, na kiwango ambacho hali ni ngumu kuvumilika.'],
+    statsNoMetric: 'Chagua angalau kipimo kimoja kuona takwimu.',
+    statsFootnote: 'Safu za kikundi na jumla zinatumia wastani wa takwimu za kila kihisi, hivyo kila kihisi kinahesabiwa mara moja bila kujali kasi yake ya kurekodi; chini na juu ni viwango halisi vya kikundi. "Ufikiaji" ni sehemu ya kipindi ambayo kihisi kilirekodi — chini ya 50% imeangaziwa. Kupanga kunapanga vihisi ndani ya kikundi chake.',
+    statsVar_temperature: 'Joto',
+    statsVar_humidity: 'Unyevu',
+    statsVar_delta: 'Tofauti na nje',
+    statsLogger: 'Kihisi',
+    statsCoverage: 'Ufikiaji',
+    statsMean: 'Wastani',
+    statsMedian: 'Wastani wa kati',
+    statsMin: 'Chini',
+    statsMax: 'Juu',
+    statsSD: 'SD',
+    statsSwing: 'Mabadiliko',
+    statsMeanDay: 'Wastani mchana',
+    statsMeanNight: 'Wastani usiku',
+    statsGroupMean: 'wastani wa kikundi',
+    statsAllSelected: 'Vyote vilivyochaguliwa',
+    statsNoExternal: 'Hakuna data ya joto la nje',
 
     stacked: 'Imerundikwa',
     overlay: 'Imefunikwa',
@@ -3059,6 +3165,7 @@ async function init() {
     ftDiv.innerHTML = lines.join('<br>');
   }
   setupStaticListeners();
+  setupStatsSorting();
   loadDataset('house5');
   // Apply saved language preference and mark active button
   const savedLang = localStorage.getItem('arcLang') || 'en';
@@ -3462,6 +3569,12 @@ function resetLineDefaults() {
   state.histogramBarmode = 'stack';
   document.getElementById('histogram-barmode').value = 'stack';
 
+  // Summary statistics settings
+  state.statsSortKey = null;
+  state.statsSortDir = 'desc';
+  state.selectedMetrics.delete('delta');
+  document.getElementById('cb-delta').checked = false;
+
   // Section averages: all on, all unlocked
   state.showSectionAvg = {external: true, room: true, structural: true};
   state.lockedAvg = {external: null, room: null, structural: null};
@@ -3603,6 +3716,9 @@ function setupStaticListeners() {
     const isComfort = state.chartType === 'comfort';
     const isPeriodic = state.chartType === 'periodic';
     const isBeta = state.chartType.startsWith('beta-');
+    // Summary statistics is the one beta view driven by logger selection, so it
+    // keeps the logger checkboxes that the other beta views hide.
+    const isStats = state.chartType === 'beta-stats';
     const m = dataset().meta;
     const syncRoomSet = new Set(m.roomLoggers || []);
     // Sync selections between line/histogram ↔ adaptive comfort (room loggers only; structural defaults off)
@@ -3625,9 +3741,18 @@ function setupStaticListeners() {
         cb.checked = state.selectedRoomLoggers.has(cb.dataset.loggerId);
       });
     }
-    document.getElementById('line-controls').classList.toggle('hidden', isComfort || isBeta);
+    document.getElementById('line-controls').classList.toggle('hidden', isComfort || (isBeta && !isStats));
     document.getElementById('comfort-controls').classList.toggle('hidden', !isComfort);
     document.getElementById('histogram-stats').classList.toggle('hidden', !isHistogram);
+    // Summary statistics takes its variables from the Metrics checkboxes rather
+    // than a dropdown of its own, and adds difference-from-external there.
+    document.getElementById('delta-label').style.display = isStats ? '' : 'none';
+    const dlBtn = document.getElementById('download-btn');
+    dlBtn.textContent = isStats ? t('downloadCsv') : t('downloadPng');
+    dlBtn.dataset.i18n = isStats ? 'downloadCsv' : 'downloadPng';
+    document.getElementById('chart').style.display = isStats ? 'none' : '';
+    document.getElementById('stats-table-container').style.display = isStats ? '' : 'none';
+    if (!isStats) { state.statsSortKey = null; }
     if (!isPeriodic) document.getElementById('periodic-completeness').classList.add('hidden');
     document.getElementById('periodic-options').style.display = isPeriodic ? '' : 'none';
     document.getElementById('periodic-divider').style.display = isPeriodic ? '' : 'none';
@@ -3660,7 +3785,7 @@ function setupStaticListeners() {
       document.getElementById('line-options-section').style.display = 'none';
       document.getElementById('line-options-divider').style.display = 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = 'none';
-      document.getElementById('humidity-label').style.display = 'none';
+      document.getElementById('humidity-label').style.display = isStats ? '' : 'none';
       document.getElementById('cb-threshold').parentElement.style.display = 'none';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
       // Hide external logger checkboxes; show room loggers (+ structural for data quality)
@@ -3680,7 +3805,8 @@ function setupStaticListeners() {
             const cb = sib.querySelector && sib.querySelector('input[data-logger-id]');
             if (cb) {
               const lid = cb.dataset.loggerId;
-              sectionVisible = _roomSet.has(lid) || (_isQuality && _structSet.has(lid));
+              // Summary statistics reports on every group, so it keeps them all.
+              sectionVisible = isStats || _roomSet.has(lid) || (_isQuality && _structSet.has(lid));
               break;
             }
             sib = sib.nextElementSibling;
@@ -3928,6 +4054,11 @@ function setupStaticListeners() {
     updatePlot();
   });
 
+  document.getElementById('cb-delta').addEventListener('change', e => {
+    e.target.checked ? state.selectedMetrics.add('delta') : state.selectedMetrics.delete('delta');
+    updatePlot();
+  });
+
   function rebuildYearDropdown() {
     const ysel = document.getElementById('year-select');
     const prev = ysel.value;
@@ -4064,20 +4195,15 @@ function setupStaticListeners() {
     function dlStart() { btn.disabled = true; spinner.style.display = 'inline-block'; }
     function dlDone()  { btn.disabled = false; spinner.style.display = 'none'; }
 
+    // The statistics view is an HTML table, not a Plotly figure, so it exports
+    // as CSV — which is more use for a table of numbers than a picture of one.
+    if (state.chartType === 'beta-stats') { downloadStatsCsv(); return; }
+
     const dsSel = document.getElementById('dataset-select');
     const ds = dsSel.options[dsSel.selectedIndex].text;
     const chart = state.chartType === 'line' ? 'Line' : state.chartType === 'histogram' ? 'Histogram' : state.chartType === 'periodic' ? 'PeriodicAvg' : 'AdaptiveComfort';
-    let rangeStr = 'AllTime';
+    const rangeStr = exportRangeStr();
     const m = dataset().meta;
-    const fmtDate = ms => new Date(ms).toISOString().slice(0,10);
-    switch (state.timeMode) {
-      case 'between': rangeStr = `${fmtDate(state.betweenStart||m.dateRange.min)}_to_${fmtDate(state.betweenEnd||m.dateRange.max)}`; break;
-      case 'year': rangeStr = `${state.selectedYear}`; break;
-      case 'season': if (state.selectedSeason) { const sn = ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'][state.selectedSeason.season]; rangeStr = `${state.selectedSeason.year}-${sn}`; } break;
-      case 'month': if (state.selectedMonth) rangeStr = `${state.selectedMonth.year}-${String(state.selectedMonth.month).padStart(2,'0')}`; break;
-      case 'week': if (state.selectedWeek) rangeStr = `${state.selectedWeek.year}-W${String(state.selectedWeek.week).padStart(2,'0')}`; break;
-      case 'day': if (state.selectedDay) rangeStr = fmtDate(state.selectedDay); break;
-    }
     let modelStr = '';
     if (state.chartType === 'comfort') {
       const modelSel = document.getElementById('comfort-model');
@@ -5920,6 +6046,491 @@ function getExternalSeries() {
   return null;
 }
 
+// ── Summary statistics helpers ───────────────────────────────────────────────
+// Each logger series is resampled to a fixed grid in build_dataset_json (default
+// 1h, per-logger via GRANULARITY_MAP), so a plain arithmetic mean over one
+// logger's samples is unbiased. Granularity can differ BETWEEN loggers, though,
+// so group figures aggregate the per-logger statistics rather than pooling raw
+// samples — otherwise a 15-minute logger would outvote an hourly one 4:1.
+
+function _quantile(sorted, q) {
+  if (sorted.length === 0) return null;
+  if (sorted.length === 1) return sorted[0];
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (pos - lo) * (sorted[hi] - sorted[lo]);
+}
+
+// Mean daily (max − min) swing, over EAT calendar days.
+// Days are only counted if they are reasonably complete: a part-day cannot show
+// its full swing, and the first and last day of any selected window are almost
+// always partial, which would otherwise bias the mean downwards.
+function _meanDiurnalSwing(timestamps, values, stepMs) {
+  const byDay = new Map();
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v == null) continue;
+    const d = eatDate(timestamps[i]);
+    const key = d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
+    let e = byDay.get(key);
+    if (!e) { e = {min: v, max: v, n: 1}; byDay.set(key, e); }
+    else { if (v < e.min) e.min = v; if (v > e.max) e.max = v; e.n++; }
+  }
+  const perDay = (stepMs && stepMs > 0) ? 86400000 / stepMs : null;
+  const minSamples = perDay ? Math.max(3, Math.ceil(perDay * 0.8)) : 3;
+  const swings = [];
+  for (const e of byDay.values()) if (e.n >= minSamples) swings.push(e.max - e.min);
+  if (swings.length === 0) return null;
+  return swings.reduce((a, b) => a + b, 0) / swings.length;
+}
+
+// Descriptive statistics for one array of values on a regular time grid.
+// `expectedStepMs` drives the coverage figure: how much of the selected window
+// this logger actually reported, so a mean over a gappy series can be read with
+// the appropriate suspicion.
+function computeStats(timestamps, values, startMs, endMs, thresholds) {
+  const clean = [], cleanTs = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v == null || !isFinite(v)) continue;
+    clean.push(v); cleanTs.push(timestamps[i]);
+  }
+  if (clean.length === 0) return null;
+
+  const n = clean.length;
+  const mean = clean.reduce((a, b) => a + b, 0) / n;
+  const sorted = clean.slice().sort((a, b) => a - b);
+  const median = _quantile(sorted, 0.5);
+  const min = sorted[0], max = sorted[n - 1];
+  // Sample SD (n−1); undefined for a single reading.
+  const sd = n > 1
+    ? Math.sqrt(clean.reduce((a, v) => a + (v - mean) * (v - mean), 0) / (n - 1))
+    : null;
+
+  // Modal spacing of the samples = this logger's grid step.
+  let stepMs = null;
+  if (cleanTs.length > 1) {
+    const diffs = [];
+    for (let i = 1; i < cleanTs.length; i++) diffs.push(cleanTs[i] - cleanTs[i - 1]);
+    diffs.sort((a, b) => a - b);
+    stepMs = diffs[Math.floor(diffs.length / 2)];
+  }
+  let coverage = null;
+  if (stepMs && stepMs > 0 && endMs > startMs) {
+    const expected = (endMs - startMs) / stepMs;
+    if (expected > 0) coverage = Math.min(100, (n / expected) * 100);
+  }
+
+  const stats = {
+    n, mean, median, min, max, sd, coverage,
+    p5:  _quantile(sorted, 0.05),
+    p25: _quantile(sorted, 0.25),
+    p75: _quantile(sorted, 0.75),
+    p95: _quantile(sorted, 0.95),
+    minAt: cleanTs[clean.indexOf(min)],
+    maxAt: cleanTs[clean.indexOf(max)],
+    swing: _meanDiurnalSwing(cleanTs, clean, stepMs),
+  };
+
+  // Share of readings at or above each threshold (temperature only).
+  if (thresholds && thresholds.length) {
+    stats.exceed = thresholds.map(th => (clean.filter(v => v >= th).length / n) * 100);
+  }
+  return stats;
+}
+
+// Aggregate a set of per-logger stats objects into one group row.
+// Means of means, medians of medians: every logger counts once regardless of
+// how fast it samples.
+function aggregateStats(statList) {
+  const valid = statList.filter(s => s);
+  if (valid.length === 0) return null;
+  const avg = key => _avgField(valid, key);
+  const agg = {
+    nLoggers: valid.length,
+    n:      valid.reduce((a, s) => a + s.n, 0),
+    mean:   avg('mean'),
+    median: avg('median'),
+    // Group min/max are true extremes across the group, not averages.
+    min:    Math.min(...valid.map(s => s.min)),
+    max:    Math.max(...valid.map(s => s.max)),
+    sd:     avg('sd'),
+    coverage: avg('coverage'),
+    p5:     avg('p5'),
+    p25:    avg('p25'),
+    p75:    avg('p75'),
+    p95:    avg('p95'),
+    swing:  avg('swing'),
+  };
+  const withExceed = valid.filter(s => s.exceed);
+  if (withExceed.length) {
+    agg.exceed = withExceed[0].exceed.map((_, i) => {
+      const vals = withExceed.map(s => s.exceed[i]);
+      return vals.reduce((a, b) => a + b, 0) / vals.length;
+    });
+  }
+  return agg;
+}
+
+// Average a field across per-logger stats, ignoring loggers that lack it.
+function _avgField(statList, key) {
+  const vals = statList.map(s => s[key]).filter(v => v != null && isFinite(v));
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+function addDayNightMeans(agg, statList) {
+  agg.meanDay   = _avgField(statList, 'meanDay');
+  agg.meanNight = _avgField(statList, 'meanNight');
+}
+
+// ── Beta Feature 5: Summary Statistics ───────────────────────────────────────
+// Rendered as a real HTML table rather than a Plotly table trace: column headers
+// have to be clickable to sort, and Plotly table cells render their contents as
+// plain text, which turned the markup in logger labels into visible tags.
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Logger labels carry <span> colouring for the source suffix. That is meant for
+// the sidebar; here we want the words on their own.
+function stripTags(s) {
+  return String(s).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// Assemble one table's worth of rows for a single metric.
+// Returns null when the metric yields nothing for the current selection.
+function buildStatsTable(metric, start, end) {
+  const m = dataset().meta;
+  const isDelta = metric === 'delta';
+  const isTemp  = metric === 'temperature';
+
+  let extFiltered = null;
+  if (isDelta) {
+    const ext = getExternalSeries();
+    if (!ext) return {error: t('statsNoExternal')};
+    extFiltered = filterSeries(ext.series, start, end);
+    if (!extFiltered) return {error: t('noDataRange')};
+  }
+
+  const roomSet = new Set(m.roomLoggers || []);
+  const structSet = new Set(m.structuralLoggers || []);
+  const extSet = new Set(m.externalLoggers || []);
+  const thresholds = isTemp ? [32, 35] : null;
+
+  const all = [];
+  const byGroup = {external: [], room: [], structural: []};
+  for (const loggerId of m.loggers) {
+    if (!state.selectedLoggers.has(loggerId)) continue;
+    // A logger's difference from itself is always zero.
+    if (isDelta && extSet.has(loggerId)) continue;
+    const series = dataset().series[loggerId];
+    if (!series) continue;
+    let filtered = filterSeries(series, start, end);
+    if (!filtered) continue;
+    filtered = applyAnomalousFilter(filtered, loggerId);
+    if (!filtered) continue;
+
+    let values, timestamps = filtered.timestamps;
+    if (isDelta) {
+      values = []; timestamps = [];
+      for (let i = 0; i < filtered.timestamps.length; i++) {
+        const tIn = filtered.temperature[i];
+        if (tIn == null) continue;
+        const tOut = interpolateExtTemp(extFiltered.timestamps, extFiltered.temperature, filtered.timestamps[i]);
+        if (tOut == null) continue;
+        timestamps.push(filtered.timestamps[i]);
+        values.push(tIn - tOut);
+      }
+    } else {
+      values = metric === 'humidity' ? filtered.humidity : filtered.temperature;
+    }
+
+    const st = computeStats(timestamps, values, start, end, thresholds);
+    if (!st) continue;
+
+    // Day/night split: a space can sit below ambient by day and above it by
+    // night, and one mean near zero would hide exactly that.
+    if (isDelta) {
+      const dayV = [], nightV = [];
+      for (let i = 0; i < values.length; i++) {
+        if (values[i] == null) continue;
+        const h = eatDate(timestamps[i]).getUTCHours();
+        (h >= 6 && h < 18 ? dayV : nightV).push(values[i]);
+      }
+      st.meanDay   = dayV.length   ? dayV.reduce((a, b) => a + b, 0) / dayV.length : null;
+      st.meanNight = nightV.length ? nightV.reduce((a, b) => a + b, 0) / nightV.length : null;
+    }
+
+    st.label = stripTags(ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''));
+    const group = extSet.has(loggerId) ? 'external' : structSet.has(loggerId) ? 'structural' : 'room';
+    byGroup[group].push(st);
+    all.push(st);
+  }
+  if (all.length === 0) return null;
+
+  // Columns
+  const unit = metric === 'humidity' ? '%' : '°C';
+  const f1 = v => (v == null || !isFinite(v)) ? '–' : v.toFixed(1);
+  const fSigned = v => (v == null || !isFinite(v)) ? '–' : (v > 0 ? '+' : '') + v.toFixed(1);
+  const fNum = isDelta ? fSigned : f1;
+  const pct = v => (v == null || !isFinite(v)) ? '–' : v.toFixed(0) + '%';
+  const cols = [
+    {key: 'label',    label: t('statsLogger'),   fmt: s => s.label, unit: ''},
+    {key: 'n',        label: 'n',                fmt: s => s.n.toLocaleString(), unit: ''},
+    {key: 'coverage', label: t('statsCoverage'), fmt: s => pct(s.coverage), unit: ''},
+    {key: 'mean',     label: t('statsMean'),     fmt: s => fNum(s.mean),   unit},
+    {key: 'median',   label: t('statsMedian'),   fmt: s => fNum(s.median), unit},
+    {key: 'min',      label: t('statsMin'),      fmt: s => fNum(s.min),    unit},
+    {key: 'max',      label: t('statsMax'),      fmt: s => fNum(s.max),    unit},
+    {key: 'sd',       label: t('statsSD'),       fmt: s => f1(s.sd),       unit},
+    {key: 'p5',       label: 'P5',               fmt: s => fNum(s.p5),     unit},
+    {key: 'p95',      label: 'P95',              fmt: s => fNum(s.p95),    unit},
+    {key: 'swing',    label: t('statsSwing'),    fmt: s => f1(s.swing),    unit},
+  ];
+  if (isDelta) {
+    cols.push({key: 'meanDay',   label: t('statsMeanDay'),   fmt: s => fSigned(s.meanDay),   unit});
+    cols.push({key: 'meanNight', label: t('statsMeanNight'), fmt: s => fSigned(s.meanNight), unit});
+  }
+  if (isTemp) {
+    cols.push({key: 'exceed0', label: '≥32°C', fmt: s => s.exceed ? s.exceed[0].toFixed(1) + '%' : '–', unit: '', sortVal: s => s.exceed ? s.exceed[0] : null});
+    cols.push({key: 'exceed1', label: '≥35°C', fmt: s => s.exceed ? s.exceed[1].toFixed(1) + '%' : '–', unit: '', sortVal: s => s.exceed ? s.exceed[1] : null});
+  }
+
+  // Sorting reorders loggers WITHIN their group, so that each group mean stays
+  // adjacent to the loggers it is the mean of.
+  const sortKey = state.statsSortKey;
+  if (sortKey) {
+    const col = cols.find(c => c.key === sortKey);
+    if (col) {
+      const dir = state.statsSortDir === 'asc' ? 1 : -1;
+      const val = s => col.sortVal ? col.sortVal(s) : s[sortKey];
+      const cmp = (a, b) => {
+        const va = val(a), vb = val(b);
+        if (sortKey === 'label') return dir * String(va).localeCompare(String(vb));
+        const na = (va == null || !isFinite(va)), nb = (vb == null || !isFinite(vb));
+        if (na && nb) return 0;
+        if (na) return 1;   // blanks sink to the bottom either way round
+        if (nb) return -1;
+        return dir * (va - vb);
+      };
+      for (const g of ['external', 'room', 'structural']) byGroup[g].sort(cmp);
+    }
+  }
+
+  // Interleave: each group's loggers, that group's mean, then an overall row.
+  const groupLabels = {external: t('sectionExternal'), room: t('sectionRoom'), structural: t('sectionStructural')};
+  const rows = [];
+  for (const g of ['external', 'room', 'structural']) {
+    if (byGroup[g].length === 0) continue;
+    for (const st of byGroup[g]) rows.push({st, kind: 'logger'});
+    if (byGroup[g].length > 1) {
+      const agg = aggregateStats(byGroup[g]);
+      if (isDelta) addDayNightMeans(agg, byGroup[g]);
+      agg.label = `${groupLabels[g]} — ${t('statsGroupMean')} (${byGroup[g].length})`;
+      rows.push({st: agg, kind: 'group'});
+    }
+  }
+  if (all.length > 1) {
+    const overall = aggregateStats(all);
+    if (isDelta) addDayNightMeans(overall, all);
+    overall.label = `${t('statsAllSelected')} (${all.length})`;
+    rows.push({st: overall, kind: 'overall'});
+  }
+
+  const captions = {
+    temperature: `${t('statsVar_temperature')} (°C)`,
+    humidity:    `${t('statsVar_humidity')} (%)`,
+    delta:       `${t('statsVar_delta')} (Δ°C)`,
+  };
+  return {metric, caption: captions[metric], cols, rows};
+}
+
+// Which metrics the table shows, taken from the Metrics checkboxes.
+function statsMetrics() {
+  return ['temperature', 'humidity', 'delta'].filter(k => state.selectedMetrics.has(k));
+}
+
+function renderSummaryStats() {
+  const {start, end} = getTimeRange();
+  const title = `${dsLabel()} – ${t('betaStatsTitle')}`;
+  const metrics = statsMetrics();
+  if (metrics.length === 0) return {_html: `<div class="stats-note">${escHtml(t('statsNoMetric'))}</div>`, title, _noData: true, _tables: []};
+
+  const tables = [], notes = [];
+  for (const metric of metrics) {
+    const tbl = buildStatsTable(metric, start, end);
+    if (!tbl) continue;
+    if (tbl.error) { notes.push(tbl.error); continue; }
+    tables.push(tbl);
+  }
+  if (tables.length === 0) {
+    const msg = notes.length ? notes.join(' · ') : t('noDataRange');
+    return {_html: `<div class="stats-note">${escHtml(msg)}</div>`, title, _noData: true, _tables: []};
+  }
+
+  const sortKey = state.statsSortKey, sortDir = state.statsSortDir;
+  let html = '';
+  for (const tbl of tables) {
+    html += `<div class="stats-caption">${escHtml(tbl.caption)}</div>`;
+    html += '<table class="stats-table"><thead><tr>';
+    for (const c of tbl.cols) {
+      const isSorted = sortKey === c.key;
+      const arrow = isSorted ? (sortDir === 'asc' ? '▲' : '▼') : '⇅';
+      const unit = c.unit ? ` <span class="unit">(${escHtml(c.unit)})</span>` : '';
+      // No title attribute: the native browser tooltip would race the hover box.
+      html += `<th class="${isSorted ? 'sorted' : ''}" data-sort-key="${escHtml(c.key)}">`
+            + `${escHtml(c.label)}${unit}<span class="arrow">${arrow}</span></th>`;
+    }
+    html += '</tr></thead><tbody>';
+    let stripe = 0;
+    for (const r of tbl.rows) {
+      const cls = r.kind === 'logger' ? (stripe++ % 2 ? 'odd' : '') : r.kind;
+      html += `<tr class="${cls}">`;
+      for (const c of tbl.cols) {
+        // Flag thin coverage: a mean over a mostly-absent series is not wrong so
+        // much as unanswerable, and the reader needs to see that at a glance.
+        const low = c.key === 'coverage' && r.st.coverage != null && r.st.coverage < 50 ? ' class="low-cov"' : '';
+        html += `<td${low}>${escHtml(c.fmt(r.st))}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+  }
+  for (const n of notes) html += `<div class="stats-note">${escHtml(n)}</div>`;
+  html += `<div class="stats-note">${escHtml(t('statsFootnote'))}</div>`;
+
+  return {_html: html, title, _noData: false, _tables: tables};
+}
+
+// Filename fragment describing the selected period. Shared by the PNG and CSV
+// exports so both name their files the same way.
+function exportRangeStr() {
+  const m = dataset().meta;
+  const fmtDate = ms => new Date(ms).toISOString().slice(0, 10);
+  switch (state.timeMode) {
+    case 'between': return `${fmtDate(state.betweenStart || m.dateRange.min)}_to_${fmtDate(state.betweenEnd || m.dateRange.max)}`;
+    case 'year': return `${state.selectedYear}`;
+    case 'season': if (state.selectedSeason) { const sn = ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'][state.selectedSeason.season]; return `${state.selectedSeason.year}-${sn}`; } return 'AllTime';
+    case 'month': if (state.selectedMonth) return `${state.selectedMonth.year}-${String(state.selectedMonth.month).padStart(2, '0')}`; return 'AllTime';
+    case 'week': if (state.selectedWeek) return `${state.selectedWeek.year}-W${String(state.selectedWeek.week).padStart(2, '0')}`; return 'AllTime';
+    case 'day': if (state.selectedDay) return fmtDate(state.selectedDay); return 'AllTime';
+  }
+  return 'AllTime';
+}
+
+// Build the CSV text for the tables currently on screen. One block per metric,
+// separated by a blank line, with the period and sort order recorded up top so
+// the file still makes sense once it is away from the dashboard.
+function statsCsvText() {
+  const q = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const {start, end} = getTimeRange();
+  const fmt = ms => isFinite(ms) ? toEATString(ms).replace('T', ' ').slice(0, 16) : '';
+  const lines = [];
+  lines.push([q(t('betaStatsTitle')), q(dsLabel())].join(','));
+  lines.push([q('Period'), q(fmt(start) + ' to ' + fmt(end) + ' (EAT, UTC+03:00)')].join(','));
+  if (state.statsSortKey) lines.push([q('Sorted by'), q(state.statsSortKey + ' ' + state.statsSortDir)].join(','));
+  lines.push([q('Exported'), q(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC')].join(','));
+
+  for (const tbl of _statsTables) {
+    lines.push('');
+    lines.push(q(tbl.caption));
+    lines.push(tbl.cols.map(c => q(c.unit ? `${c.label} (${c.unit})` : c.label)).join(','));
+    for (const r of tbl.rows) {
+      // Strip the formatting flourishes that only make sense on screen: percent
+      // signs, leading +, the en-dash placeholder, and the thousands separators
+      // in n — all of which would make a spreadsheet read the cell as text.
+      lines.push(tbl.cols.map(c => {
+        const v = c.fmt(r.st);
+        if (c.key === 'label') return q(v);
+        return q(String(v).replace(/[%+,]/g, '').replace(/^–$/, ''));
+      }).join(','));
+    }
+  }
+  return lines.join('\n');
+}
+
+function downloadStatsCsv() {
+  if (!_statsTables.length) return;
+  const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/, '');
+  const m = dataset().meta;
+  const metricStr = '_' + statsMetrics().map(k => ({temperature: 'T', humidity: 'RH', delta: 'dT'})[k]).join('+');
+  const selIds = [...state.selectedLoggers];
+  const total = m.loggers.length;
+  let sensorStr = '';
+  if (selIds.length === 0) sensorStr = '_NoSensors';
+  else if (selIds.length <= 2) sensorStr = '_' + selIds.map(id => slug(stripTags(ln(id)))).join('+');
+  else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
+  const _n = new Date(), _p = n => String(n).padStart(2, '0');
+  const ts = `${_n.getFullYear()}${_p(_n.getMonth() + 1)}${_p(_n.getDate())}_${_p(_n.getHours())}${_p(_n.getMinutes())}`;
+  const filename = `ARC_${slug(dsLabel())}_SummaryStats${metricStr}${sensorStr}_${exportRangeStr()}_${ts}.csv`;
+
+  // BOM so Excel reads the °C and Δ characters as UTF-8.
+  const blob = new Blob(['﻿' + statsCsvText()], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Delegated once at setup; the table markup is replaced on every render, so
+// listeners live on the container rather than on individual cells.
+function setupStatsSorting() {
+  const container = document.getElementById('stats-table-container');
+  const tip = document.getElementById('stats-col-tip');
+
+  container.addEventListener('click', e => {
+    const th = e.target.closest('th[data-sort-key]');
+    if (!th) return;
+    const key = th.dataset.sortKey;
+    if (state.statsSortKey === key) {
+      state.statsSortDir = state.statsSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.statsSortKey = key;
+      // Names read naturally A→Z; numbers are most useful largest-first.
+      state.statsSortDir = key === 'label' ? 'asc' : 'desc';
+    }
+    updatePlot();
+  });
+
+  // Column explanations on hover: the formal name of the statistic and what it
+  // actually tells you, since neither is obvious from a three-letter heading.
+  function positionTip(th) {
+    const r = th.getBoundingClientRect();
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth, thh = tip.offsetHeight;
+    // Prefer below the header; flip above if that would run off the bottom.
+    let top = r.bottom + 8;
+    if (top + thh > window.innerHeight - 8) top = Math.max(8, r.top - thh - 8);
+    // Keep the box on screen horizontally, centred on the column where it fits.
+    let left = r.left + r.width / 2 - tw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    tip.style.top = top + 'px';
+    tip.style.left = left + 'px';
+  }
+
+  container.addEventListener('mouseover', e => {
+    const th = e.target.closest('th[data-sort-key]');
+    if (!th || !container.contains(th)) { return; }
+    const entry = t('statsTip_' + th.dataset.sortKey);
+    if (!Array.isArray(entry)) { tip.style.display = 'none'; return; }
+    tip.innerHTML = `<b>${entry[0]}</b><br>${entry[1]}<span class="tip-hint">${t('statsSortHint')}</span>`;
+    positionTip(th);
+  });
+
+  container.addEventListener('mouseout', e => {
+    const th = e.target.closest('th[data-sort-key]');
+    if (th && !th.contains(e.relatedTarget)) tip.style.display = 'none';
+  });
+  // Scrolling the table moves the header out from under the box.
+  container.addEventListener('scroll', () => { tip.style.display = 'none'; });
+}
+
 // ── Beta Feature 1: Temperature Differential ─────────────────────────────────
 function renderBetaDifferential() {
   const {start, end} = getTimeRange();
@@ -5932,11 +6543,21 @@ function renderBetaDifferential() {
 
   const traces = [];
   const roomSet = new Set(m.roomLoggers || []);
+  const structSet = new Set(m.structuralLoggers || []);
+  const extSet = new Set(m.externalLoggers || []);
+  // Hourly buckets per group, so the group mean lines share a common time base
+  // even though loggers sit on different sampling grids.
+  const groupBuckets = {room: new Map(), structural: new Map()};
+  const HOUR = 3600000;
   let hasData = false;
 
   for (const loggerId of m.loggers) {
     if (!state.selectedLoggers.has(loggerId)) continue;
-    if (!roomSet.has(loggerId)) continue;
+    // Every non-external logger has a meaningful difference from ambient;
+    // an external logger's difference from itself is always zero.
+    if (extSet.has(loggerId)) continue;
+    const group = structSet.has(loggerId) ? 'structural' : roomSet.has(loggerId) ? 'room' : null;
+    if (!group) continue;
     const series = dataset().series[loggerId];
     if (!series) continue;
     let filtered = filterSeries(series, start, end);
@@ -5952,8 +6573,13 @@ function renderBetaDifferential() {
       if (tIndoor == null) continue;
       const tOutdoor = interpolateExtTemp(extFiltered.timestamps, extFiltered.temperature, tMs);
       if (tOutdoor == null) continue;
+      const d = tIndoor - tOutdoor;
       diffX.push(toEATString(tMs));
-      diffY.push(+(tIndoor - tOutdoor).toFixed(2));
+      diffY.push(+d.toFixed(2));
+      const bucket = Math.floor(tMs / HOUR) * HOUR;
+      const b = groupBuckets[group];
+      const e = b.get(bucket);
+      if (e) { e.sum += d; e.n++; } else { b.set(bucket, {sum: d, n: 1}); }
     }
     if (diffX.length === 0) continue;
     hasData = true;
@@ -5964,6 +6590,31 @@ function renderBetaDifferential() {
       x: diffX, y: diffY, type: 'scatter', mode: 'lines',
       name: name, line: {color, width: 1.4}, opacity: 0.6,
       hovertemplate: `${name}<br>%{x|%d/%m/%Y %H:%M}<br>\u0394T: %{y:+.1f}\u00b0C<extra></extra>`
+    });
+  }
+
+  // Group mean lines, drawn over the per-logger traces so the overall behaviour
+  // of each group is readable against the individual spread.
+  const groupStyle = {
+    room:       {color: '#1a5c8a', label: t('sectionRoom')},
+    structural: {color: '#8a4a1a', label: t('sectionStructural')},
+  };
+  for (const g of ['room', 'structural']) {
+    const buckets = groupBuckets[g];
+    if (buckets.size === 0) continue;
+    const keys = Array.from(buckets.keys()).sort((a, b) => a - b);
+    const gx = [], gy = [];
+    for (const k of keys) {
+      const e = buckets.get(k);
+      gx.push(toEATString(k));
+      gy.push(+(e.sum / e.n).toFixed(2));
+    }
+    const {color, label} = groupStyle[g];
+    const name = `${label} ${t('statsGroupMean')}`;
+    traces.push({
+      x: gx, y: gy, type: 'scatter', mode: 'lines',
+      name, line: {color, width: 2.6},
+      hovertemplate: `${name}<br>%{x|%d/%m/%Y %H:%M}<br>\u0394T: %{y:+.1f}\u00b0C<extra></extra>`,
     });
   }
 
@@ -6745,6 +7396,7 @@ function renderPeriodicAverages() {
 // ── Main update ───────────────────────────────────────────────────────────────
 const PLOTLY_CONFIG = {
   displayModeBar:true,
+  displaylogo:false,
   modeBarButtonsToRemove:['zoom2d','pan2d','select2d','lasso2d','zoomIn2d','zoomOut2d',
     'resetScale2d','sendDataToCloud','hoverClosestCartesian','hoverCompareCartesian','toggleSpikelines','toImage'],
   responsive:true,
@@ -6779,7 +7431,21 @@ function _doRender() {
     : state.chartType === 'beta-decrement' ? renderBetaDecrement()
     : state.chartType === 'beta-lag' ? renderBetaLag()
     : state.chartType === 'beta-quality' ? renderBetaQuality()
+    : state.chartType === 'beta-stats' ? renderSummaryStats()
     : renderAdaptiveComfort();
+  // Summary Statistics renders HTML into its own container rather than going
+  // through Plotly, so it short-circuits the whole trace/layout path below.
+  if (result._html != null) {
+    _currentTitle = result.title || '';
+    _currentLayout = null;
+    _statsTables = result._tables || [];
+    document.getElementById('bar-title').textContent = _currentTitle;
+    document.getElementById('substrat-no-data').style.display = 'none';
+    document.getElementById('stats-table-container').innerHTML = result._html;
+    hideLoadingBar();   // the Plotly path below would normally do this
+    return;
+  }
+  _statsTables = [];
   // Replace with empty message if no actual data
   if (result._noData) {
     _zoomReset = true; // prevent stale axis range from persisting into next render with data
@@ -6895,6 +7561,8 @@ let _lastRenderKey = null;
 let _zoomReset = false; // set true by double-click or chart switch to allow autorange
 let _currentTitle = '';
 let _currentLayout = {};
+// Table data from the most recent Summary Statistics render, kept for CSV export.
+let _statsTables = [];
 
 // ── Period dropdown sync ───────────────────────────────────────────────────────
 // Rebuilds the year/season/month/week/day dropdowns to only show periods that
@@ -7060,6 +7728,7 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
     'beta-decrement': () => t('infoBetaDecrement'),
     'beta-lag': () => t('infoBetaLag'),
     'beta-quality': () => t('infoBetaQuality'),
+    'beta-stats': () => t('infoBetaStats'),
   };
   icon.addEventListener('mouseenter', () => {
     const fn = textKeys[state.chartType];
