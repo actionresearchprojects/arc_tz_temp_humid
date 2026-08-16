@@ -2,6 +2,13 @@
 
 This document explains exactly how the adaptive comfort running mean is calculated and how the external data source fallback works, relating each part of the code to the underlying maths.
 
+> **NOTE: Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria:**
+> **(a)** There is no mechanical cooling system installed. No heating system is in operation;
+> **(b)** Metabolic rates ranging from 1.0 to 1.3 met; and
+> **(c)** Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.
+>
+> The adaptive comfort band is meaningless outside these conditions, so it should not be read as a comfort assessment for any space that fails one of them.
+
 ---
 
 ## 1. The EN16798-1 Formula

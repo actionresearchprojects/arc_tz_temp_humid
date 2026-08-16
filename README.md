@@ -62,7 +62,7 @@ Three GitHub Actions workflows keep the dashboard current without any manual wor
 ## Dashboard Features
 
 - **Interactive line graphs** for temperature and humidity over time
-- **Adaptive comfort scatter plot** showing indoor temperature vs the EN16798-1 running mean, with comfort band overlays
+- **Adaptive comfort scatter plot** showing indoor temperature vs the EN16798-1 running mean, with comfort band overlays (see the applicability note below)
 - **Density heatmap** showing how indoor temperatures are distributed
 - **32C thermal threshold marker** for quick visual reference
 - **Climate cycle overlays** showing ENSO, IOD, and MJO phases alongside the data
@@ -72,6 +72,15 @@ Three GitHub Actions workflows keep the dashboard current without any manual wor
 - **Long-term mode** that shows extended climate trends and projections
 - **PNG export** for use in reports and presentations
 - **Admin config page** (`config.html`) for renaming loggers and changing categories without rebuilding
+
+### Adaptive comfort: applicability
+
+> **NOTE: Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria:**
+> **(a)** There is no mechanical cooling system installed. No heating system is in operation;
+> **(b)** Metabolic rates ranging from 1.0 to 1.3 met; and
+> **(c)** Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.
+
+This applies to the adaptive comfort scatter plot, its comfort band, and the running mean on its x-axis. The dashboard shows the same note beside the comfort band selector and in every info tooltip that explains the method.
 
 ---
 
