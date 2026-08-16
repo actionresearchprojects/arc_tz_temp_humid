@@ -444,6 +444,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="" data-i18n="downloadMenu">Download…</option>
             <option value="png" data-i18n="downloadPng">Download PNG</option>
             <option value="csv" data-i18n="downloadCsv">Export CSV</option>
+            <option value="xlsx" data-i18n="downloadXlsx">Export XLSX</option>
           </select>
           <button id="download-btn" data-i18n="downloadPng" style="display:none">Download PNG</button>
           <div id="dl-spinner"></div>
@@ -580,6 +581,7 @@ const I18N = {
     downloadPng: 'Download PNG',
     downloadMenu: 'Download\u2026',
     downloadCsv: 'Export CSV',
+    downloadXlsx: 'Export XLSX',
     resetDefault: 'Reset to default',
     addFilter: '+ Add Filter',
     matchAll: 'Match ALL',
@@ -800,6 +802,7 @@ const I18N = {
     downloadPng: 'Pakua PNG',
     downloadMenu: 'Pakua\u2026',
     downloadCsv: 'Hamisha CSV',
+    downloadXlsx: 'Hamisha XLSX',
     resetDefault: 'Rejesha chaguo-msingi',
     addFilter: '+ Ongeza Chujio',
     matchAll: 'Lingana ZOTE',
@@ -2725,10 +2728,17 @@ function svgToCanvas(svgStr, W, H, scale) {
 // Exports exactly what is plotted right now, for the period currently selected.
 // Reads the traces back off the chart element rather than from any particular
 // render function, so it stays correct for every chart type.
+//
+// CSV and XLSX are both produced from the same array of rows, so the two
+// formats cannot drift apart.
 
 function csvField(v) {
   const s = String(v == null ? '' : v);
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function rowsToCsv(rows) {
+  return rows.map(r => r.map(csvField).join(',')).join('\n');
 }
 
 function axisLabelText(ax) {
@@ -2752,7 +2762,8 @@ function visibleDataTraces(traces) {
   });
 }
 
-function chartCsvText() {
+// The plotted data as an array of rows. Returns null when nothing is plotted.
+function chartExportRows() {
   const el = document.getElementById('chart');
   const traces = visibleDataTraces((el && el.data) || []);
   const layout = (el && el.layout) || {};
@@ -2763,11 +2774,11 @@ function chartCsvText() {
   const names = traces.map((tr, i) =>
     (tr.name ? String(tr.name).replace(/<[^>]*>/g, '').trim() : '') || ('Series ' + (i + 1)));
 
-  const lines = [];
+  const rows = [];
   const titleEl = document.getElementById('bar-title');
-  if (titleEl && titleEl.textContent) lines.push(csvField(titleEl.textContent));
-  lines.push(['Exported', new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'].map(csvField).join(','));
-  lines.push('');
+  if (titleEl && titleEl.textContent) rows.push([titleEl.textContent]);
+  rows.push(['Exported', new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC']);
+  rows.push([]);
 
   // A shared x-axis (timestamps, categories) pivots into one column per series,
   // which is what a spreadsheet wants. Scatter and histogram data have no shared
@@ -2776,39 +2787,189 @@ function chartCsvText() {
     tr.x && tr.y && tr.x.length === tr.y.length && tr.x.every(v => v == null || typeof v === 'string'));
 
   if (canPivot) {
-    const rows = new Map();
+    const pivot = new Map();
     traces.forEach((tr, ti) => {
       for (let i = 0; i < tr.x.length; i++) {
         const k = tr.x[i];
         if (k == null) continue;
-        let row = rows.get(k);
-        if (!row) { row = new Array(traces.length).fill(''); rows.set(k, row); }
+        let row = pivot.get(k);
+        if (!row) { row = new Array(traces.length).fill(''); pivot.set(k, row); }
         row[ti] = tr.y[i] == null ? '' : tr.y[i];
       }
     });
-    let keys = [...rows.keys()];
+    let keys = [...pivot.keys()];
     // Timestamps sort chronologically; category axes keep the plotted order.
     if (keys.every(k => !isNaN(Date.parse(k)))) keys.sort((a, b) => Date.parse(a) - Date.parse(b));
-    lines.push([xLabel, ...names].map(csvField).join(','));
-    for (const k of keys) lines.push([k, ...rows.get(k)].map(csvField).join(','));
+    rows.push([xLabel, ...names]);
+    for (const k of keys) rows.push([k, ...pivot.get(k)]);
   } else {
-    lines.push(['Series', xLabel, yLabel].map(csvField).join(','));
+    rows.push(['Series', xLabel, yLabel]);
     traces.forEach((tr, ti) => {
       const n = Math.max((tr.x && tr.x.length) || 0, (tr.y && tr.y.length) || 0);
       for (let i = 0; i < n; i++) {
         const xv = tr.x ? tr.x[i] : '';
         const yv = tr.y ? tr.y[i] : '';
         if (xv == null && yv == null) continue;
-        lines.push([names[ti], xv == null ? '' : xv, yv == null ? '' : yv].map(csvField).join(','));
+        rows.push([names[ti], xv == null ? '' : xv, yv == null ? '' : yv]);
       }
     });
   }
-  return lines.join('\n');
+  return rows;
 }
 
-function triggerCsvDownload(text, filename) {
-  // BOM so Excel reads the degree and delta symbols as UTF-8.
-  const blob = new Blob(['﻿' + text], {type: 'text/csv;charset=utf-8;'});
+// ── XLSX writing ─────────────────────────────────────────────────────────────
+// An .xlsx file is a ZIP of XML parts. Both are written here by hand, because
+// the dashboards are single self-contained pages that cannot pull in a library.
+
+function xmlEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+                  // Control characters are not legal in XML 1.0 and corrupt the file.
+                  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+
+// 0 -> A, 25 -> Z, 26 -> AA. Needed because a wide export runs past column Z.
+function colRef(n) {
+  let s = '';
+  n += 1;
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = (n - r - 1) / 26; }
+  return s;
+}
+
+// Values that are numbers, or strings that are wholly numeric, become real
+// numeric cells so a spreadsheet can sort and chart them.
+function isNumericCell(v) {
+  if (typeof v === 'number') return isFinite(v);
+  if (typeof v !== 'string' || v.trim() === '') return false;
+  return /^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(v.trim());
+}
+
+function sheetXml(rows) {
+  const parts = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'];
+  rows.forEach((row, ri) => {
+    const r = ri + 1;
+    let cells = '';
+    row.forEach((v, ci) => {
+      if (v == null || v === '') return;          // sparse rows are legal and smaller
+      const ref = colRef(ci) + r;
+      if (isNumericCell(v)) cells += `<c r="${ref}"><v>${Number(v)}</v></c>`;
+      else cells += `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    });
+    parts.push(`<row r="${r}">${cells}</row>`);
+  });
+  parts.push('</sheetData></worksheet>');
+  return parts.join('');
+}
+
+const _XLSX_PARTS = {
+  '[Content_Types].xml':
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    + '<Default Extension="xml" ContentType="application/xml"/>'
+    + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+    + '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+    + '</Types>',
+  '_rels/.rels':
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+    + '</Relationships>',
+  'xl/_rels/workbook.xml.rels':
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+    + '</Relationships>',
+};
+
+function workbookXml(sheetName) {
+  return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    + ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    + `<sheets><sheet name="${xmlEsc(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+}
+
+let _crcTable = null;
+function crc32(bytes) {
+  if (!_crcTable) {
+    _crcTable = new Int32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      _crcTable[i] = c;
+    }
+  }
+  let c = -1;
+  for (let i = 0; i < bytes.length; i++) c = (c >>> 8) ^ _crcTable[(c ^ bytes[i]) & 0xFF];
+  return (c ^ -1) >>> 0;
+}
+
+// Raw DEFLATE via the platform, when it offers it. A wide "All time" export runs
+// to tens of megabytes as XML, so this matters. Falls back to storing the parts
+// uncompressed, which is still a valid ZIP.
+async function deflateRaw(bytes) {
+  if (typeof CompressionStream === 'undefined') return null;
+  try {
+    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+    const out = new Uint8Array(await new Response(stream).arrayBuffer());
+    return out.length < bytes.length ? out : null;
+  } catch (e) { return null; }
+}
+
+async function zipBytes(files) {
+  const enc = new TextEncoder();
+  const chunks = [], central = [];
+  let offset = 0;
+  const u16 = v => [v & 0xFF, (v >>> 8) & 0xFF];
+  const u32 = v => [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF];
+
+  for (const f of files) {
+    const nameBytes = enc.encode(f.name);
+    const raw = enc.encode(f.data);
+    const crc = crc32(raw);
+    const deflated = await deflateRaw(raw);
+    const body = deflated || raw;
+    const method = deflated ? 8 : 0;
+    const header = [...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(method),
+      ...u16(0), ...u16(0),                       // DOS time/date, left at zero
+      ...u32(crc), ...u32(body.length), ...u32(raw.length),
+      ...u16(nameBytes.length), ...u16(0)];
+    chunks.push(Uint8Array.from(header), nameBytes, body);
+    central.push({name: nameBytes, crc, csize: body.length, usize: raw.length, offset, method});
+    offset += header.length + nameBytes.length + body.length;
+  }
+
+  const cdStart = offset;
+  for (const e of central) {
+    const rec = [...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(e.method),
+      ...u16(0), ...u16(0), ...u32(e.crc), ...u32(e.csize), ...u32(e.usize),
+      ...u16(e.name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+      ...u32(0), ...u32(e.offset)];
+    chunks.push(Uint8Array.from(rec), e.name);
+    offset += rec.length + e.name.length;
+  }
+  chunks.push(Uint8Array.from([...u32(0x06054b50), ...u16(0), ...u16(0),
+    ...u16(central.length), ...u16(central.length),
+    ...u32(offset - cdStart), ...u32(cdStart), ...u16(0)]));
+
+  const total = chunks.reduce((a, c) => a + c.length, 0);
+  const out = new Uint8Array(total);
+  let p = 0;
+  for (const c of chunks) { out.set(c, p); p += c.length; }
+  return out;
+}
+
+async function rowsToXlsx(rows, sheetName) {
+  const files = Object.entries(_XLSX_PARTS).map(([name, data]) => ({name, data}));
+  files.push({name: 'xl/workbook.xml', data: workbookXml(sheetName || 'Data')});
+  files.push({name: 'xl/worksheets/sheet1.xml', data: sheetXml(rows)});
+  return zipBytes(files);
+}
+
+// ── Download plumbing ────────────────────────────────────────────────────────
+
+function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
@@ -2816,21 +2977,38 @@ function triggerCsvDownload(text, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function triggerCsvDownload(text, filename) {
+  // BOM so Excel reads the degree and delta symbols as UTF-8.
+  triggerDownload(new Blob(['﻿' + text], {type: 'text/csv;charset=utf-8;'}), filename);
+}
+
+async function triggerXlsxDownload(rows, sheetName, filename) {
+  const bytes = await rowsToXlsx(rows, sheetName);
+  triggerDownload(new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), filename);
+}
+
 // The title bar already names the dataset, chart and period, which makes it the
 // natural basis for the filename.
-function csvFilename() {
+function exportFilename(ext) {
   const titleEl = document.getElementById('bar-title');
   const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 90);
   const base = titleEl && titleEl.textContent ? slug(titleEl.textContent) : 'chart';
   const n = new Date(), p = v => String(v).padStart(2, '0');
   const ts = `${n.getFullYear()}${p(n.getMonth() + 1)}${p(n.getDate())}_${p(n.getHours())}${p(n.getMinutes())}`;
-  return `ARC_${base}_${ts}.csv`;
+  return `ARC_${base}_${ts}.${ext}`;
 }
 
 function exportChartCsv() {
-  const text = chartCsvText();
-  if (!text) return;
-  triggerCsvDownload(text, csvFilename());
+  const rows = chartExportRows();
+  if (!rows) return;
+  triggerCsvDownload(rowsToCsv(rows), exportFilename('csv'));
+}
+
+function exportChartXlsx() {
+  const rows = chartExportRows();
+  if (!rows) return;
+  triggerXlsxDownload(rows, 'Chart data', exportFilename('xlsx'));
 }
 
 // The statistics view is a table, not a plotted figure, so it exports the table
@@ -2840,6 +3018,11 @@ function exportCurrentCsv() {
   exportChartCsv();
 }
 
+function exportCurrentXlsx() {
+  if (state.chartType === 'beta-stats') { downloadStatsXlsx(); return; }
+  exportChartXlsx();
+}
+
 function setupStaticListeners() {
   // Export menu: acts on selection, then returns to its placeholder label.
   document.getElementById('download-menu').addEventListener('change', e => {
@@ -2847,6 +3030,7 @@ function setupStaticListeners() {
     e.target.selectedIndex = 0;
     if (choice === 'png') downloadChartPng();
     else if (choice === 'csv') exportCurrentCsv();
+    else if (choice === 'xlsx') exportCurrentXlsx();
   });
 
   document.getElementById('reset-line-btn').addEventListener('click', resetLineDefaults);
@@ -6109,42 +6293,42 @@ function exportRangeStr() {
   return 'AllTime';
 }
 
-// Build the CSV text for the tables currently on screen. One block per metric,
-// separated by a blank line, with the period and sort order recorded up top so
-// the file still makes sense once it is away from the dashboard.
-function statsCsvText() {
-  const q = v => {
-    const s = String(v == null ? '' : v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
+// The tables currently on screen as rows. One block per metric, separated by a
+// blank row, with the period and sort order recorded up top so the file still
+// makes sense once it is away from the dashboard. CSV and XLSX both build from
+// this, so the two formats stay identical.
+function statsExportRows() {
   const {start, end} = getTimeRange();
   const fmt = ms => isFinite(ms) ? toEATString(ms).replace('T', ' ').slice(0, 16) : '';
-  const lines = [];
-  lines.push([q(t('betaStatsTitle')), q(dsLabel())].join(','));
-  lines.push([q('Period'), q(fmt(start) + ' to ' + fmt(end) + ' (EAT, UTC+03:00)')].join(','));
-  if (state.statsSortKey) lines.push([q('Sorted by'), q(state.statsSortKey + ' ' + state.statsSortDir)].join(','));
-  lines.push([q('Exported'), q(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC')].join(','));
+  const rows = [];
+  rows.push([t('betaStatsTitle'), dsLabel()]);
+  rows.push(['Period', fmt(start) + ' to ' + fmt(end) + ' (EAT, UTC+03:00)']);
+  if (state.statsSortKey) rows.push(['Sorted by', state.statsSortKey + ' ' + state.statsSortDir]);
+  rows.push(['Exported', new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC']);
 
   for (const tbl of _statsTables) {
-    lines.push('');
-    lines.push(q(tbl.caption));
-    lines.push(tbl.cols.map(c => q(c.unit ? `${c.label} (${c.unit})` : c.label)).join(','));
+    rows.push([]);
+    rows.push([tbl.caption]);
+    rows.push(tbl.cols.map(c => c.unit ? `${c.label} (${c.unit})` : c.label));
     for (const r of tbl.rows) {
       // Strip the formatting flourishes that only make sense on screen: percent
       // signs, leading +, the en-dash placeholder, and the thousands separators
       // in n — all of which would make a spreadsheet read the cell as text.
-      lines.push(tbl.cols.map(c => {
+      rows.push(tbl.cols.map(c => {
         const v = c.fmt(r.st);
-        if (c.key === 'label') return q(v);
-        return q(String(v).replace(/[%+,]/g, '').replace(/^–$/, ''));
-      }).join(','));
+        if (c.key === 'label') return v;
+        return String(v).replace(/[%+,]/g, '').replace(/^–$/, '');
+      }));
     }
   }
-  return lines.join('\n');
+  return rows;
 }
 
-function downloadStatsCsv() {
-  if (!_statsTables.length) return;
+function statsCsvText() { return rowsToCsv(statsExportRows()); }
+
+// Filename describing the dataset, metrics, sensor selection and period, shared
+// by both statistics export formats.
+function statsExportFilename(ext) {
   const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/, '');
   const m = dataset().meta;
   const metricStr = '_' + statsMetrics().map(k => ({temperature: 'T', humidity: 'RH', delta: 'dT'})[k]).join('+');
@@ -6156,9 +6340,17 @@ function downloadStatsCsv() {
   else if (selIds.length < total) sensorStr = `_${selIds.length}of${total}sensors`;
   const _n = new Date(), _p = n => String(n).padStart(2, '0');
   const ts = `${_n.getFullYear()}${_p(_n.getMonth() + 1)}${_p(_n.getDate())}_${_p(_n.getHours())}${_p(_n.getMinutes())}`;
-  const filename = `ARC_${slug(dsLabel())}_SummaryStats${metricStr}${sensorStr}_${exportRangeStr()}_${ts}.csv`;
+  return `ARC_${slug(dsLabel())}_SummaryStats${metricStr}${sensorStr}_${exportRangeStr()}_${ts}.${ext}`;
+}
 
-  triggerCsvDownload(statsCsvText(), filename);
+function downloadStatsCsv() {
+  if (!_statsTables.length) return;
+  triggerCsvDownload(statsCsvText(), statsExportFilename('csv'));
+}
+
+function downloadStatsXlsx() {
+  if (!_statsTables.length) return;
+  triggerXlsxDownload(statsExportRows(), t('betaStatsTitle'), statsExportFilename('xlsx'));
 }
 
 // Delegated once at setup; the table markup is replaced on every render, so
