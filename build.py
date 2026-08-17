@@ -1320,19 +1320,31 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <label class="cb-label"><input type="checkbox" id="cb-density" checked> Density Heatmap <span class="info-i" id="density-info-icon">i</span></label>
         <div id="info-fixed-tip"></div>
         <div style="margin-top:6px;margin-bottom:4px;">
-          <div style="font-size:11px;color:#666;margin-bottom:3px;">Comfort band <span class="info-i" id="en16798-info-icon">i</span></div>
+          <div style="font-size:11px;color:#666;margin-bottom:3px;"><span data-i18n="comfortBand">Comfort band</span> <span class="info-i" id="en16798-info-icon">i</span></div>
           <div class="info-tip-fixed" id="en16798-info-tip"></div>
           <select id="comfort-model" style="width:100%;font-size:12px;">
             <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
             <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
             <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
-            <option value="default" data-i18n="comfortModelDefault">Default comfort model</option>
+            <option value="ashrae_80" data-i18n="comfortModelAshrae80">ASHRAE 55 — 80% acceptability</option>
+            <option value="ashrae_90" data-i18n="comfortModelAshrae90">ASHRAE 55 — 90% acceptability</option>
             <option value="none" data-i18n="comfortModelNone">No comfort band</option>
+          </select>
+          <label class="cb-label" id="comfort-showboth-wrap" style="margin-top:4px;"><input type="checkbox" id="cb-comfort-showboth"> <span data-i18n="showBothBands">Show both 80% and 90% bands</span></label>
+        </div>
+        <div style="margin-top:6px;margin-bottom:4px;">
+          <div style="font-size:11px;color:#666;margin-bottom:3px;"><span data-i18n="airSpeedLabel">Air speed</span> <span class="info-i" id="airspeed-info-icon">i</span></div>
+          <div class="info-tip-fixed" id="airspeed-info-tip"></div>
+          <select id="comfort-airspeed" style="width:100%;font-size:12px;">
+            <option value="0.3" selected>0.3 m/s</option>
+            <option value="0.6">0.6 m/s (+1.2 °C)</option>
+            <option value="0.9">0.9 m/s (+1.8 °C)</option>
+            <option value="1.2">1.2 m/s (+2.2 °C)</option>
           </select>
         </div>
         <div id="comfort-applicability">
           <b data-i18n="comfortApplicabilityLabel">Applicability</b>
-          <span data-i18n="comfortApplicability">NOTE: Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria: (a) There is no mechanical cooling system installed. No heating system is in operation; (b) Metabolic rates ranging from 1.0 to 1.3 met; and (c) Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.</span>
+          <span data-i18n="comfortApplicability">Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria: (a) There is no mechanical cooling system installed. No heating system is in operation; (b) Metabolic rates ranging from 1.0 to 1.5 met; and (c) Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.</span>
         </div>
       </div>
       <hr class="divider">
@@ -1500,6 +1512,8 @@ const state = {
   selectedHistoricSeries: new Set(),
   comfortModel: 'rh_gt_60',
   comfortPctMode: 'below_upper',
+  comfortAirSpeed: '0.3',   // ASHRAE 55-2020 Table 5-13 baseline; no adjustment
+  comfortShowBoth: false,   // draw nested 80%/90% pair (ASHRAE models only)
   periodCycle: 'day',
   periodGroupBy: 'hour',
   showSectionAvg: {external: true, room: true, structural: true},
@@ -1710,18 +1724,23 @@ const I18N = {
     wetBulbSuffix: '(Wet bulb)',
     wetBulbHover: 'Wet bulb (Tw)',
     infoWetBulb: 'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
-    infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates.',
+    infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates. <a href="https://actionresearchprojects.net/explainers/adaptive-comfort" target="_blank" style="color:#6a9fd8">Read more →</a>',
     infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
     // Wet bulb checkbox label
     wetBulbLabel: 'Wet Bulb (Tw)',
     // Comfort model dropdown
-    comfortModelDefault: 'Default comfort model',
+    comfortModelAshrae80: 'ASHRAE 55 — 80% acceptability',
+    comfortModelAshrae90: 'ASHRAE 55 — 90% acceptability',
     comfortModelNone: 'No comfort band',
+    showBothBands: 'Show both 80% and 90% bands',
+    airSpeedLabel: 'Air speed',
+    airSpeedGateLabel: 'Air speed allowance applies above 25°C',
+    infoAirSpeed: 'ASHRAE 55 Table 5-13 allows a higher indoor temperature to count as comfortable when air is moving: +1.2°C at 0.6 m/s, +1.8°C at 0.9 m/s, +2.2°C at 1.2 m/s. It raises the top of the band only, and only above 25°C, which is why the boundary steps up part-way along. <b>This is an assumed value, not a measurement</b> — no air speed is recorded at these sites. Treat it as a scenario. Note also that the Vellei et al. bands come from buildings where occupants were already using fans, so that benefit may already be counted once; layering this adjustment on top of them risks counting it twice.',
     // Applicability limits of the adaptive comfort method (ASHRAE 55 / EN 16798-1).
     // Shown wherever adaptive comfort is presented or explained, because the
     // method is only valid for buildings meeting all three conditions.
     comfortApplicabilityLabel: 'Applicability',
-    comfortApplicability: 'NOTE: Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria: (a) There is no mechanical cooling system installed. No heating system is in operation; (b) Metabolic rates ranging from 1.0 to 1.3 met; and (c) Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.',
+    comfortApplicability: 'Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria: (a) There is no mechanical cooling system installed. No heating system is in operation; (b) Metabolic rates ranging from 1.0 to 1.5 met; and (c) Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.',
     // External data warning
     extDataWarningPre: 'Open-Meteo external temperature data only covers to',
     extDataWarningPost: '. Update <code>open-meteo</code> CSV to see adaptive comfort for recent dates.',
@@ -1925,13 +1944,18 @@ const I18N = {
     wetBulbSuffix: '(Joto la mvua)',
     wetBulbHover: 'Joto la mvua (Tw)',
     infoWetBulb: 'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
-    infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa.',
+    infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa. <a href="https://actionresearchprojects.net/explainers/adaptive-comfort" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
     infoRunningMean: 'Wastani unaoendelea ni wastani uliopimwa kwa uzito zaidi kwa siku za hivi karibuni za joto la nje. Unaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje likiwa juu, wenyeji wanastahimili joto zaidi ndani, hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
     wetBulbLabel: 'Joto la Mvua (Tw)',
-    comfortModelDefault: 'Mfumo chaguo-msingi wa starehe',
+    comfortModelAshrae80: 'ASHRAE 55 — ukubalifu 80%',
+    comfortModelAshrae90: 'ASHRAE 55 — ukubalifu 90%',
     comfortModelNone: 'Bila bendi ya starehe',
+    showBothBands: 'Onyesha bendi zote mbili za 80% na 90%',
+    airSpeedLabel: 'Kasi ya hewa',
+    airSpeedGateLabel: 'Ruhusa ya kasi ya hewa inatumika zaidi ya 25°C',
+    infoAirSpeed: 'Jedwali 5-13 la ASHRAE 55 linaruhusu joto la ndani la juu zaidi kuhesabiwa kuwa la starehe wakati hewa inatembea: +1.2°C kwa 0.6 m/s, +1.8°C kwa 0.9 m/s, +2.2°C kwa 1.2 m/s. Inainua sehemu ya juu ya bendi pekee, na tu zaidi ya 25°C, ndiyo maana mpaka unapanda ghafla katikati. <b>Hii ni thamani inayodhaniwa, si kipimo</b> — hakuna kasi ya hewa inayorekodiwa katika maeneo haya. Ichukulie kama hali ya kudhania. Pia kumbuka kwamba bendi za Vellei et al. zinatoka kwenye majengo ambapo wakaaji walikuwa tayari wanatumia feni, hivyo faida hiyo inaweza kuwa tayari imehesabiwa mara moja; kuongeza marekebisho haya juu yake kunaweza kuihesabu mara mbili.',
     comfortApplicabilityLabel: 'Matumizi',
-    comfortApplicability: 'KUMBUKA: Njia hii inatumika tu kwa nafasi zinazopitisha hewa kiasili na kudhibitiwa na wakaaji, zinazokidhi vigezo vyote vifuatavyo: (a) Hakuna mfumo wa kupoza wa mitambo uliowekwa. Hakuna mfumo wa kupasha joto unaofanya kazi; (b) Viwango vya kimetaboliki kati ya 1.0 na 1.3 met; na (c) Wakaaji wana uhuru wa kubadilisha mavazi yao kulingana na hali ya joto ya ndani na/au ya nje ndani ya kiwango kisichopungua 0.5-1.0 clo.',
+    comfortApplicability: 'Njia hii inatumika tu kwa nafasi zinazopitisha hewa kiasili na kudhibitiwa na wakaaji, zinazokidhi vigezo vyote vifuatavyo: (a) Hakuna mfumo wa kupoza wa mitambo uliowekwa. Hakuna mfumo wa kupasha joto unaofanya kazi; (b) Viwango vya kimetaboliki kati ya 1.0 na 1.5 met; na (c) Wakaaji wana uhuru wa kubadilisha mavazi yao kulingana na hali ya joto ya ndani na/au ya nje ndani ya kiwango kisichopungua 0.5-1.0 clo.',
     extDataWarningPre: 'Data ya joto la nje ya Open-Meteo inafika hadi',
     extDataWarningPost: '. Sasisha CSV ya <code>open-meteo</code> kuona faraja ya kubadilika kwa tarehe za hivi karibuni.',
     longTermNotePre: 'Data ya kihistoria ya muda mrefu na makadirio ya baadaye yamezalishwa kutoka',
@@ -2082,7 +2106,9 @@ function applyLanguage() {
     const prev = sel.previousElementSibling;
     if (prev && prev.tagName === 'DIV') prev.textContent = text;
   }
-  setDivLabel('comfort-model', t('comfortBand'));
+  // 'comfort-model' is not handled here: its preceding element is the tooltip
+  // div, not the label, so setDivLabel would blank the tooltip and leave the
+  // label in English. That label carries data-i18n instead, as does 'Air speed'.
   setDivLabel('comfort-pct-mode', t('pctCalc'));
 
   // Section titles with adjacent buttons
@@ -3646,6 +3672,11 @@ function resetComfortDefaults() {
   document.getElementById('comfort-model').value = 'rh_gt_60';
   state.comfortPctMode = 'below_upper';
   document.getElementById('comfort-pct-mode').value = 'below_upper';
+  state.comfortAirSpeed = '0.3';
+  document.getElementById('comfort-airspeed').value = '0.3';
+  state.comfortShowBoth = false;
+  document.getElementById('cb-comfort-showboth').checked = false;
+  syncComfortShowBoth();
   resetMetrics();
   resetTimeMode();
   updatePlot();
@@ -4017,6 +4048,10 @@ function setupStaticListeners() {
   document.getElementById('reset-line-btn').addEventListener('click', resetLineDefaults);
   document.getElementById('reset-comfort-btn').addEventListener('click', resetComfortDefaults);
 
+  // The default band is a Vellei model, which has no 90% variant, so the
+  // nested-band toggle starts hidden.
+  syncComfortShowBoth();
+
   // Close language menu on click outside
   document.addEventListener('click', e => {
     const wrap = document.getElementById('lang-wrap');
@@ -4226,7 +4261,15 @@ function setupStaticListeners() {
   });
 
   document.getElementById('comfort-model').addEventListener('change', e => {
-    state.comfortModel = e.target.value; updatePlot();
+    state.comfortModel = e.target.value; syncComfortShowBoth(); updatePlot();
+  });
+
+  document.getElementById('comfort-airspeed').addEventListener('change', e => {
+    state.comfortAirSpeed = e.target.value; updatePlot();
+  });
+
+  document.getElementById('cb-comfort-showboth').addEventListener('change', e => {
+    state.comfortShowBoth = e.target.checked; updatePlot();
   });
 
   document.getElementById('comfort-pct-mode').addEventListener('change', e => {
@@ -4547,6 +4590,9 @@ function downloadChartPng() {
     if (state.chartType === 'comfort') {
       const modelSel = document.getElementById('comfort-model');
       modelStr = '_' + modelSel.options[modelSel.selectedIndex].text.replace(/\(Vellei et al\.\)/gi,'').replace(/[^a-zA-Z0-9%<>≤]/g,'').slice(0,20);
+      // Air speed changes the boundary, so it belongs in the filename whenever
+      // it is not the baseline -- two exports must not look interchangeable.
+      if (comfortAirSpeedDt() > 0) modelStr += '_v' + state.comfortAirSpeed.replace('.', '');
     }
     if (state.chartType === 'periodic') {
       modelStr = '_' + state.periodCycle + '_' + state.periodGroupBy;
@@ -4955,20 +5001,107 @@ function getSeasonBoundaries(startMs, endMs) {
 }
 
 // ── Comfort model ─────────────────────────────────────────────────────────────
+// Adaptive comfort band definitions.
+//
+// ASHRAE 55-2020 Section 5.4.2.2 gives the 80% acceptability limits directly:
+//   upper = 0.31*Tpma + 21.3, lower = 0.31*Tpma + 14.3
+// i.e. a centre line of 0.31*Tpma + 17.8 with a half-width of 3.5. The 90%
+// limits share that centre line with a half-width of 2.5, and are informative
+// only (Section 5.4.2, Informative Note) -- 80% is the compliance figure.
+//
+// The Vellei et al. (2017) options are Eqs. 4-6 of the paper. Their half-widths
+// are 95% prediction intervals around each regression, NOT acceptability
+// percentages; 80% acceptability is applied upstream, by discarding grid bins
+// where fewer than 80% of votes were neutral. There is no 90% variant to offer,
+// so the nested-band toggle is limited to the ASHRAE models.
+const COMFORT_MODELS = {
+  ashrae_80: {m:0.31, c:17.8,  delta:3.5,  ashrae:true},
+  ashrae_90: {m:0.31, c:17.8,  delta:2.5,  ashrae:true},
+  rh_gt_60:  {m:0.53, c:12.85, delta:2.84},
+  rh_40_60:  {m:0.53, c:14.16, delta:3.70},
+  rh_le_40:  {m:0.52, c:15.23, delta:4.40},
+};
+
+// ASHRAE 55-2020 Table 5-13: increase in the acceptable upper operative
+// temperature limit produced by raising air speed above the 0.3 m/s baseline.
+// Discrete by design -- the standard gives no basis for interpolating.
+const AIR_SPEED_DT = {'0.3': 0, '0.6': 1.2, '0.9': 1.8, '1.2': 2.2};
+
+// Section 5.4.2.4 gates the air speed allowance on operative temperature above
+// this threshold, which is what produces the step in the upper boundary.
+const AIR_SPEED_GATE_C = 25;
+
 function getComfortParams() {
-  const models = {
-    default:  {m:0.31, c:17.3,  delta:3.0},
-    rh_gt_60: {m:0.53, c:12.85, delta:2.84},
-    rh_40_60: {m:0.53, c:14.16, delta:3.70},
-    rh_le_40: {m:0.52, c:15.23, delta:4.40},
-  };
-  return models[state.comfortModel] || null;
+  return COMFORT_MODELS[state.comfortModel] || null;
+}
+function comfortAirSpeedDt() {
+  return AIR_SPEED_DT[state.comfortAirSpeed] || 0;
+}
+// Upper boundary including the elevated-air-speed allowance. The allowance is
+// applied where the unelevated boundary itself clears 25 C, matching how the
+// CBE Thermal Comfort Tool draws the adaptive chart.
+function comfortUpperAt(x, p, dt) {
+  const u = p.m*x + p.c + p.delta;
+  return (dt > 0 && u > AIR_SPEED_GATE_C) ? u + dt : u;
+}
+// x at which the unelevated upper boundary crosses the gate, or null if the
+// step falls outside the plotted range. Sampling alone would render the
+// discontinuity as a diagonal ramp, so the crossing is injected explicitly.
+function comfortStepX(p, dt, xMin, xMax) {
+  if (dt <= 0 || p.m === 0) return null;
+  const x = (AIR_SPEED_GATE_C - p.c - p.delta) / p.m;
+  return (x > xMin && x < xMax) ? x : null;
+}
+// Whether the nested 80/90 pair should be drawn for the current selection.
+function comfortShowsBothBands() {
+  const p = getComfortParams();
+  return !!(p && p.ashrae && state.comfortShowBoth);
+}
+// Marker for the 25 C threshold above which the elevated-air-speed allowance
+// applies (Section 5.4.2.4). Only drawn when an allowance is actually active --
+// at baseline air speed the line would mark a rule that is doing nothing. It
+// matters most for warm sites like Mkuranga, where the whole band sits above
+// the threshold, so the boundary lifts uniformly with no visible step to
+// explain itself.
+function comfortGateShapes() {
+  if (comfortAirSpeedDt() <= 0) return [];
+  return [{
+    type:'line', layer:'above',
+    xref:'paper', x0:0, x1:1,
+    yref:'y', y0:AIR_SPEED_GATE_C, y1:AIR_SPEED_GATE_C,
+    line:{color:'rgba(200,60,60,0.7)', width:1.2, dash:'dash'},
+  }];
+}
+function comfortGateAnnotations() {
+  if (comfortAirSpeedDt() <= 0) return [];
+  return [{
+    xref:'paper', x:1, xanchor:'right',
+    yref:'y', y:AIR_SPEED_GATE_C, yanchor:'bottom',
+    text:t('airSpeedGateLabel'), showarrow:false,
+    font:{size:10, color:'rgba(190,50,50,0.95)', family:'Ubuntu, sans-serif'},
+  }];
+}
+// The nested pair only exists for the ASHRAE models, so the toggle is hidden
+// for the Vellei bands rather than left visible and inert.
+function syncComfortShowBoth() {
+  const wrap = document.getElementById('comfort-showboth-wrap');
+  if (!wrap) return;
+  const p = getComfortParams();
+  wrap.style.display = (p && p.ashrae) ? '' : 'none';
 }
 function comfortSourceLabel(extSrcText) {
   const sel = document.getElementById('comfort-model');
   const parts = [];
   if (sel && state.comfortModel !== 'none') {
-    parts.push(`Adaptive comfort: EN16798-1 · ${sel.options[sel.selectedIndex].text}`);
+    let line = `Adaptive comfort: EN16798-1 · ${sel.options[sel.selectedIndex].text}`;
+    if (comfortShowsBothBands()) line += ' · 80% + 90% shown';
+    parts.push(line);
+    // Air speed is an assumption, not a measurement, so it is always stated on
+    // the chart and in exports -- including when left at the baseline.
+    const dt = comfortAirSpeedDt();
+    parts.push(dt > 0
+      ? `Assumed air speed: ${state.comfortAirSpeed} m/s (upper limit +${dt.toFixed(1)}°C above 25°C, ASHRAE 55 Table 5-13)`
+      : `Assumed air speed: ${state.comfortAirSpeed} m/s (no adjustment)`);
   }
   if (extSrcText) parts.push(extSrcText);
   return parts.join('<br>') || '';
@@ -5763,12 +5896,31 @@ function renderAdaptiveComfort() {
   if (params && allExtTemps.length > 0) {
     let xMin = Infinity, xMax = -Infinity;
     for (const v of allExtTemps) { if (v < xMin) xMin = v; if (v > xMax) xMax = v; }
-    const xs = Array.from({length:80}, (_, i) => xMin + (xMax-xMin)*i/79);
-    const yUp = xs.map(x => params.m*x + params.c + params.delta);
-    const yLo = xs.map(x => params.m*x + params.c - params.delta);
-    traces.unshift({x:[...xs,...xs.slice().reverse()], y:[...yLo,...yUp.slice().reverse()],
-      fill:'toself', mode:'lines', line:{width:0}, fillcolor:'rgba(0,150,0,0.25)',
-      hoverinfo:'skip', showlegend:false});
+    const dt = comfortAirSpeedDt();
+    // One filled band per selected model. When the nested pair is requested the
+    // wider 80% band is drawn first and the 90% band sits on top of it, so the
+    // overlap reads darker in the same way as the CBE chart.
+    const bands = comfortShowsBothBands()
+      ? [COMFORT_MODELS.ashrae_80, COMFORT_MODELS.ashrae_90]
+      : [params];
+    for (const p of bands) {
+      const base = Array.from({length:80}, (_, i) => xMin + (xMax-xMin)*i/79);
+      // Duplicate the crossing so the air-speed step renders vertically rather
+      // than as a ramp between two sample points.
+      const stepX = comfortStepX(p, dt, xMin, xMax);
+      const xs = stepX === null ? base : base.concat([stepX, stepX]).sort((a, b) => a - b);
+      const yUp = xs.map((x, i) => {
+        const u = p.m*x + p.c + p.delta;
+        // At the duplicated crossing, the first copy keeps the unelevated value
+        // and the second takes the raised one, giving a clean vertical edge.
+        if (stepX !== null && x === stepX) return xs[i-1] === stepX ? u + dt : u;
+        return comfortUpperAt(x, p, dt);
+      });
+      const yLo = xs.map(x => p.m*x + p.c - p.delta);
+      traces.unshift({x:[...xs,...xs.slice().reverse()], y:[...yLo,...yUp.slice().reverse()],
+        fill:'toself', mode:'lines', line:{width:0}, fillcolor:'rgba(0,150,0,0.25)',
+        hoverinfo:'skip', showlegend:false});
+    }
   }
 
   if (state.showDensity && allExtTemps.length > 30) {
@@ -5829,7 +5981,8 @@ function renderAdaptiveComfort() {
     xaxis:{title:t('runningMeanAxis'), showgrid:true, gridcolor:'#eee'},
     yaxis:{title:t('airTempAxis'), showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
-    annotations: isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : [],
+    shapes: comfortGateShapes(),
+    annotations: (isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : []).concat(comfortGateAnnotations()),
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: `${dsl} \u2013 ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
 }
@@ -6133,11 +6286,13 @@ function updateComfortStats(start, end, params) {
     if (!filtered || !filtered.extTemp) continue;
     let inZone = 0, count = 0;
     const mode = state.comfortPctMode || 'below_upper';
+    const dt = comfortAirSpeedDt();
     for (let i = 0; i < filtered.temperature.length; i++) {
       const ext = filtered.extTemp[i], temp = filtered.temperature[i];
       if (ext == null || temp == null) continue;
       const mid = params.m*ext + params.c;
-      const upper = mid + params.delta;
+      // Air speed raises the upper limit only; the lower limit is unaffected.
+      const upper = comfortUpperAt(ext, params, dt);
       const lower = mid - params.delta;
       if (mode === 'below_upper' && temp <= upper) inZone++;
       else if (mode === 'within' && temp >= lower && temp <= upper) inZone++;
@@ -8104,6 +8259,7 @@ function applicabilityNoteHtml() {
     // The comfort band and running mean both describe the adaptive comfort
     // method, so both carry its applicability limits.
     { iconId: 'en16798-info-icon', tipId: 'en16798-info-tip', key: 'infoComfortBand', hasLink: true, applicability: true },
+    { iconId: 'airspeed-info-icon', tipId: 'airspeed-info-tip', key: 'infoAirSpeed', hasLink: true },
     { iconId: 'rm-xaxis-info-icon', tipId: 'rm-xaxis-info-tip', key: 'infoRunningMean', hasLink: true, applicability: true },
   ];
   items.forEach(({iconId, tipId, key, hasLink, applicability}) => {

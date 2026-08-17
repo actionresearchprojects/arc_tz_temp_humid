@@ -75,9 +75,9 @@ Three GitHub Actions workflows keep the dashboard current without any manual wor
 
 ### Adaptive comfort: applicability
 
-> **NOTE: Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria:**
+> **Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria:**
 > **(a)** There is no mechanical cooling system installed. No heating system is in operation;
-> **(b)** Metabolic rates ranging from 1.0 to 1.3 met; and
+> **(b)** Metabolic rates ranging from 1.0 to 1.5 met; and
 > **(c)** Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.
 
 This applies to the adaptive comfort scatter plot, its comfort band, and the running mean on its x-axis. The dashboard shows the same note beside the comfort band selector and in every info tooltip that explains the method.
