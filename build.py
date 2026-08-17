@@ -1735,7 +1735,7 @@ const I18N = {
     showBothBands: 'Show both 80% and 90% bands',
     airSpeedLabel: 'Air speed',
     airSpeedGateLabel: 'Air speed allowance applies above 25°C',
-    infoAirSpeed: 'ASHRAE 55 Table 5-13 allows a higher indoor temperature to count as comfortable when air is moving: +1.2°C at 0.6 m/s, +1.8°C at 0.9 m/s, +2.2°C at 1.2 m/s. It raises the top of the band only, and only above 25°C, which is why the boundary steps up part-way along. <b>This is an assumed value, not a measurement</b> — no air speed is recorded at these sites. Treat it as a scenario. Note also that the Vellei et al. bands come from buildings where occupants were already using fans, so that benefit may already be counted once; layering this adjustment on top of them risks counting it twice.',
+    infoAirSpeed: 'ASHRAE 55 Table 5-13 allows a higher indoor temperature to count as comfortable when air is moving: +1.2°C at 0.6 m/s, +1.8°C at 0.9 m/s, +2.2°C at 1.2 m/s. It raises the top of the band only, and only above 25°C, which is why the boundary steps up part-way along. <b>This is an assumed value, not a measurement</b> — no air speed is recorded at these sites. Treat it as a scenario. The dotted green line shows where the upper limit would sit without the allowance, so the size of the adjustment stays visible. Note also that the Vellei et al. bands come from buildings where occupants were already using fans, so that benefit may already be counted once; layering this adjustment on top of them risks counting it twice.',
     // Applicability limits of the adaptive comfort method (ASHRAE 55 / EN 16798-1).
     // Shown wherever adaptive comfort is presented or explained, because the
     // method is only valid for buildings meeting all three conditions.
@@ -1953,7 +1953,7 @@ const I18N = {
     showBothBands: 'Onyesha bendi zote mbili za 80% na 90%',
     airSpeedLabel: 'Kasi ya hewa',
     airSpeedGateLabel: 'Ruhusa ya kasi ya hewa inatumika zaidi ya 25°C',
-    infoAirSpeed: 'Jedwali 5-13 la ASHRAE 55 linaruhusu joto la ndani la juu zaidi kuhesabiwa kuwa la starehe wakati hewa inatembea: +1.2°C kwa 0.6 m/s, +1.8°C kwa 0.9 m/s, +2.2°C kwa 1.2 m/s. Inainua sehemu ya juu ya bendi pekee, na tu zaidi ya 25°C, ndiyo maana mpaka unapanda ghafla katikati. <b>Hii ni thamani inayodhaniwa, si kipimo</b> — hakuna kasi ya hewa inayorekodiwa katika maeneo haya. Ichukulie kama hali ya kudhania. Pia kumbuka kwamba bendi za Vellei et al. zinatoka kwenye majengo ambapo wakaaji walikuwa tayari wanatumia feni, hivyo faida hiyo inaweza kuwa tayari imehesabiwa mara moja; kuongeza marekebisho haya juu yake kunaweza kuihesabu mara mbili.',
+    infoAirSpeed: 'Jedwali 5-13 la ASHRAE 55 linaruhusu joto la ndani la juu zaidi kuhesabiwa kuwa la starehe wakati hewa inatembea: +1.2°C kwa 0.6 m/s, +1.8°C kwa 0.9 m/s, +2.2°C kwa 1.2 m/s. Inainua sehemu ya juu ya bendi pekee, na tu zaidi ya 25°C, ndiyo maana mpaka unapanda ghafla katikati. <b>Hii ni thamani inayodhaniwa, si kipimo</b> — hakuna kasi ya hewa inayorekodiwa katika maeneo haya. Ichukulie kama hali ya kudhania. Mstari wa nukta wa kijani unaonyesha mahali ambapo kikomo cha juu kingekuwa bila ruhusa hiyo, ili ukubwa wa marekebisho uonekane. Pia kumbuka kwamba bendi za Vellei et al. zinatoka kwenye majengo ambapo wakaaji walikuwa tayari wanatumia feni, hivyo faida hiyo inaweza kuwa tayari imehesabiwa mara moja; kuongeza marekebisho haya juu yake kunaweza kuihesabu mara mbili.',
     comfortApplicabilityLabel: 'Matumizi',
     comfortApplicability: 'Njia hii inatumika tu kwa nafasi zinazopitisha hewa kiasili na kudhibitiwa na wakaaji, zinazokidhi vigezo vyote vifuatavyo: (a) Hakuna mfumo wa kupoza wa mitambo uliowekwa. Hakuna mfumo wa kupasha joto unaofanya kazi; (b) Viwango vya kimetaboliki kati ya 1.0 na 1.5 met; na (c) Wakaaji wana uhuru wa kubadilisha mavazi yao kulingana na hali ya joto ya ndani na/au ya nje ndani ya kiwango kisichopungua 0.5-1.0 clo.',
     extDataWarningPre: 'Data ya joto la nje ya Open-Meteo inafika hadi',
@@ -5100,7 +5100,7 @@ function comfortSourceLabel(extSrcText) {
     // the chart and in exports -- including when left at the baseline.
     const dt = comfortAirSpeedDt();
     parts.push(dt > 0
-      ? `Assumed air speed: ${state.comfortAirSpeed} m/s (upper limit +${dt.toFixed(1)}°C above 25°C, ASHRAE 55 Table 5-13)`
+      ? `Assumed air speed: ${state.comfortAirSpeed} m/s (upper limit +${dt.toFixed(1)}°C above 25°C, ASHRAE 55 Table 5-13; dotted line = limit without it)`
       : `Assumed air speed: ${state.comfortAirSpeed} m/s (no adjustment)`);
   }
   if (extSrcText) parts.push(extSrcText);
@@ -5897,12 +5897,15 @@ function renderAdaptiveComfort() {
     let xMin = Infinity, xMax = -Infinity;
     for (const v of allExtTemps) { if (v < xMin) xMin = v; if (v > xMax) xMax = v; }
     const dt = comfortAirSpeedDt();
-    // One filled band per selected model. When the nested pair is requested the
-    // wider 80% band is drawn first and the 90% band sits on top of it, so the
-    // overlap reads darker in the same way as the CBE chart.
+    // One filled band per selected model. Both bands share a translucent fill,
+    // so where the nested pair overlaps the colour doubles up and the inner 90%
+    // region reads darker, as it does on the CBE chart.
     const bands = comfortShowsBothBands()
       ? [COMFORT_MODELS.ashrae_80, COMFORT_MODELS.ashrae_90]
       : [params];
+    // Built as one block so the z-order is explicit: fills at the back, the
+    // baseline markers over them, and the scatter points over everything.
+    const fills = [], baselines = [];
     for (const p of bands) {
       const base = Array.from({length:80}, (_, i) => xMin + (xMax-xMin)*i/79);
       // Duplicate the crossing so the air-speed step renders vertically rather
@@ -5917,10 +5920,20 @@ function renderAdaptiveComfort() {
         return comfortUpperAt(x, p, dt);
       });
       const yLo = xs.map(x => p.m*x + p.c - p.delta);
-      traces.unshift({x:[...xs,...xs.slice().reverse()], y:[...yLo,...yUp.slice().reverse()],
+      fills.push({x:[...xs,...xs.slice().reverse()], y:[...yLo,...yUp.slice().reverse()],
         fill:'toself', mode:'lines', line:{width:0}, fillcolor:'rgba(0,150,0,0.25)',
         hoverinfo:'skip', showlegend:false});
+      // Where an air-speed allowance is active, trace the upper boundary as it
+      // would sit without it. At Mkuranga the band lifts uniformly with no step
+      // to show the size of the allowance, so without this marker there is
+      // nothing on the chart indicating how much was added.
+      if (dt > 0) {
+        baselines.push({x:base, y:base.map(x => p.m*x + p.c + p.delta),
+          mode:'lines', line:{color:'rgba(0,110,0,0.65)', width:1.3, dash:'dot'},
+          hoverinfo:'skip', showlegend:false});
+      }
     }
+    traces.unshift(...fills, ...baselines);
   }
 
   if (state.showDensity && allExtTemps.length > 30) {

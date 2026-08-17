@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-08-17 20:49:06 CST
+- **Show the unadjusted upper boundary when an air speed allowance is active** — A dotted green line now traces where the upper limit would sit at the 0.3 m/s baseline, drawn alongside each band whenever a higher air speed is selected. At Mkuranga the entire band sits above the 25 °C gate, so the allowance lifts it uniformly and the chart gave no indication of how much had been added; the dotted line makes the size of the adjustment readable directly off the chart. Noted in the chart caption and the air speed tooltip, both languages. The band traces are now assembled as one block so the draw order is explicit: fills at the back, baseline markers over them, scatter points on top.
+
 ### 2026-08-17 20:25:10 CST
 - **Add a 25 °C reference line to the adaptive comfort chart** — The elevated-air-speed allowance switches on where the upper boundary crosses 25 °C (Section 5.4.2.4). At Mkuranga the whole band already sits above that threshold, so raising air speed lifts the band uniformly with no visible step and no on-chart explanation for the movement. A dashed marker at 25 °C, labelled in both languages, is now drawn whenever air speed is above the 0.3 m/s baseline, and omitted at baseline where it would mark a rule that is doing nothing.
 - **Add `adaptivecomfort.md` and publish it as an explainer** — Records the acceptability limits, the air speed allowance, why the 25 °C gate is an indoor rather than an outdoor temperature, what the Vellei prediction intervals actually represent, the decisions taken, the verification performed, and the known limitations. Published at `/explainers/adaptive-comfort` alongside a PDF rendering, and linked from the comfort band tooltip in both languages.
