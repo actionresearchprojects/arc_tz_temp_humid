@@ -64,6 +64,12 @@ NOTES = {
 
 STATUS_PAGE = "https://actionresearchprojects.net/status"
 
+# The Omnisense CSV holds readings from multiple sensors (indoor temp/humidity
+# units plus the ARC weather station). Restrict the omnisense freshness check
+# to the weather station sensor specifically, so a dead weather station isn't
+# masked by other sensors in the same file still reporting fine.
+WEATHER_STATION_SENSOR_ID = "30B40014"
+
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -82,8 +88,12 @@ def file_date_from_glob(pattern: str):
     return utc(datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M"))
 
 
-def latest_iso_in_file(path: str, col: int = 0):
-    """Return the latest ISO-style datetime found in a delimited file column."""
+def latest_iso_in_file(path: str, col: int = 0, match_col: int = None, match_val: str = None):
+    """Return the latest ISO-style datetime found in a delimited file column.
+
+    If match_col/match_val are given, only rows where that column equals
+    match_val are considered (e.g. restrict to one sensor ID in a CSV shared
+    by multiple sensors, so an active sensor doesn't mask a dead one)."""
     if not path or not os.path.exists(path):
         return None
     fmts = ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d")
@@ -94,6 +104,8 @@ def latest_iso_in_file(path: str, col: int = 0):
                 sep = "," if "," in line else None
                 parts = line.strip().split(sep) if sep else line.strip().split()
                 if len(parts) <= col:
+                    continue
+                if match_col is not None and (len(parts) <= match_col or parts[match_col].strip() != match_val):
                     continue
                 val = parts[col].strip()
                 for fmt in fmts:
@@ -225,7 +237,8 @@ def run():
     omni_files = sorted(glob.glob(os.path.join(DATA, "omnisense", "omnisense_*.csv")))
     sources.append(entry("omnisense",
         fetch_dt=file_date_from_glob("omnisense/omnisense_*.csv"),
-        data_dt=latest_iso_in_file(omni_files[-1] if omni_files else None, col=2)))
+        data_dt=latest_iso_in_file(omni_files[-1] if omni_files else None, col=2,
+                                    match_col=0, match_val=WEATHER_STATION_SENSOR_ID)))
 
     # Open-Meteo – timestamped filenames → fetch date available
     hist_files = sorted(glob.glob(os.path.join(DATA, "openmeteo", "historical_*.csv")))
