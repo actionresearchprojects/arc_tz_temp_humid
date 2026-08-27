@@ -38,7 +38,8 @@ NOW = datetime.now(timezone.utc)
 FETCH_THRESHOLD_H = 36  # all sources: flag if action hasn't refreshed in >36h
 
 DATA_THRESHOLD_H = {
-    "omnisense":      24,        # flag if no new sensor reading in over a day
+    "omnisense_weather":    24,  # flag if no new sensor reading in over a day
+    "omnisense_temp_humid": 24,  # flag if no new sensor reading in over a day
     "openmeteo_hist": 36,        # historical goes to yesterday; 36h gives margin
     "openmeteo_fc":   None,      # forecast always extends into the future; no data check
     "enso":           120 * 24,  # NOAA ONI is monthly with up to ~3 month lag; 120d tolerates normal lag, fires only on a genuine stall
@@ -47,7 +48,8 @@ DATA_THRESHOLD_H = {
 }
 
 LABELS = {
-    "omnisense":      "Omnisense",
+    "omnisense_weather":    "Omnisense: weather station",
+    "omnisense_temp_humid": "Omnisense: room temp/humidity",
     "openmeteo_hist": "Open-Meteo historical",
     "openmeteo_fc":   "Open-Meteo forecast",
     "enso":           "ENSO ONI (NOAA PSL)",
@@ -64,11 +66,18 @@ NOTES = {
 
 STATUS_PAGE = "https://actionresearchprojects.net/status"
 
-# The Omnisense CSV holds readings from multiple sensors (indoor temp/humidity
-# units plus the ARC weather station). Restrict the omnisense freshness check
-# to the weather station sensor specifically, so a dead weather station isn't
-# masked by other sensors in the same file still reporting fine.
+# The Omnisense CSV holds readings from multiple sensors sharing one file: the
+# ARC weather station plus a set of indoor temp/humidity loggers. Checking the
+# newest timestamp across the whole file masks a dead weather station as long
+# as any indoor logger is still reporting, so each sensor group is checked on
+# its own. Keep WEATHER_STATION_SENSOR_ID and ROOM_TH_SENSOR_IDS in sync with
+# the equivalent constants in build.py (SENSOR_ID / OMNISENSE_T_H_SENSORS).
 WEATHER_STATION_SENSOR_ID = "30B40014"
+ROOM_TH_SENSOR_IDS = {
+    "320E02D1", "327601CB", "32760371", "3276012B", "32760164",
+    "3276003D", "327601CD", "32760205", "3276028A", "32760208",
+    "32760048",
+}
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -88,12 +97,15 @@ def file_date_from_glob(pattern: str):
     return utc(datetime.strptime(m.group(1) + m.group(2), "%Y%m%d%H%M"))
 
 
-def latest_iso_in_file(path: str, col: int = 0, match_col: int = None, match_val: str = None):
+def latest_iso_in_file(path: str, col: int = 0, match_col: int = None, match_vals=None):
     """Return the latest ISO-style datetime found in a delimited file column.
 
-    If match_col/match_val are given, only rows where that column equals
-    match_val are considered (e.g. restrict to one sensor ID in a CSV shared
-    by multiple sensors, so an active sensor doesn't mask a dead one)."""
+    If match_col/match_vals are given, only rows where that column's value is
+    in match_vals (a string, or a set/list of strings) are considered (e.g.
+    restrict to one or more sensor IDs in a CSV shared by multiple sensors, so
+    an active sensor doesn't mask a dead one)."""
+    if isinstance(match_vals, str):
+        match_vals = {match_vals}
     if not path or not os.path.exists(path):
         return None
     fmts = ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d")
@@ -105,7 +117,7 @@ def latest_iso_in_file(path: str, col: int = 0, match_col: int = None, match_val
                 parts = line.strip().split(sep) if sep else line.strip().split()
                 if len(parts) <= col:
                     continue
-                if match_col is not None and (len(parts) <= match_col or parts[match_col].strip() != match_val):
+                if match_col is not None and (len(parts) <= match_col or parts[match_col].strip() not in match_vals):
                     continue
                 val = parts[col].strip()
                 for fmt in fmts:
@@ -233,12 +245,20 @@ def entry(key: str, fetch_dt, data_dt) -> dict:
 def run():
     sources = []
 
-    # Omnisense – timestamped filenames → fetch date available
+    # Omnisense – timestamped filenames → fetch date available. The fetch date
+    # is shared (one file, one fetch), but data currency is checked separately
+    # per sensor group so a live group can't mask a dead one.
     omni_files = sorted(glob.glob(os.path.join(DATA, "omnisense", "omnisense_*.csv")))
-    sources.append(entry("omnisense",
-        fetch_dt=file_date_from_glob("omnisense/omnisense_*.csv"),
-        data_dt=latest_iso_in_file(omni_files[-1] if omni_files else None, col=2,
-                                    match_col=0, match_val=WEATHER_STATION_SENSOR_ID)))
+    omni_fetch_dt = file_date_from_glob("omnisense/omnisense_*.csv")
+    omni_latest = omni_files[-1] if omni_files else None
+    sources.append(entry("omnisense_weather",
+        fetch_dt=omni_fetch_dt,
+        data_dt=latest_iso_in_file(omni_latest, col=2,
+                                    match_col=0, match_vals=WEATHER_STATION_SENSOR_ID)))
+    sources.append(entry("omnisense_temp_humid",
+        fetch_dt=omni_fetch_dt,
+        data_dt=latest_iso_in_file(omni_latest, col=2,
+                                    match_col=0, match_vals=ROOM_TH_SENSOR_IDS)))
 
     # Open-Meteo – timestamped filenames → fetch date available
     hist_files = sorted(glob.glob(os.path.join(DATA, "openmeteo", "historical_*.csv")))

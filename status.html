@@ -138,29 +138,47 @@
       top: -1px;
     }
 
-    /* ── table ─────────────────────────────────────────────────────────────── */
-    table { width: 100%; border-collapse: collapse; }
-    thead th {
-      font-size: 11px;
+    /* ── source grid ───────────────────────────────────────────────────────── */
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 640px) {
+      .sources-grid { grid-template-columns: 1fr; }
+    }
+    .source-card {
+      border: 1px solid rgba(0,0,0,0.07);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .source-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+    .source-name { font-size: 14.5px; font-weight: 400; color: #111; }
+    .source-note { font-size: 12px; color: #bbb; margin-bottom: 10px; line-height: 1.4; }
+    .source-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    .meta-label {
+      display: block;
+      font-size: 10px;
       font-weight: 500;
       color: #bbb;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 0 16px 10px 0;
-      text-align: left;
-      border-bottom: 1px solid rgba(0,0,0,0.07);
+      letter-spacing: 0.06em;
+      margin-bottom: 3px;
     }
-    tbody tr { border-bottom: 1px solid rgba(0,0,0,0.05); }
-    tbody tr:last-child { border-bottom: none; }
-    tbody td {
-      padding: 13px 16px 13px 0;
-      font-size: 14px;
-      font-weight: 300;
-      color: #444;
-      vertical-align: top;
-    }
-    .source-name { font-weight: 400; color: #111; margin-bottom: 2px; }
-    .source-note { font-size: 12px; color: #bbb; }
+    .meta-val { font-size: 13px; font-weight: 300; color: #444; }
+    .meta-age { font-size: 11.5px; color: #bbb; }
 
     /* ── status pill ───────────────────────────────────────────────────────── */
     .pill {
@@ -239,19 +257,9 @@
 
     <div class="status-card">
       <h2 class="section-heading">Data sources</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Source</th>
-            <th>Status</th>
-            <th>Last fetched</th>
-            <th>Latest data</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          <tr><td colspan="4" style="color:#bbb;padding:20px 0">Loading…</td></tr>
-        </tbody>
-      </table>
+      <div id="rows" class="sources-grid">
+        <div style="color:#bbb;padding:20px 0">Loading…</div>
+      </div>
     </div>
   </div>
 
@@ -275,7 +283,7 @@
   function fmtCell(date, age_h) {
     if (!date) return "<span style='color:#ddd'>—</span>";
     const age = fmtAge(age_h);
-    return date + (age ? "<br><span style='color:#bbb;font-size:12px'>" + age + "</span>" : "");
+    return date + (age ? "<br><span class='meta-age'>" + age + "</span>" : "");
   }
 
   function load() {
@@ -295,17 +303,22 @@
     document.getElementById("meta").innerHTML =
       "Last checked: <strong style='font-weight:400;color:#555'>" + (data.checked_at || "unknown") + "</strong>";
 
-    const tbody = document.getElementById("rows");
-    tbody.innerHTML = "";
+    const rows = document.getElementById("rows");
+    rows.innerHTML = "";
     (data.sources || []).forEach(s => {
-      const tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td><div class='source-name'>" + s.label + "</div>" +
-        (s.note ? "<div class='source-note'>" + s.note + "</div>" : "") + "</td>" +
-        "<td><span class='pill " + (s.status || "unknown") + "'>" + (s.status || "unknown") + "</span></td>" +
-        "<td>" + fmtCell(s.fetch_date, s.fetch_age_hours) + "</td>" +
-        "<td>" + fmtCell(s.data_date,  s.data_age_hours)  + "</td>";
-      tbody.appendChild(tr);
+      const card = document.createElement("div");
+      card.className = "source-card";
+      card.innerHTML =
+        "<div class='source-top'>" +
+          "<span class='source-name'>" + s.label + "</span>" +
+          "<span class='pill " + (s.status || "unknown") + "'>" + (s.status || "unknown") + "</span>" +
+        "</div>" +
+        (s.note ? "<div class='source-note'>" + s.note + "</div>" : "") +
+        "<div class='source-meta'>" +
+          "<div><span class='meta-label'>Last fetched</span><span class='meta-val'>" + fmtCell(s.fetch_date, s.fetch_age_hours) + "</span></div>" +
+          "<div><span class='meta-label'>Latest data</span><span class='meta-val'>" + fmtCell(s.data_date, s.data_age_hours) + "</span></div>" +
+        "</div>";
+      rows.appendChild(card);
     });
   }
 
