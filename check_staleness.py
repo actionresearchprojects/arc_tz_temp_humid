@@ -20,6 +20,11 @@ status.json schema per source:
   fetch_date, fetch_age_hours, fetch_status  – when the action last fetched
   data_date,  data_age_hours,  data_status   – latest timestamp in the data
   note                      – human note about expected lag
+  series                    – optional: per-sensor breakdown (id, label,
+                              data_date, data_age_hours, data_status) for a
+                              source that aggregates several individual
+                              sensors, so the aggregate's "latest data" can't
+                              hide one dead sensor among several live ones
 """
 
 import glob
@@ -78,6 +83,20 @@ ROOM_TH_SENSOR_IDS = {
     "3276003D", "327601CD", "32760205", "3276028A", "32760208",
     "32760048",
 }
+# Friendly names for the drill-down view, subset of build.py's LOGGER_NAMES.
+ROOM_TH_LOGGER_NAMES = {
+    "320E02D1": "Weather Station T&RH",
+    "327601CB": "Bedroom 2",
+    "32760371": "Bedroom 3",
+    "3276012B": "Bedroom 4",
+    "32760164": "Bedroom 4 (above ceiling)",
+    "32760048": "Bedroom 4 (below metal roof)",
+    "3276003D": "Kitchen",
+    "327601CD": "Living Room",
+    "32760205": "Bedroom 1",
+    "3276028A": "Study",
+    "32760208": "Washrooms area",
+}
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -125,6 +144,37 @@ def latest_iso_in_file(path: str, col: int = 0, match_col: int = None, match_val
                         ts = utc(datetime.strptime(val, fmt))
                         if latest is None or ts > latest:
                             latest = ts
+                        break
+                    except ValueError:
+                        pass
+    except OSError:
+        pass
+    return latest
+
+
+def latest_iso_per_id_in_file(path: str, col: int, id_col: int, ids: set):
+    """Return {id: latest_datetime_or_None} for each id in `ids`, scanning the
+    file once (rather than once per id) and bucketing rows as they're seen."""
+    latest = {i: None for i in ids}
+    if not path or not os.path.exists(path):
+        return latest
+    fmts = ("%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d")
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                sep = "," if "," in line else None
+                parts = line.strip().split(sep) if sep else line.strip().split()
+                if len(parts) <= max(col, id_col):
+                    continue
+                sid = parts[id_col].strip()
+                if sid not in ids:
+                    continue
+                val = parts[col].strip()
+                for fmt in fmts:
+                    try:
+                        ts = utc(datetime.strptime(val, fmt))
+                        if latest[sid] is None or ts > latest[sid]:
+                            latest[sid] = ts
                         break
                     except ValueError:
                         pass
@@ -255,10 +305,24 @@ def run():
         fetch_dt=omni_fetch_dt,
         data_dt=latest_iso_in_file(omni_latest, col=2,
                                     match_col=0, match_vals=WEATHER_STATION_SENSOR_ID)))
-    sources.append(entry("omnisense_temp_humid",
+    th_entry = entry("omnisense_temp_humid",
         fetch_dt=omni_fetch_dt,
         data_dt=latest_iso_in_file(omni_latest, col=2,
-                                    match_col=0, match_vals=ROOM_TH_SENSOR_IDS)))
+                                    match_col=0, match_vals=ROOM_TH_SENSOR_IDS))
+    th_per_sensor = latest_iso_per_id_in_file(omni_latest, col=2, id_col=0, ids=ROOM_TH_SENSOR_IDS)
+    th_threshold = DATA_THRESHOLD_H["omnisense_temp_humid"]
+    th_entry["series"] = []
+    for sid in sorted(ROOM_TH_SENSOR_IDS, key=lambda i: ROOM_TH_LOGGER_NAMES.get(i, i)):
+        dt = th_per_sensor.get(sid)
+        status, age = age_status(dt, th_threshold)
+        th_entry["series"].append(dict(
+            id=sid,
+            label=ROOM_TH_LOGGER_NAMES.get(sid, sid),
+            data_date=dt.strftime("%Y-%m-%d %H:%M UTC") if dt else None,
+            data_age_hours=age,
+            data_status=status,
+        ))
+    sources.append(th_entry)
 
     # Open-Meteo – timestamped filenames → fetch date available
     hist_files = sorted(glob.glob(os.path.join(DATA, "openmeteo", "historical_*.csv")))

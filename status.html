@@ -161,6 +161,7 @@
     }
     .source-name { font-size: 14.5px; font-weight: 400; color: #111; }
     .source-note { font-size: 12px; color: #bbb; margin-bottom: 10px; line-height: 1.4; }
+    .pill-row { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
     .source-meta {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -193,6 +194,37 @@
     .pill.ok      { background: rgba(34,197,94,0.12); color: #15803d; }
     .pill.stale   { background: rgba(239,68,68,0.10); color: #b91c1c; }
     .pill.unknown { background: rgba(0,0,0,0.06);     color: #888; }
+    .pill.sm      { padding: 1px 8px; font-size: 10.5px; }
+
+    /* ── per-sensor drill-down ────────────────────────────────────────────── */
+    .series-toggle { margin-top: 10px; }
+    .series-toggle summary {
+      font-size: 11.5px;
+      color: #888;
+      cursor: pointer;
+      list-style: none;
+    }
+    .series-toggle summary::-webkit-details-marker { display: none; }
+    .series-toggle summary::before { content: "▸ "; color: #bbb; }
+    .series-toggle[open] summary::before { content: "▾ "; }
+    .series-toggle summary:hover { color: #444; }
+    .series-list {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .series-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12.5px;
+      color: #444;
+    }
+    .series-row .series-age { font-size: 11px; color: #bbb; flex-shrink: 0; }
 
     /* ── refresh button ────────────────────────────────────────────────────── */
     .refresh-btn {
@@ -286,6 +318,10 @@
     return date + (age ? "<br><span class='meta-age'>" + age + "</span>" : "");
   }
 
+  function pill(status, text, extraClass) {
+    return "<span class='pill " + (status || "unknown") + (extraClass ? " " + extraClass : "") + "'>" + text + "</span>";
+  }
+
   function load() {
     fetch(JSON_URL + "?t=" + Date.now())
       .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
@@ -308,16 +344,44 @@
     (data.sources || []).forEach(s => {
       const card = document.createElement("div");
       card.className = "source-card";
+
+      // Two separate pills: has the pipeline actually fetched recently
+      // (fetch_status) vs. is the underlying data itself current
+      // (data_status) — these can disagree, and conflating them into one
+      // pill is exactly what hid a dead sensor behind a "fine" status before.
+      let pills = "";
+      if (s.fetch_status && s.fetch_status !== "unknown") {
+        pills += pill(s.fetch_status, "Fetch " + s.fetch_status.toUpperCase());
+      }
+      pills += pill(s.data_status, "Data " + (s.data_status || "unknown").toUpperCase());
+
+      let seriesHtml = "";
+      if (s.series && s.series.length > 1) {
+        const seriesRows = s.series.map(x =>
+          "<div class='series-row'>" +
+            "<span>" + x.label + "</span>" +
+            "<span class='series-age'>" + (fmtAge(x.data_age_hours) || "&mdash;") + "</span>" +
+            pill(x.data_status, x.data_status || "unknown", "sm") +
+          "</div>"
+        ).join("");
+        seriesHtml =
+          "<details class='series-toggle'>" +
+            "<summary>" + s.series.length + " sensors &mdash; view individually</summary>" +
+            "<div class='series-list'>" + seriesRows + "</div>" +
+          "</details>";
+      }
+
       card.innerHTML =
         "<div class='source-top'>" +
           "<span class='source-name'>" + s.label + "</span>" +
-          "<span class='pill " + (s.status || "unknown") + "'>" + (s.status || "unknown") + "</span>" +
+          "<div class='pill-row'>" + pills + "</div>" +
         "</div>" +
         (s.note ? "<div class='source-note'>" + s.note + "</div>" : "") +
         "<div class='source-meta'>" +
           "<div><span class='meta-label'>Last fetched</span><span class='meta-val'>" + fmtCell(s.fetch_date, s.fetch_age_hours) + "</span></div>" +
           "<div><span class='meta-label'>Latest data</span><span class='meta-val'>" + fmtCell(s.data_date, s.data_age_hours) + "</span></div>" +
-        "</div>";
+        "</div>" +
+        seriesHtml;
       rows.appendChild(card);
     });
   }
