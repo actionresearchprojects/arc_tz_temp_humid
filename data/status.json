@@ -1,16 +1,16 @@
 {
-  "checked_at": "2026-09-01 09:16 UTC",
+  "checked_at": "2026-09-02 08:35 UTC",
   "overall": "stale",
   "sources": [
     {
       "key": "omnisense_weather",
       "label": "Omnisense: weather station",
       "status": "stale",
-      "fetch_date": "2026-09-01 09:16 UTC",
+      "fetch_date": "2026-09-02 08:35 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
       "data_date": "2026-08-03 12:33 UTC",
-      "data_age_hours": 692.7,
+      "data_age_hours": 716.0,
       "data_status": "stale",
       "note": ""
     },
@@ -18,11 +18,11 @@
       "key": "omnisense_temp_humid",
       "label": "Omnisense: room temp/humidity",
       "status": "stale",
-      "fetch_date": "2026-09-01 09:16 UTC",
+      "fetch_date": "2026-09-02 08:35 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
       "data_date": "2026-08-31 04:28 UTC",
-      "data_age_hours": 28.8,
+      "data_age_hours": 52.1,
       "data_status": "stale",
       "note": "",
       "series": [
@@ -30,77 +30,77 @@
           "id": "32760205",
           "label": "Bedroom 1",
           "data_date": "2026-08-31 04:28 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.1,
           "data_status": "stale"
         },
         {
           "id": "327601CB",
           "label": "Bedroom 2",
           "data_date": "2026-08-31 04:26 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.2,
           "data_status": "stale"
         },
         {
           "id": "32760371",
           "label": "Bedroom 3",
           "data_date": "2026-08-31 04:25 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.2,
           "data_status": "stale"
         },
         {
           "id": "3276012B",
           "label": "Bedroom 4",
           "data_date": "2026-08-31 04:25 UTC",
-          "data_age_hours": 28.9,
+          "data_age_hours": 52.2,
           "data_status": "stale"
         },
         {
           "id": "32760164",
           "label": "Bedroom 4 (above ceiling)",
           "data_date": "2026-08-31 04:28 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.1,
           "data_status": "stale"
         },
         {
           "id": "32760048",
           "label": "Bedroom 4 (below metal roof)",
           "data_date": "2026-08-31 04:27 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.1,
           "data_status": "stale"
         },
         {
           "id": "3276003D",
           "label": "Kitchen",
           "data_date": "2026-08-31 04:28 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.1,
           "data_status": "stale"
         },
         {
           "id": "327601CD",
           "label": "Living Room",
           "data_date": "2026-08-31 04:25 UTC",
-          "data_age_hours": 28.9,
+          "data_age_hours": 52.2,
           "data_status": "stale"
         },
         {
           "id": "3276028A",
           "label": "Study",
           "data_date": "2026-08-31 04:27 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.1,
           "data_status": "stale"
         },
         {
           "id": "32760208",
           "label": "Washrooms area",
           "data_date": "2026-08-31 04:27 UTC",
-          "data_age_hours": 28.8,
+          "data_age_hours": 52.1,
           "data_status": "stale"
         },
         {
           "id": "320E02D1",
           "label": "Weather Station T&RH",
           "data_date": "2026-08-31 04:25 UTC",
-          "data_age_hours": 28.9,
+          "data_age_hours": 52.2,
           "data_status": "stale"
         }
       ]
@@ -109,11 +109,11 @@
       "key": "openmeteo_hist",
       "label": "Open-Meteo historical",
       "status": "ok",
-      "fetch_date": "2026-09-01 09:16 UTC",
+      "fetch_date": "2026-09-02 08:35 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
-      "data_date": "2026-08-31 23:00 UTC",
-      "data_age_hours": 10.3,
+      "data_date": "2026-09-01 23:00 UTC",
+      "data_age_hours": 9.6,
       "data_status": "ok",
       "note": ""
     },
@@ -121,10 +121,10 @@
       "key": "openmeteo_fc",
       "label": "Open-Meteo forecast",
       "status": "ok",
-      "fetch_date": "2026-09-01 09:16 UTC",
+      "fetch_date": "2026-09-02 08:35 UTC",
       "fetch_age_hours": 0.0,
       "fetch_status": "ok",
-      "data_date": "2026-09-16 23:00 UTC",
+      "data_date": "2026-09-17 23:00 UTC",
       "data_age_hours": null,
       "data_status": "ok",
       "note": "Latest data shows forecast horizon (~16 days out); fetch date is the freshness signal"
@@ -137,7 +137,7 @@
       "fetch_age_hours": null,
       "fetch_status": "unknown",
       "data_date": "2026-06-01 00:00 UTC",
-      "data_age_hours": 2217.3,
+      "data_age_hours": 2240.6,
       "data_status": "ok",
       "note": "Monthly index; NOAA publishes with up to ~3 month lag \u2014 alerts only if data is >120 days old"
     },
@@ -149,7 +149,7 @@
       "fetch_age_hours": null,
       "fetch_status": "unknown",
       "data_date": "2026-08-24 00:00 UTC",
-      "data_age_hours": 201.3,
+      "data_age_hours": 224.6,
       "data_status": "ok",
       "note": "Weekly index from BoM; up to 14 days lag is normal"
     },
@@ -160,8 +160,8 @@
       "fetch_date": null,
       "fetch_age_hours": null,
       "fetch_status": "unknown",
-      "data_date": "2026-08-27 00:00 UTC",
-      "data_age_hours": 129.3,
+      "data_date": "2026-08-28 00:00 UTC",
+      "data_age_hours": 128.6,
       "data_status": "ok",
       "note": "Daily index; NOAA typically lags 2\u20135 days"
     }
