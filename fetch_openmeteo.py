@@ -48,14 +48,24 @@ from pathlib import Path
 # against a running mean still carrying an arbitrary starting value. Thirty days
 # reduces the seed's weight to about 0.1%.
 LOCATIONS = {
-    "tz": {
-        "lat": -7.0650263,
-        "lon": 39.298985,
+    "tz": {                           # House 5, Al-Mizan ecovillage, Mkuranga
+        # Rounded to 2dp for the same reason as the UK sites, and here it costs
+        # nothing at all: Open-Meteo serves this region from a coarse global
+        # model, so even 1dp (3.9 km away) returns byte-identical data. 2dp puts
+        # the published coordinate 0.56 km from the building. The previous value
+        # carried seven decimals, which is centimetre-level precision on a
+        # children's facility in a public repository.
+        "lat": -7.07,
+        "lon": 39.30,
         "elevation": "61.0",
         "timezone": "Africa/Dar_es_Salaam",
         "tz_abbr": "EAT",
         "utc_offset_seconds": "10800",
-        "start_date": "2023-03-15",
+        # House 5's first sensor reading is 2023-03-14, so the feed previously
+        # began a day AFTER the data it was meant to contextualise: the running
+        # mean had no run-up at all and the opening fortnight of comfort points
+        # were measured against a seed value. Same 30-day lead-in as the UK.
+        "start_date": "2023-02-12",
         "outdir": Path("data/openmeteo"),
     },
     "grove": {                        # Grove Cottage, Hereford

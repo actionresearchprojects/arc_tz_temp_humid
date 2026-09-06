@@ -2,6 +2,13 @@ name: Debug Omnisense fetch
 
 on:
   workflow_dispatch:
+    inputs:
+      site:
+        description: 'Which Omnisense site to fetch'
+        required: true
+        default: 'tz'
+        type: choice
+        options: [tz, uk]
 
 jobs:
   debug:
@@ -22,13 +29,13 @@ jobs:
         env:
           OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
           OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
-        run: python fetch_omnisense.py --debug
+        run: python fetch_omnisense.py --site "${{ inputs.site }}" --debug
 
       - name: Upload debug HTML responses
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: omnisense-debug-responses
+          name: omnisense-debug-${{ inputs.site }}
           path: |
             dnld_rqst.html
             dnld_rqst5_response.html

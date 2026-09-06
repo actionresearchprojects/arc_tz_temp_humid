@@ -416,7 +416,7 @@ LOGGER_NAMES = {
     "1C290049": "External Ambient",              # Grove Cottage, Hereford
     "169502D1": "Living Room (No. 57)",
     "19550131": "External Ambient (full shade)",  # Holywell Barn, Criccieth
-    "0E3C12EC": "Internal Ambient",
+    "0E3C12EC": "Living Room",        # Omnisense desc: "Holywell i-ambient replacement"
     OPENMETEO_HISTORICAL_ID: "Historical Temperature",
     OPENMETEO_FORECAST_ID: "Forecast Temperature",
     "Grove Historical (Open-Meteo)": "Historical Temperature (Grove)",
@@ -457,7 +457,7 @@ LOGGER_NAMES_SW = {
     "1C290049": "Nje (Mazingira)",
     "169502D1": "Sebule (Na. 57)",
     "19550131": "Nje (Mazingira, kivulini)",
-    "0E3C12EC": "Ndani (Mazingira)",
+    "0E3C12EC": "Sebule",
     OPENMETEO_HISTORICAL_ID: "Joto la Kihistoria",
     OPENMETEO_FORECAST_ID: "Joto la Utabiri",
     "Grove Historical (Open-Meteo)": "Joto la Kihistoria (Grove)",
