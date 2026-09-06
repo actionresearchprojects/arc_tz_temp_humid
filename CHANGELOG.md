@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-09-07 05:10:47 CST
+- **ARC UK Omnisense fetch verified in CI** - Dispatched `debug-omnisense.yml` with `site: uk` against the real repository secrets: login succeeded on site 58345, 180 855 rows returned, 10.3 MB written for 2026-07-31 to 2026-09-06. The shared credentials do reach the UK site, as the export containing a House 5 sensor alongside Grove and Holywell suggested. The debug workflow downloads and discards, so this committed nothing.
+
 ### 2026-09-07 01:29:10 CST
 - **Fix: the Tanzanian Open-Meteo feed began a day after the data it contextualises** - House 5's first sensor reading is 2023-03-14; the feed started 2023-03-15. The EN 16798-1 running mean is seeded from its own first day, so every House 5 comfort point in the opening fortnight of the record was measured against a running mean with no history behind it. The feed now starts 2023-02-12, the same 30-day lead-in the UK feeds use. This slightly changes early House 5 comfort positions, for the better.
 - **Tanzanian coordinate rounded to 2dp** - The committed value carried seven decimal places, which is centimetre-level precision on a children's facility in a public repository. Rounding costs nothing there: Open-Meteo serves that region from a coarser global model and returns byte-identical data even at 1dp (3.9 km away). 2dp puts the published point 0.56 km from the building. Tanzania could not use the UK's grid-cell-centre trick because the API echoes the requested point rather than snapping to a grid.

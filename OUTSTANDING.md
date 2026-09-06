@@ -113,23 +113,29 @@ with no history behind it. The feed now starts 2023-02-12.
 If sensors are ever installed earlier than the current start dates, move
 `start_date` back to 30 days before the new earliest reading.
 
-## 4. ARC UK Omnisense fetch - DONE, untested in CI
+## 4. ARC UK Omnisense fetch - DONE and tested
 
-`SITES["uk"]` is filled in with site number **58345**
-("Simmonds.Mills Retrofits") and a `--site uk` step runs in
-`update-dashboard-data.yml` alongside the Tanzanian one, using the same
-`OMNISENSE_USERNAME` / `OMNISENSE_PASSWORD` secrets.
+`SITES["uk"]` uses site number **58345** ("Simmonds.Mills Retrofits") with the
+shared `OMNISENSE_USERNAME` / `OMNISENSE_PASSWORD` secrets, and a `--site uk`
+step runs daily in `update-dashboard-data.yml` beside the Tanzanian one.
 
-**It has not run yet.** The credentials live in repository secrets and are not
-available locally, so the login and download path could not be exercised here.
-The first scheduled run (04:00 UTC) is the test. The step is
-`continue-on-error`, so a failure will not block the rest of the build; check
-the run log, and the sidebar's "Omnisense (UK) last updated" note, afterwards.
+Exercised in CI on 6 September 2026 via `debug-omnisense.yml`, which now takes a
+site input so either site can be tested without waiting for the nightly run or
+committing anything:
 
-Until it succeeds the hand-added export in `data/omnisense_uk/` remains the
-source, and nothing breaks if the fetch fails.
+```
+Omnisense fetch [uk] - 2026-09-06 17:29 UTC
+  Date range: 2026-07-31 -> 2026-09-06
+  Login successful.
+  Download ready: 180855 rows
+  Wrote 10.3 MB -> data/omnisense_uk/omnisense_uk_20260906_1729.csv
+```
 
----
+So the shared credentials do reach the UK site, as expected from the export
+containing a House 5 sensor alongside the Grove and Holywell ones.
+
+To re-test at any point: Actions -> Debug Omnisense fetch -> Run workflow ->
+site `uk`. It downloads and discards, committing nothing.
 
 ## 5. Known limitation, not a task
 
