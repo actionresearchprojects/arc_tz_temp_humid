@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=1440">
-  <title>Data Pipeline Status – ARC</title>
+  <title>Data Pipeline Status - ARC</title>
   <link rel="icon" type="image/png" sizes="any" href="assets/images/favicon.png">
   <link href="assets/images/favicon.png" rel="icon" media="(prefers-color-scheme: light)">
   <link href="assets/images/favicon.png" rel="icon" media="(prefers-color-scheme: dark)">
@@ -289,7 +289,7 @@
 
   <div class="page-hero">
     <h1>Data Pipeline Status</h1>
-    <p class="tagline">Live monitoring of ARC data sources — the ecovillage near Mkuranga, Tanzania, and the UK buildings</p>
+    <p class="tagline">Live monitoring of ARC data sources - the ecovillage near Mkuranga, Tanzania, and the UK buildings</p>
   </div>
 
   <div class="page-body">
@@ -329,7 +329,7 @@
   }
 
   function fmtCell(date, age_h) {
-    if (!date) return "<span style='color:#ddd'>—</span>";
+    if (!date) return "<span style='color:#ddd'>-</span>";
     const age = fmtAge(age_h);
     return date + (age ? "<br><span class='meta-age'>" + age + "</span>" : "");
   }
@@ -363,7 +363,7 @@
 
       // Two separate pills: has the pipeline actually fetched recently
       // (fetch_status) vs. is the underlying data itself current
-      // (data_status) — these can disagree, and conflating them into one
+      // (data_status) - these can disagree, and conflating them into one
       // pill is exactly what hid a dead sensor behind a "fine" status before.
       let pills = "";
       if (s.fetch_status && s.fetch_status !== "unknown") {

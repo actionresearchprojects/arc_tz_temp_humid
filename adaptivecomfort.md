@@ -39,7 +39,7 @@ Upper 80% acceptability limit (°C) = 0.31 × Tpma + 21.3
 Lower 80% acceptability limit (°C) = 0.31 × Tpma + 14.3
 ```
 
-where `Tpma` is the prevailing mean outdoor air temperature — the x-axis of the chart.
+where `Tpma` is the prevailing mean outdoor air temperature - the x-axis of the chart.
 
 Rearranged into the form above, that is a centre line of `0.31 × Tpma + 17.8` with a
 half-width of **3.5**. The 90% limits share the same centre line with a half-width of
@@ -48,7 +48,7 @@ half-width of **3.5**. The 90% limits share the same centre line with a half-wid
 | Level | Centre line | Half-width | Meaning |
 |---|---|---|---|
 | 80% | 0.31·Tpma + 17.8 | ±3.5 | 80% of occupants expected to find conditions acceptable |
-| 90% | 0.31·Tpma + 17.8 | ±2.5 | 90% expected to find them acceptable — a stricter test, so a narrower band |
+| 90% | 0.31·Tpma + 17.8 | ±2.5 | 90% expected to find them acceptable - a stricter test, so a narrower band |
 
 **80% is the compliance figure.** Section 5.4.2 states that allowable temperatures
 "shall be determined from Figure 5-8 using the 80% acceptability limits", and its
@@ -63,13 +63,13 @@ Section 5.4.1(d) restricts the method to a prevailing mean outdoor temperature
 
 The dashboard enforces this on the chart. Readings whose running mean falls
 outside the window are **drawn in grey rather than removed**, annotated with the
-proportion they represent, and **excluded from the percentage statistic** — a
+proportion they represent, and **excluded from the percentage statistic** - a
 figure quoted against ASHRAE 55 must not count conditions the method was never
 validated on. They stay visible because they are real readings worth seeing;
 they are simply not something this band can be used to judge.
 
 Filtering by calendar month was considered and rejected. Months are not the
-criterion: a fixed "May–September" would admit a cold June and exclude a warm
+criterion: a fixed "May-September" would admit a cold June and exclude a warm
 October, would be wrong again at the next site, and would hide the very readings
 a reader should be told about. Gating on the running mean tests the actual rule.
 
@@ -82,7 +82,7 @@ reliably distinguishes a heated room from a warm one.
 
 At Mkuranga the buildings have no heating, so the criterion is met by
 construction. **At the UK sites it is genuinely unknown**, and the dashboard says
-so rather than assuming it — a permanent note on the comfort chart, in the
+so rather than assuming it - a permanent note on the comfort chart, in the
 sidebar's applicability panel directly beneath the quoted criterion, and in the
 tooltips explaining the method.
 
@@ -104,7 +104,7 @@ Table 5-13 gives the allowance, relative to a baseline of 0.3 m/s:
 
 | Average air speed | Increase in the upper limit (Δt₀) |
 |---|---|
-| 0.3 m/s (baseline) | — |
+| 0.3 m/s (baseline) | - |
 | 0.6 m/s | +1.2 °C |
 | 0.9 m/s | +1.8 °C |
 | 1.2 m/s | +2.2 °C |
@@ -133,13 +133,13 @@ band. Below those points the boundary is unchanged; above them it is raised by t
 chart, and the dashboard reproduces it exactly.
 
 The step is an artefact of the standard, not of the physics. The underlying relationship
-is smooth — the benefit of air movement grows gradually with temperature, and the Δt₀
+is smooth - the benefit of air movement grows gradually with temperature, and the Δt₀
 values are derived from continuous equal-SET contours. ASHRAE flattened that into an
 on/off threshold and three discrete speeds so the rule could be checked simply.
 
 ### The 25 °C gate is an indoor temperature
 
-A common misreading. `t₀` is **operative temperature** — the indoor value, the chart's
+A common misreading. `t₀` is **operative temperature** - the indoor value, the chart's
 y-axis. The outdoor variable is written `Tpma`. Table 5-13's own title refers to
 "Acceptable Operative Temperature Limits", and both `t₀` and `Δt₀` mean operative
 temperature throughout.
@@ -152,7 +152,7 @@ temperature.
 
 Physically the threshold marks where a breeze stops being a nuisance and starts being
 relief. Below about 25 °C you are not sweating much, so there is little evaporation for
-moving air to accelerate, and the convective loss is heat you wanted to keep — a draught,
+moving air to accelerate, and the convective loss is heat you wanted to keep - a draught,
 not cooling. ASHRAE treats this seriously elsewhere: Section 5.3.2.4 actively *caps* air
 speed at 0.2 m/s below 23 °C.
 
@@ -161,7 +161,7 @@ speed at 0.2 m/s below 23 °C.
 Only readings above 25 °C, and this follows automatically rather than needing a separate rule.
 
 The allowance can only change the verdict for readings in the gap between the old ceiling
-and the new one — anything below the old ceiling was already acceptable, anything above
+and the new one - anything below the old ceiling was already acceptable, anything above
 the new one is still too warm. Since the ceiling is only raised where it already exceeds
 25 °C, everything in that gap is above 25 °C too. A reading of 23 °C gains nothing from
 the air speed setting, which is the right answer physically.
@@ -172,7 +172,7 @@ the air speed setting, which is the right answer physically.
 
 The dashboard's default band comes from Vellei, Herrera, Fosas and Natarajan, *The
 influence of relative humidity on adaptive thermal comfort*, Building and Environment
-124 (2017) 171–185. Equations 4–6 of that paper:
+124 (2017) 171-185. Equations 4-6 of that paper:
 
 ```
 RH > 60%        Top = 0.53 × Tout + 12.85  (±2.84)   R² = 0.84
@@ -185,7 +185,7 @@ RH ≤ 40%        Top = 0.52 × Tout + 15.23  (±4.40)   R² = 0.66
 This was the question that decided the interface design. The paper states that "the
 temperature bands in the above equations are given by the prediction intervals", defined
 as the range in which future observations fall with 0.95 probability. That is a
-statistical spread around a fitted line — a different kind of quantity from "80% of people
+statistical spread around a fitted line - a different kind of quantity from "80% of people
 find this acceptable".
 
 **However, 80% acceptability is applied one step earlier.** When assembling the data, the
@@ -213,7 +213,7 @@ temperature is used in computing either adaptive model", so the substitution is 
 Vellei deliberately excluded air velocity as a predictor, on the grounds that occupants
 control it directly and it therefore cannot be treated as an independent variable. The
 consequence is that the field data behind these bands already contains whatever fans and
-open windows those occupants were using — and much of the sample comes from hot climates
+open windows those occupants were using - and much of the sample comes from hot climates
 where fan use is routine.
 
 Some of the benefit of air movement is therefore probably inside the band already.
@@ -232,7 +232,7 @@ The dashboard's previous "Default comfort model" was:
 ```
 
 which expands to a band running from `0.31·Tpma + 14.3` to `0.31·Tpma + 20.3`. Those are
-the ASHRAE **80% lower** limit and the ASHRAE **90% upper** limit — a band that exists in
+the ASHRAE **80% lower** limit and the ASHRAE **90% upper** limit - a band that exists in
 no standard, pairing a permissive floor with a strict ceiling.
 
 Because the comfort statistic defaults to "percentage below the upper boundary", every
@@ -264,7 +264,7 @@ This was considered and set aside. Air speed shifts the comfort boundary rather 
 measured point, so different values per room would mean several different ceilings on one
 chart, and a single drawn band could not represent them.
 
-The idea is not lost — it belongs to a future model that evaluates each reading against
+The idea is not lost - it belongs to a future model that evaluates each reading against
 its own conditions (including its own recorded humidity) instead of reading a band off a
 graph. That approach has no drawn band to contradict, so per-room air speed works
 naturally within it.
@@ -283,8 +283,8 @@ expectations:
 - The chart and the statistics panel apply the same gate, so the picture and the reported
   percentages cannot disagree.
 - The band is sampled at 80 evenly spaced points, so a step falling between two samples
-  would render as a diagonal ramp. The crossing is injected into the sample array twice —
-  once carrying the unelevated value, once the raised one — and the rendered vector output
+  would render as a diagonal ramp. The crossing is injected into the sample array twice -
+  once carrying the unelevated value, once the raised one - and the rendered vector output
   was measured to confirm a genuine vertical edge of exactly Δt₀ at exactly the computed
   crossing.
 - The 80% band fully encloses the 90% band when both are drawn.
@@ -300,7 +300,7 @@ that range:
 | ASHRAE 80% | 11.9 °C | no |
 | ASHRAE 90% | 15.2 °C | no |
 | Vellei RH > 60% | 17.6 °C | no |
-| Vellei 40–60% | 13.5 °C | no |
+| Vellei 40-60% | 13.5 °C | no |
 | Vellei RH ≤ 40% | 10.3 °C | no |
 
 The comfort ceiling is already above 25 °C everywhere on the chart, so raising air speed
@@ -319,7 +319,7 @@ at the UK sites.** See section 2. The chart flags this rather than inferring it.
 
 **The chart's y-axis is air temperature; ASHRAE's is operative temperature.** Operative
 temperature combines air temperature with radiant temperature, and in these buildings the
-two differ — the metal roof surface has been recorded 10 °C above the air temperature
+two differ - the metal roof surface has been recorded 10 °C above the air temperature
 beneath it. The readings tested against these limits are therefore systematically lower
 than the quantity the standard intends. Adding formal acceptability tiers makes the chart
 *look* more precise without making it so. This is a property of the instrumentation, not
@@ -342,10 +342,10 @@ section 4.
 
 ## 9. Sources
 
-- ANSI/ASHRAE Standard 55-2020, *Thermal Environmental Conditions for Human Occupancy* —
+- ANSI/ASHRAE Standard 55-2020, *Thermal Environmental Conditions for Human Occupancy* -
   Sections 5.3.2.4, 5.4.1, 5.4.2, 5.4.2.2, 5.4.2.4; Figure 5-8; Table 5-13.
 - M. Vellei, M. Herrera, D. Fosas, S. Natarajan, "The influence of relative humidity on
-  adaptive thermal comfort", *Building and Environment* 124 (2017) 171–185.
+  adaptive thermal comfort", *Building and Environment* 124 (2017) 171-185.
   <https://doi.org/10.1016/j.buildenv.2017.08.005>
 - CBE Thermal Comfort Tool, Center for the Built Environment, University of California
-  Berkeley — used as the reference implementation for the adaptive chart.
+  Berkeley - used as the reference implementation for the adaptive chart.

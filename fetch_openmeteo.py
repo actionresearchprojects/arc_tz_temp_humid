@@ -22,14 +22,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-# One entry per site whose external weather we track. Only Dar es Salaam is
-# fetched today; ARC UK's buildings each carry their own external ambient sensor,
-# which is what their adaptive comfort running mean uses.
+# One entry per site whose external weather we track. Each writes to its own
+# output directory and is loaded by build.py as a separate pair of logger series,
+# so a region spanning several sites can show every site's weather at once.
 #
-# To add a UK location: uncomment the entry below with the building's
-# coordinates, add `--location uk` as a step in update-dashboard-data.yml, and
-# point the UK datasets at it in build.py (give them an Open-Meteo entry in
-# "external_sensors" and load the CSVs from the new outdir).
+# Open-Meteo needs no API key and no account: a location is just a latitude and
+# longitude. Adding a site therefore means adding an entry here and a matching
+# feed in build.py's OPENMETEO_FEEDS.
+#
+# NOTE ON THE UK COORDINATES: these are town-centre positions for Hereford and
+# Criccieth, not the buildings themselves, because the exact addresses were not
+# to hand. Open-Meteo's historical model runs on a ~11 km grid so a town-centre
+# fix is usually the same grid cell as the building, but replace lat/lon here
+# with the real positions when known - it is a one-line change per site and
+# needs no other edits.
 LOCATIONS = {
     "tz": {
         "lat": -7.0650263,
@@ -41,16 +47,26 @@ LOCATIONS = {
         "start_date": "2023-03-15",
         "outdir": Path("data/openmeteo"),
     },
-    # "uk": {
-    #     "lat": 52.0565,             # ← Grove Cottage, Hereford
-    #     "lon": -2.7160,
-    #     "elevation": "",
-    #     "timezone": "Europe/London",
-    #     "tz_abbr": "GMT",
-    #     "utc_offset_seconds": "0",  # Open-Meteo returns local time for the zone
-    #     "start_date": "2026-07-31",
-    #     "outdir": Path("data/openmeteo_uk"),
-    # },
+    "grove": {                        # Grove Cottage, Hereford
+        "lat": 52.0567,               # approximate - see note above
+        "lon": -2.7160,
+        "elevation": "",
+        "timezone": "Europe/London",
+        "tz_abbr": "GMT",
+        "utc_offset_seconds": "0",    # only used to pick "today" at the site
+        "start_date": "2023-03-15",
+        "outdir": Path("data/openmeteo_grove"),
+    },
+    "holywell": {                     # Holywell Barn, Criccieth
+        "lat": 52.9186,               # approximate - see note above
+        "lon": -4.2372,
+        "elevation": "",
+        "timezone": "Europe/London",
+        "tz_abbr": "GMT",
+        "utc_offset_seconds": "0",
+        "start_date": "2023-03-15",
+        "outdir": Path("data/openmeteo_holywell"),
+    },
 }
 DEFAULT_LOCATION = "tz"
 
@@ -191,7 +207,7 @@ def main():
     yesterday_str = yesterday_local.strftime("%Y-%m-%d")
     now_tag = now_utc.strftime("%Y%m%d_%H%M")  # GMT timestamp for filename
 
-    print(f"Open-Meteo fetch [{args.location}] — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"Open-Meteo fetch [{args.location}] - {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Today ({loc['tz_abbr']}): {today_str}")
     print(f"  Historical range: {loc['start_date']} → {yesterday_str}")
 
@@ -204,7 +220,7 @@ def main():
         fetch_historical(loc, yesterday_str, now_tag)
     except Exception as e:
         print(f"  FAILED: {e}", file=sys.stderr)
-        print("  Skipping historical — previous data files (if any) are still in place.")
+        print("  Skipping historical - previous data files (if any) are still in place.")
         ok = False
 
     print("\n[2/2] Forecast data...")
@@ -212,13 +228,13 @@ def main():
         fetch_forecast(loc, today_str, now_tag)
     except Exception as e:
         print(f"  FAILED: {e}", file=sys.stderr)
-        print("  Skipping forecast — previous data files (if any) are still in place.")
+        print("  Skipping forecast - previous data files (if any) are still in place.")
         ok = False
 
     if ok:
         print("\nDone.")
     else:
-        print("\nDone (with errors — some fetches failed, pipeline will continue).")
+        print("\nDone (with errors - some fetches failed, pipeline will continue).")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ There are two complementary layers: an **external freshness checker** (this repo
 and **Omnisense's native alarms** (configured on omnisense.com). Each covers a
 gap the other cannot.
 
-## Layer 1 — External freshness checker (`check_staleness.py`)
+## Layer 1 - External freshness checker (`check_staleness.py`)
 
 Runs inside the `update-dashboard-data.yml` workflow (daily, 04:00 UTC) after all
 the fetch steps. It reads the fetched files under `data/` and decides whether each
@@ -26,23 +26,23 @@ on normal publishing lag:
 |---|---|---|
 | Omnisense | 24h | Sensors report ~daily |
 | Open-Meteo historical | 36h | Goes to yesterday; 36h gives margin |
-| Open-Meteo forecast | — | Always extends into the future; fetch date is the signal |
-| ENSO ONI (NOAA PSL) | 120 days | Monthly index; NOAA lags up to ~3 months. **Must stay > 90d** — 90d equals NOAA's own normal lag and produced false alerts (see CHANGELOG 2026-05-31). |
+| Open-Meteo forecast | - | Always extends into the future; fetch date is the signal |
+| ENSO ONI (NOAA PSL) | 120 days | Monthly index; NOAA lags up to ~3 months. **Must stay > 90d** - 90d equals NOAA's own normal lag and produced false alerts (see CHANGELOG 2026-05-31). |
 | IOD DMI (BoM) | 14 days | Weekly index |
-| MJO ROMI (NOAA PSL) | 7 days | Daily index, typically 2–5 day lag |
+| MJO ROMI (NOAA PSL) | 7 days | Daily index, typically 2-5 day lag |
 
 A separate 36h **fetch** threshold flags when the workflow itself hasn't refreshed.
 
 ### What this layer is good at
 
 The **total-blackout** case: if the Omnisense gateway goes fully offline and
-uploads stop entirely, Omnisense sends *nothing* — only an external watcher
+uploads stop entirely, Omnisense sends *nothing* - only an external watcher
 notices the data stopped arriving. This layer is that watcher, and it is the one
 thing Omnisense's own alarms structurally cannot cover.
 
-## Layer 2 — Omnisense native alarms (configured on omnisense.com)
+## Layer 2 - Omnisense native alarms (configured on omnisense.com)
 
-Omnisense can email directly when a sensor reading crosses a threshold — push
+Omnisense can email directly when a sensor reading crosses a threshold - push
 based, server side, **no scraping required**. Configure under *Alarm Thresholds →
 Add A New Threshold*, and set recipients via *Edit Alarm Notification E-mail*.
 
@@ -57,10 +57,10 @@ Recommended thresholds for uptime/liveness (in addition to any heat-event alarms
 |---|---|---|
 | **Total Unique Sensors seen by gateway** | Low, just below the real sensor count | A sensor dropping off the gateway |
 | **Sensor Battery Voltage (Vbatt)** | Low (per sensor) | A dying sensor *before* it goes silent |
-| **Cellular Signal Strength (CSS, 0–31)** | Low (e.g. < ~8) | Degrading gateway connectivity |
+| **Cellular Signal Strength (CSS, 0-31)** | Low (e.g. < ~8) | Degrading gateway connectivity |
 | **Cellular data connection uptime (Tcup)** | Low / zero | Gateway lost its cell connection |
 
-> The May 1–4 2026 data gap was a gateway-connectivity field issue (see CHANGELOG).
+> The May 1-4 2026 data gap was a gateway-connectivity field issue (see CHANGELOG).
 > The CSS / Tcup alarms above are intended to catch that failure mode in real time.
 
 ## Why not poll more often

@@ -31,9 +31,20 @@ jobs:
         continue-on-error: true
         run: python fetch_cycles.py
 
-      - name: Fetch Open-Meteo data
+      - name: Fetch Open-Meteo data (Tanzania)
         continue-on-error: true
-        run: python fetch_openmeteo.py
+        run: python fetch_openmeteo.py --location tz
+
+      # Grove and Holywell are ~150 km apart, so each needs its own feed; both
+      # are shown on the ARC UK chart and drive their own building's adaptive
+      # comfort running mean.
+      - name: Fetch Open-Meteo data (Grove Cottage)
+        continue-on-error: true
+        run: python fetch_openmeteo.py --location grove
+
+      - name: Fetch Open-Meteo data (Holywell Barn)
+        continue-on-error: true
+        run: python fetch_openmeteo.py --location holywell
 
       - name: Fetch Omnisense data
         continue-on-error: true
@@ -95,7 +106,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add status.json status.html
           if git diff --cached --quiet; then
-            echo "Status page unchanged — no commit needed"
+            echo "Status page unchanged - no commit needed"
           else
             git commit -m "auto: update status page $(date -u +%Y-%m-%d)"
             git push

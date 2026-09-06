@@ -1,4 +1,4 @@
-# Period Dropdown Sync — Implementation Guide
+# Period Dropdown Sync - Implementation Guide
 
 This document describes exactly what was changed to make the year/season/month/week/day
 period-specific dropdowns only show options that have actual data for the currently
@@ -14,7 +14,7 @@ The dashboard has a two-level time selector in the sidebar:
    `day-select`): the second dropdown that lets you pick *which* year, which month, etc.
 
 The five specific-period dropdowns were populated once at page load (or dataset switch) from
-`m.availableYears`, `m.availableMonths`, etc. — Python-generated lists that cover **all**
+`m.availableYears`, `m.availableMonths`, etc. - Python-generated lists that cover **all**
 loggers in the dataset combined. When the user unticked loggers, the dropdowns still showed
 every period ever recorded by any logger, including periods with no data for the selected
 subset (e.g. "Day" could show any day in 3 years even if only one short-running logger was
@@ -31,23 +31,23 @@ No other code was changed. No Python was changed. No HTML structure was changed.
 
 ---
 
-## Prerequisites — things that must already exist in `build.py`
+## Prerequisites - things that must already exist in `build.py`
 
 Before applying this change, verify these already exist in the JS template:
 
 | What | Where (search string) |
 |---|---|
-| `state.selectedLoggers` — `Set` of active logger IDs | around `state = {` initialisation |
-| `state.selectedRoomLoggers` — `Set` for comfort panel | same block |
-| `state.datasetKey` — string key of the active dataset | same block |
+| `state.selectedLoggers` - `Set` of active logger IDs | around `state = {` initialisation |
+| `state.selectedRoomLoggers` - `Set` for comfort panel | same block |
+| `state.datasetKey` - string key of the active dataset | same block |
 | `state.selectedYear`, `state.selectedSeason`, `state.selectedMonth`, `state.selectedWeek`, `state.selectedDay` | same block |
-| `state.chartType` — `'line'`, `'histogram'`, `'comfort'`, `'periodic'`, etc. | same block |
-| `dataset()` — function returning `ALL_DATA[state.datasetKey]` | search `function dataset()` |
-| `ALL_DATA[key].series[loggerId].timestamps` — array of UTC ms integers | series data structure |
-| `getISOWeekStr(ms)` — returns `"YYYY-WNN"` for a UTC ms timestamp (EAT-adjusted) | search `function getISOWeekStr` |
+| `state.chartType` - `'line'`, `'histogram'`, `'comfort'`, `'periodic'`, etc. | same block |
+| `dataset()` - function returning `ALL_DATA[state.datasetKey]` | search `function dataset()` |
+| `ALL_DATA[key].series[loggerId].timestamps` - array of UTC ms integers | series data structure |
+| `getISOWeekStr(ms)` - returns `"YYYY-WNN"` for a UTC ms timestamp (EAT-adjusted) | search `function getISOWeekStr` |
 | HTML elements: `year-select`, `season-select`, `month-select`, `week-select`, `day-select` | search `id="year-select"` |
-| `updatePlot(forceLoader)` function — the main render trigger | search `function updatePlot` |
-| `let _lastRenderKey` — the existing render-key cache variable | just before `updatePlot` |
+| `updatePlot(forceLoader)` function - the main render trigger | search `function updatePlot` |
+| `let _lastRenderKey` - the existing render-key cache variable | just before `updatePlot` |
 
 ---
 
@@ -95,7 +95,7 @@ function syncPeriodDropdowns() {
 
   const EAT = 3 * 3600 * 1000;
   const TZ_SI = [0,0,1,1,1,2,2,2,2,2,3,3];
-  const TZ_SN = ['Kiangazi (Jan–Feb)','Masika (Mar–May)','Kiangazi (Jun–Oct)','Vuli (Nov–Dec)'];
+  const TZ_SN = ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)'];
   const MN_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const MN_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -231,16 +231,16 @@ _lastDropdownKey = key;
 - Comfort chart uses `selectedRoomLoggers`; everything else uses `selectedLoggers`.
 - The key is a sorted, comma-joined list of logger IDs plus the dataset key. If it hasn't
   changed since the last call (zoom, pan, metric toggle, etc.), the function returns
-  immediately — no work done.
+  immediately - no work done.
 
 ### EAT timezone and label constants
 
 ```javascript
 const EAT = 3 * 3600 * 1000;   // East African Time offset in ms (UTC+3)
-const TZ_SI = [0,0,1,1,1,2,2,2,2,2,3,3];   // month 0–11 → season index
+const TZ_SI = [0,0,1,1,1,2,2,2,2,2,3,3];   // month 0-11 → season index
 ```
 
-Season indices: 0 = Kiangazi Jan–Feb, 1 = Masika Mar–May, 2 = Kiangazi Jun–Oct, 3 = Vuli Nov–Dec.
+Season indices: 0 = Kiangazi Jan-Feb, 1 = Masika Mar-May, 2 = Kiangazi Jun-Oct, 3 = Vuli Nov-Dec.
 
 ### Timestamp iteration
 
@@ -249,10 +249,10 @@ For every timestamp `ts` (UTC ms integer) from every active logger:
 ```javascript
 const d = new Date(ts + EAT);          // shift to EAT so .getUTC* methods give local values
 const y  = d.getUTCFullYear();
-const mo = d.getUTCMonth();             // 0–11
+const mo = d.getUTCMonth();             // 0-11
 ```
 
-**ISO week** — delegates to the existing `getISOWeekStr(ts)` helper (defined elsewhere in
+**ISO week** - delegates to the existing `getISOWeekStr(ts)` helper (defined elsewhere in
 the same JS, returns `"YYYY-WNN"`):
 
 ```javascript
@@ -262,7 +262,7 @@ const wy = parseInt(wkStr.slice(0, dashIdx));   // ISO week year
 const wk = parseInt(wkStr.slice(dashIdx + 2));  // ISO week number
 ```
 
-**EAT midnight** — the day timestamp is the UTC epoch for 00:00:00 EAT, matching exactly
+**EAT midnight** - the day timestamp is the UTC epoch for 00:00:00 EAT, matching exactly
 what Python's `int(d.timestamp() * 1000)` produces for `d = pandas midnight in EAT`:
 
 ```javascript
@@ -271,12 +271,12 @@ const dayMs = Math.floor((ts + EAT) / 86400000) * 86400000 - EAT;
 
 ### Building sorted period arrays
 
-- `years` — sorted numeric array
-- `seasons` — sorted by year then season index; each entry has `{y, season}`
-- `months` — sorted by year then month (1-based); each entry has `{y, month}`
-- `weeks` — sorted by ISO week year then week number; label computed from ISO week Monday
+- `years` - sorted numeric array
+- `seasons` - sorted by year then season index; each entry has `{y, season}`
+- `months` - sorted by year then month (1-based); each entry has `{y, month}`
+- `weeks` - sorted by ISO week year then week number; label computed from ISO week Monday
   using the same formula as `getTimeRange` (case `'week'`)
-- `days` — sorted by timestamp; label is `"DD Mon YYYY"` (zero-padded day, 3-char month)
+- `days` - sorted by timestamp; label is `"DD Mon YYYY"` (zero-padded day, 3-char month)
 
 ### Dropdown rebuild + selection preservation
 
@@ -317,7 +317,7 @@ If a sibling dashboard uses **different season definitions**, update `TZ_SI` and
 ```javascript
 // Example: Northern Hemisphere seasons
 const TZ_SI = [3,3,0,0,0,1,1,1,2,2,2,3];   // DJF=winter=3, MAM=spring=0, JJA=summer=1, SON=autumn=2
-const TZ_SN = ['Spring (Mar–May)','Summer (Jun–Aug)','Autumn (Sep–Nov)','Winter (Dec–Feb)'];
+const TZ_SN = ['Spring (Mar-May)','Summer (Jun-Aug)','Autumn (Sep-Nov)','Winter (Dec-Feb)'];
 ```
 
 If a sibling dashboard uses a **different timezone**, change:

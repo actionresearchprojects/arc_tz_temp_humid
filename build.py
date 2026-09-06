@@ -80,16 +80,16 @@ HOLYWELL_SENSORS = {"19550131", "0E3C12EC"}
 # index; a season may occupy more than one block of the year (both schemes have
 # one that does), so indices are not in month order and there may be more than
 # four of them. Every block must be a contiguous run of months within a single
-# calendar year — the period selector derives a season's date range from
+# calendar year - the period selector derives a season's date range from
 # "months", and the charts position seasons on a month-scale axis.
 SEASON_SCHEMES = {
     "tz": {
-        # 0=Kiangazi(Jan–Feb) 1=Masika(Mar–May) 2=Kiangazi(Jun–Oct) 3=Vuli(Nov–Dec)
+        # 0=Kiangazi(Jan-Feb) 1=Masika(Mar-May) 2=Kiangazi(Jun-Oct) 3=Vuli(Nov-Dec)
         "monthIdx": [0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3],
-        "labels": ["Kiangazi (Jan–Feb)", "Masika (Mar–May)",
-                   "Kiangazi (Jun–Oct)", "Vuli (Nov–Dec)"],
-        "labelsSw": ["Kiangazi (Jan–Feb)", "Masika (Mac–Mei)",
-                     "Kiangazi (Jun–Okt)", "Vuli (Nov–Des)"],
+        "labels": ["Kiangazi (Jan-Feb)", "Masika (Mar-May)",
+                   "Kiangazi (Jun-Oct)", "Vuli (Nov-Dec)"],
+        "labelsSw": ["Kiangazi (Jan-Feb)", "Masika (Mac-Mei)",
+                     "Kiangazi (Jun-Okt)", "Vuli (Nov-Des)"],
         "short": ["Kiangazi-JanFeb", "Masika-MarMay", "Kiangazi-JunOct", "Vuli-NovDec"],
         "months": [[0, 1], [2, 4], [5, 9], [10, 11]],   # inclusive month ranges, 0-based
         "midpoints": [0.5, 3, 7, 10.5],                 # month-scale x positions
@@ -102,14 +102,14 @@ SEASON_SCHEMES = {
                         {"month": 6, "name": "Kiangazi"}, {"month": 11, "name": "Vuli"}],
     },
     "uk": {
-        # Meteorological seasons. Winter straddles the new year, so — exactly as
-        # Kiangazi does above — it occupies two blocks: Jan–Feb and Dec.
-        # 0=Winter(Jan–Feb) 1=Spring(Mar–May) 2=Summer(Jun–Aug) 3=Autumn(Sep–Nov) 4=Winter(Dec)
+        # Meteorological seasons. Winter straddles the new year, so - exactly as
+        # Kiangazi does above - it occupies two blocks: Jan-Feb and Dec.
+        # 0=Winter(Jan-Feb) 1=Spring(Mar-May) 2=Summer(Jun-Aug) 3=Autumn(Sep-Nov) 4=Winter(Dec)
         "monthIdx": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
-        "labels": ["Winter (Jan–Feb)", "Spring (Mar–May)", "Summer (Jun–Aug)",
-                   "Autumn (Sep–Nov)", "Winter (Dec)"],
-        "labelsSw": ["Majira ya Baridi (Jan–Feb)", "Majira ya Kuchipua (Mac–Mei)",
-                     "Majira ya Joto (Jun–Ago)", "Majira ya Vuli (Sep–Nov)",
+        "labels": ["Winter (Jan-Feb)", "Spring (Mar-May)", "Summer (Jun-Aug)",
+                   "Autumn (Sep-Nov)", "Winter (Dec)"],
+        "labelsSw": ["Majira ya Baridi (Jan-Feb)", "Majira ya Kuchipua (Mac-Mei)",
+                     "Majira ya Joto (Jun-Ago)", "Majira ya Vuli (Sep-Nov)",
                      "Majira ya Baridi (Des)"],
         "short": ["Winter-JanFeb", "Spring-MarMay", "Summer-JunAug", "Autumn-SepNov", "Winter-Dec"],
         "months": [[0, 1], [2, 4], [5, 7], [8, 10], [11, 11]],
@@ -124,16 +124,24 @@ SEASON_SCHEMES = {
 
 # The Open-Meteo feed covers one location, Dar es Salaam (see fetch_openmeteo.py
 # LOCATIONS). Its CSVs carry local time for that zone, so they are localised with
-# it rather than with the consuming dataset's zone — which is the same thing
+# it rather than with the consuming dataset's zone - which is the same thing
 # today, since only the Tanzanian datasets use Open-Meteo, but would not be once
 # a UK location is added.
 OPENMETEO_TZ = pytz.timezone("Africa/Dar_es_Salaam")
+
+# Each feed's CSV carries local time for its own location (the API is asked for
+# that zone), so each is localised with its own, not with one global default.
+OPENMETEO_FEED_TZ = {
+    "tz": "Africa/Dar_es_Salaam",
+    "grove": "Europe/London",
+    "holywell": "Europe/London",
+}
 
 # Default adaptive comfort band per region.
 #
 # Tanzania uses a Vellei et al. humidity model: those regressions exist to correct
 # for how people adapt in humid tropical conditions, which is the case at Mkuranga.
-# The UK is not that case — there is no humidity correction to make — and the
+# The UK is not that case - there is no humidity correction to make - and the
 # Vellei slope of 0.53 (against ASHRAE's 0.31) makes the band very sensitive to
 # the running mean at the cool end of the range, where UK data sits. So the UK
 # defaults to ASHRAE 55's 80% acceptability band, which is the compliance limit
@@ -144,7 +152,7 @@ COMFORT_MODEL_UK = "ashrae_80"
 # Overheating threshold band drawn on the line, histogram and averages charts.
 # 32-35 C is a Mkuranga heat-stress range; it means nothing against UK data that
 # peaks near 29 C, so the UK declares none and the control is hidden there.
-# A UK figure should come from CIBSE TM52/TM59 once the criterion is chosen —
+# A UK figure should come from CIBSE TM52/TM59 once the criterion is chosen -
 # those are per-room-type (TM59 uses 26 C for bedrooms), so it is not a single
 # number that can be assumed here.
 THRESHOLD_TZ = {"low": 32, "high": 35}
@@ -163,6 +171,29 @@ COMFORT_TPMA_MAX = 33.5
 # UK it is genuinely unknown, and the chart says so rather than assuming it.
 HEATING_UNVERIFIED_TZ = False
 HEATING_UNVERIFIED_UK = True
+
+# ── Open-Meteo feeds ──────────────────────────────────────────────────────────
+# One feed per location, each with its own logger IDs and output directory, so a
+# region covering several sites can show every site's external temperature at
+# once. The Tanzanian IDs keep their original names: they are baked into
+# data/config.json, data/sensor_snapshot.json and every saved user override.
+OPENMETEO_FEEDS = {
+    "tz": {
+        "dir": OPENMETEO_DIR,
+        "historical": "External Historical (Open-Meteo)",
+        "forecast":   "External Forecast (Open-Meteo)",
+    },
+    "grove": {
+        "dir": DATA_FOLDER / "openmeteo_grove",
+        "historical": "Grove Historical (Open-Meteo)",
+        "forecast":   "Grove Forecast (Open-Meteo)",
+    },
+    "holywell": {
+        "dir": DATA_FOLDER / "openmeteo_holywell",
+        "historical": "Holywell Historical (Open-Meteo)",
+        "forecast":   "Holywell Forecast (Open-Meteo)",
+    },
+}
 
 OPENMETEO_HISTORICAL_ID = "External Historical (Open-Meteo)"
 OPENMETEO_FORECAST_ID = "External Forecast (Open-Meteo)"
@@ -189,6 +220,7 @@ DATASETS = {
         "timezone": "Africa/Dar_es_Salaam",
         "tz_label": "EAT, UTC+03:00",
         "season_scheme": "tz",
+        "openmeteo_feed": "tz",
         "comfort_model": COMFORT_MODEL_TZ,
         "heating_unverified": HEATING_UNVERIFIED_TZ,
         "threshold": THRESHOLD_TZ,
@@ -201,6 +233,7 @@ DATASETS = {
         "timezone": "Africa/Dar_es_Salaam",
         "tz_label": "EAT, UTC+03:00",
         "season_scheme": "tz",
+        "openmeteo_feed": "tz",
         "comfort_model": COMFORT_MODEL_TZ,
         "heating_unverified": HEATING_UNVERIFIED_TZ,
         "threshold": THRESHOLD_TZ,
@@ -267,6 +300,7 @@ DATASETS = {
         "timezone": "Africa/Dar_es_Salaam",
         "tz_label": "EAT, UTC+03:00",
         "season_scheme": "tz",
+        "openmeteo_feed": "tz",
         "comfort_model": COMFORT_MODEL_TZ,
         "heating_unverified": HEATING_UNVERIFIED_TZ,
         "threshold": THRESHOLD_TZ,
@@ -276,7 +310,7 @@ DATASETS = {
         "external_sensors": [OPENMETEO_HISTORICAL_ID],
         "room_loggers": None,
         "sidebar_order": [OPENMETEO_HISTORICAL_ID, "tinytag", "govee"],
-        # Per-logger date filters — historical Open-Meteo scoped to monitoring period
+        # Per-logger date filters - historical Open-Meteo scoped to monitoring period
         "logger_date_filters": {
             "tinytag": {"from": "2024-06-02"},  # arrived from House 5 on 2 Jun; drop Jun 1 entirely
             OPENMETEO_HISTORICAL_ID: {"from": "2024-06-02", "before": "2026-06-16"},
@@ -291,12 +325,13 @@ DATASETS = {
         "timezone": "Europe/London",
         "tz_label": "GMT/BST",
         "season_scheme": "uk",
+        "openmeteo_feeds": ["grove", "holywell"],
         "comfort_model": COMFORT_MODEL_UK,
         "heating_unverified": HEATING_UNVERIFIED_UK,
         "threshold": THRESHOLD_UK,
-        # No Open-Meteo yet: the fetch is Dar es Salaam only. Each UK building
-        # carries its own external ambient sensor, which is what the adaptive
-        # comfort running mean uses. See fetch_openmeteo.py LOCATIONS to add one.
+        # Grove and Holywell are ~150 km apart, so each has its own feed and
+        # both appear on the region chart. Each logger keeps its own building's
+        # source (see default_ext_for), so there is no single region default.
         "external_logger": None,
     },
     "grove": {
@@ -306,14 +341,21 @@ DATASETS = {
         "timezone": "Europe/London",
         "tz_label": "GMT/BST",
         "season_scheme": "uk",
+        "openmeteo_feed": "grove",
         "comfort_model": COMFORT_MODEL_UK,
         "heating_unverified": HEATING_UNVERIFIED_UK,
         "threshold": THRESHOLD_UK,
         "omnisense": {"source": "uk", "sensors": GROVE_SENSORS},
-        "external_logger": "1C290049",
-        "external_sensors": ["1C290049"],
+        # Open-Meteo drives the running mean: it reaches back years, where the
+        # on-site sensor starts in July 2026, and the running mean needs the
+        # days before a reading. The on-site ambient stays selectable per logger
+        # in config.html, and is what the chart shows alongside it.
+        "external_logger": "Grove Historical (Open-Meteo)",
+        "external_sensors": ["Grove Historical (Open-Meteo)",
+                             "Grove Forecast (Open-Meteo)", "1C290049"],
         "room_loggers": ["169502D1"],
-        "sidebar_order": ["1C290049", "169502D1"],
+        "sidebar_order": ["Grove Historical (Open-Meteo)",
+                          "Grove Forecast (Open-Meteo)", "1C290049", "169502D1"],
     },
     "holywell": {
         "label": "Holywell Barn",
@@ -322,14 +364,17 @@ DATASETS = {
         "timezone": "Europe/London",
         "tz_label": "GMT/BST",
         "season_scheme": "uk",
+        "openmeteo_feed": "holywell",
         "comfort_model": COMFORT_MODEL_UK,
         "heating_unverified": HEATING_UNVERIFIED_UK,
         "threshold": THRESHOLD_UK,
         "omnisense": {"source": "uk", "sensors": HOLYWELL_SENSORS},
-        "external_logger": "19550131",
-        "external_sensors": ["19550131"],
+        "external_logger": "Holywell Historical (Open-Meteo)",
+        "external_sensors": ["Holywell Historical (Open-Meteo)",
+                             "Holywell Forecast (Open-Meteo)", "19550131"],
         "room_loggers": ["0E3C12EC"],
-        "sidebar_order": ["19550131", "0E3C12EC"],
+        "sidebar_order": ["Holywell Historical (Open-Meteo)",
+                          "Holywell Forecast (Open-Meteo)", "19550131", "0E3C12EC"],
     },
 }
 
@@ -367,13 +412,17 @@ LOGGER_NAMES = {
     "32760205": "Bedroom 1",
     "3276028A": "Study",
     "32760208": "Washrooms area",
-    # Omnisense sensors — ARC UK
+    # Omnisense sensors - ARC UK
     "1C290049": "External Ambient",              # Grove Cottage, Hereford
     "169502D1": "Living Room (No. 57)",
     "19550131": "External Ambient (full shade)",  # Holywell Barn, Criccieth
     "0E3C12EC": "Internal Ambient",
     OPENMETEO_HISTORICAL_ID: "Historical Temperature",
     OPENMETEO_FORECAST_ID: "Forecast Temperature",
+    "Grove Historical (Open-Meteo)": "Historical Temperature (Grove)",
+    "Grove Forecast (Open-Meteo)":   "Forecast Temperature (Grove)",
+    "Holywell Historical (Open-Meteo)": "Historical Temperature (Holywell)",
+    "Holywell Forecast (Open-Meteo)":   "Forecast Temperature (Holywell)",
     OPENMETEO_LEGACY_ID: "External Temperature",  # backward compat
 }
 
@@ -411,6 +460,10 @@ LOGGER_NAMES_SW = {
     "0E3C12EC": "Ndani (Mazingira)",
     OPENMETEO_HISTORICAL_ID: "Joto la Kihistoria",
     OPENMETEO_FORECAST_ID: "Joto la Utabiri",
+    "Grove Historical (Open-Meteo)": "Joto la Kihistoria (Grove)",
+    "Grove Forecast (Open-Meteo)":   "Joto la Utabiri (Grove)",
+    "Holywell Historical (Open-Meteo)": "Joto la Kihistoria (Holywell)",
+    "Holywell Forecast (Open-Meteo)":   "Joto la Utabiri (Holywell)",
     OPENMETEO_LEGACY_ID: "Joto la Nje",
 }
 
@@ -430,6 +483,10 @@ LOGGER_SOURCES = {
     OPENMETEO_HISTORICAL_ID: "Open-Meteo",
     OPENMETEO_FORECAST_ID: "Open-Meteo",
     OPENMETEO_LEGACY_ID: "Open-Meteo",
+    "Grove Historical (Open-Meteo)": "Open-Meteo",
+    "Grove Forecast (Open-Meteo)":   "Open-Meteo",
+    "Holywell Historical (Open-Meteo)": "Open-Meteo",
+    "Holywell Forecast (Open-Meteo)":   "Open-Meteo",
 }
 
 COLORS = [
@@ -680,7 +737,7 @@ def load_copernicus_climate_data():
         "timestamps": [f"{y}-01-01" for y in years],
         "values": temps,
     })
-    print(f"  ERA5 Historic: {len(years)} years ({years[0]}–{era5_end_year})")
+    print(f"  ERA5 Historic: {len(years)} years ({years[0]}-{era5_end_year})")
 
     # Load SSP projection files - truncated to start after ERA5 ends
     ssp_files = sorted(hist_folder.glob("t-CMIP6_timeseries_SSP*.csv"))
@@ -704,7 +761,7 @@ def load_copernicus_climate_data():
             "timestamps": [f"{y}-01-01" for y in years],
             "values": ensemble_mean,
         })
-        print(f"  {ssp_name}: {len(years)} years ({years[0]}–{years[-1]}), {n_models} models")
+        print(f"  {ssp_name}: {len(years)} years ({years[0]}-{years[-1]}), {n_models} models")
 
     return result
 
@@ -725,32 +782,47 @@ def _load_openmeteo_csv(path, logger_id):
     return df[["datetime", "temperature", "humidity", "logger_id"]]
 
 
-def load_external_temperature():
-    """Load Open-Meteo data - prefers split historical/forecast CSVs in data/openmeteo/,
-    falls back to legacy single open-meteo*.csv in data/."""
+def dataset_feeds(key):
+    """Open-Meteo feeds a dataset draws on. A region lists its members'."""
+    cfg = DATASETS[key]
+    if cfg.get("openmeteo_feeds"):
+        return cfg["openmeteo_feeds"]
+    return [cfg["openmeteo_feed"]] if cfg.get("openmeteo_feed") else []
+
+
+def load_external_temperature(feed="tz"):
+    """Load one Open-Meteo feed's historical + forecast CSVs.
+
+    Falls back to the legacy single open-meteo*.csv in data/ for the Tanzanian
+    feed only, since that is the only one that ever had a pre-split layout.
+    """
+    cfg = OPENMETEO_FEEDS[feed]
     dfs = []
 
-    # Try new split files first
-    hist_files = sorted(OPENMETEO_DIR.glob("historical_*.csv"))
-    forecast_files = sorted(OPENMETEO_DIR.glob("forecast_*.csv"))
+    hist_files = sorted(cfg["dir"].glob("historical_*.csv"))
+    forecast_files = sorted(cfg["dir"].glob("forecast_*.csv"))
 
     if hist_files:
         hist_file = hist_files[-1]
-        print(f"  Using historical Open-Meteo: {hist_file.name}")
-        hist_df = _load_openmeteo_csv(hist_file, OPENMETEO_HISTORICAL_ID)
+        print(f"  Using historical Open-Meteo [{feed}]: {hist_file.name}")
+        hist_df = _load_openmeteo_csv(hist_file, cfg["historical"])
         if not hist_df.empty:
             dfs.append(hist_df)
             print(f"    {len(hist_df):,} records")
     if forecast_files:
         fc_file = forecast_files[-1]
-        print(f"  Using forecast Open-Meteo: {fc_file.name}")
-        fc_df = _load_openmeteo_csv(fc_file, OPENMETEO_FORECAST_ID)
+        print(f"  Using forecast Open-Meteo [{feed}]: {fc_file.name}")
+        fc_df = _load_openmeteo_csv(fc_file, cfg["forecast"])
         if not fc_df.empty:
             dfs.append(fc_df)
             print(f"    {len(fc_df):,} records")
 
     if dfs:
         return pd.concat(dfs, ignore_index=True)
+
+    if feed != "tz":
+        print(f"  No Open-Meteo data for feed '{feed}' yet - run fetch_openmeteo.py --location {feed}")
+        return pd.DataFrame()
 
     # Fallback: legacy single CSV
     matches = sorted(DATA_FOLDER.glob("open-meteo*.csv"))
@@ -893,7 +965,7 @@ def combine_datasets(key, member_dfs):
 
     Members share a timezone (a region never spans zones), and their logger IDs
     are disjoint apart from the Open-Meteo series, which is genuinely the same
-    data in both — deduplicating on (logger_id, timestamp) collapses it to one
+    data in both - deduplicating on (logger_id, timestamp) collapses it to one
     series covering the union of the members' date filters.
     """
     dfs = [d for d in member_dfs if d is not None and not d.empty]
@@ -941,12 +1013,15 @@ def load_dataset(key):
     # Load Open-Meteo external data for any dataset that uses it
     ext_sensors = set(cfg.get("external_sensors", []))
     if ext_sensors & OPENMETEO_IDS:
-        ext_df = load_external_temperature()
-        if not ext_df.empty:
+        for feed in dataset_feeds(key):
+            ext_df = load_external_temperature(feed)
+            if ext_df.empty:
+                continue
             # Only keep Open-Meteo logger IDs that this dataset actually uses
             ext_df = ext_df[ext_df["logger_id"].isin(ext_sensors)]
-            dfs.append(ext_df)
-            print(f"  Open-Meteo: {len(ext_df):,} records")
+            if not ext_df.empty:
+                dfs.append(ext_df)
+                print(f"  Open-Meteo [{feed}]: {len(ext_df):,} records")
 
     if not dfs:
         raise ValueError(f"No data sources produced any rows for dataset '{key}'")
@@ -1066,8 +1141,8 @@ def resolve_cfg(key, member_data=None):
     Building datasets are returned as-is. A region's logger layout is taken from
     its members' *built* metadata rather than their raw config, because a member
     may leave its room list to be derived (Schoolteacher's House does). Every
-    member's externals come first — so the shared Open-Meteo series sits once at
-    the top — then rooms building by building, then structurals. That ordering
+    member's externals come first - so the shared Open-Meteo series sits once at
+    the top - then rooms building by building, then structurals. That ordering
     is what produces the sidebar's building blocks.
     """
     cfg = DATASETS[key]
@@ -1114,7 +1189,7 @@ def resolve_cfg(key, member_data=None):
 def member_of(key, logger_id, member_data=None):
     """For a region, which member building a logger belongs to.
 
-    Returns None for a logger no single member owns — Open-Meteo, which is
+    Returns None for a logger no single member owns - Open-Meteo, which is
     external model data rather than any building's sensor, and anything two
     members share. Those get no building heading in the sidebar.
     """
@@ -1153,9 +1228,31 @@ def build_dataset_json(key, df, logger_overrides=None, member_data=None):
             default_ext_for[lid] = entry.get("extSource", m_default)
 
     # Fallback loggers are always the Open-Meteo set
+    # Days the primary external source is missing are filled from Open-Meteo.
+    # In a region that has to stay within one building: Grove and Holywell are
+    # ~150 km apart, so falling back from one to the other would silently mix
+    # two locations' weather into a single running mean.
+    def feed_ids(feeds):
+        out = []
+        for f in feeds:
+            out += [OPENMETEO_FEEDS[f]["historical"]]
+        return out
+
+    fallbacks_by_member = {}
+    for m in cfg.get("combine", []):
+        fallbacks_by_member[m] = [l for l in feed_ids(dataset_feeds(m))
+                                  if l in set(DATASETS[m].get("external_sensors", []))]
+
     fallback_loggers = [l for l in cfg.get("external_sensors", []) if l in OPENMETEO_IDS]
     if not fallback_loggers and default_external_logger in OPENMETEO_IDS:
         fallback_loggers = [default_external_logger]
+
+    def fallbacks_for(logger_id):
+        """Open-Meteo fallbacks for one logger, scoped to its own building."""
+        if not cfg.get("combine"):
+            return fallback_loggers
+        owner = member_of(key, logger_id, member_data)
+        return fallbacks_by_member.get(owner, []) or fallback_loggers
 
     ext_sensor_set = set(cfg.get("external_sensors", [default_external_logger] if default_external_logger else []))
     unique_loggers = sorted(df["logger_id"].unique())
@@ -1266,10 +1363,12 @@ def build_dataset_json(key, df, logger_overrides=None, member_data=None):
                     source_id = OPENMETEO_HISTORICAL_ID if OPENMETEO_HISTORICAL_ID in unique_loggers else None
 
             if source_id:
-                if source_id not in running_mean_cache:
-                    running_mean_cache[source_id] = compute_exponential_running_mean(df, source_id, fallback_loggers)
+                fbs = fallbacks_for(logger_id)
+                cache_key = (source_id, tuple(fbs))
+                if cache_key not in running_mean_cache:
+                    running_mean_cache[cache_key] = compute_exponential_running_mean(df, source_id, fbs)
 
-                rm, src_spans = running_mean_cache[source_id]
+                rm, src_spans = running_mean_cache[cache_key]
                 if not rm.empty:
                     merged = pd.merge_asof(
                         ldf[[]].reset_index().rename(columns={"datetime": "dt"}),
@@ -1361,7 +1460,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>
-// On page load, snap viewport back to scale 1 — handles arriving from a zoomed/rotated page
+// On page load, snap viewport back to scale 1 - handles arriving from a zoomed/rotated page
 // (e.g. after a password screen or landscape rotation on iOS).
 // Briefly sets maximum-scale=1 to force the browser to scale 1.0, then removes it so
 // the user can still pinch-zoom the Plotly chart afterwards.
@@ -1532,8 +1631,8 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 @keyframes dlspin { to { transform:rotate(360deg); } }
 hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 /* Styled select menus (building selector, chart type). Chrome ignores nearly all
-   styling on <option> — it cannot show a region heading that is also selectable,
-   nor an italic red entry — so these menus are drawn by hand. The real <select>
+   styling on <option> - it cannot show a region heading that is also selectable,
+   nor an italic red entry - so these menus are drawn by hand. The real <select>
    stays in the DOM, hidden, as the source of truth: its change event, its value
    and the data-i18n translation pass all keep working untouched. Without JS the
    native selects render normally, since the class that hides them is added by JS. */
@@ -1557,7 +1656,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 .ds-opt-child { padding-left: 22px; }
 .ds-opt-selected { background: #e8f0f9; color: #1f77b4; }
 .ds-opt-child.ds-opt-selected, .ds-opt-region.ds-opt-selected { font-weight: 600; }
-/* Accented entries (Beta Features) — red and italic, in the menu and on the button */
+/* Accented entries (Beta Features) - red and italic, in the menu and on the button */
 .ds-opt-accent { color: #c0392b; font-style: italic; }
 .ds-opt-accent:hover, .ds-opt-accent:focus { background: #fdecea; color: #c0392b; }
 .ds-opt-accent.ds-opt-selected { background: #fdecea; color: #c0392b; }
@@ -1607,10 +1706,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
   <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
   <h1 data-i18n="title">ARC - Temperature &amp; Humidity Graphs</h1>
-  <!-- Explainer path follows the SITE, not this repo. It stays on the old
-       slug until explainers/arc-tz-temp-humid is renamed on the main site;
-       switching it early would ship a 404. See OUTSTANDING.md section 1. -->
-  <a href="https://actionresearchprojects.net/explainers/arc-tz-temp-humid" target="_blank" class="info-i" id="about-info-icon" title="About this dashboard" style="text-decoration:none;margin-left:auto;">i</a>
+  <a href="https://actionresearchprojects.net/explainers/arc-temp-humid" target="_blank" class="info-i" id="about-info-icon" title="About this dashboard" style="text-decoration:none;margin-left:auto;">i</a>
   <div id="lang-wrap">
     <button id="lang-btn" onclick="document.getElementById('lang-menu').classList.toggle('open')" title="Language"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
     <div id="lang-menu">
@@ -1707,7 +1803,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <hr class="divider">
       <div class="section" id="line-options-section">
         <div class="section-title" data-i18n="options">Options</div>
-        <label class="cb-label" id="cb-threshold-label"><input type="checkbox" id="cb-threshold" checked> <span id="cb-threshold-text">32–35°C Threshold</span></label>
+        <label class="cb-label" id="cb-threshold-label"><input type="checkbox" id="cb-threshold" checked> <span id="cb-threshold-text">32-35°C Threshold</span></label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
       </div>
       <hr class="divider" id="line-options-divider">
@@ -1754,8 +1850,8 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
             <option value="rh_gt_60" selected>RH&gt;60% (Vellei et al.)</option>
             <option value="rh_40_60">40%&lt;RH≤60% (Vellei et al.)</option>
             <option value="rh_le_40">RH≤40% (Vellei et al.)</option>
-            <option value="ashrae_80" data-i18n="comfortModelAshrae80">ASHRAE 55 — 80% acceptability</option>
-            <option value="ashrae_90" data-i18n="comfortModelAshrae90">ASHRAE 55 — 90% acceptability</option>
+            <option value="ashrae_80" data-i18n="comfortModelAshrae80">ASHRAE 55 - 80% acceptability</option>
+            <option value="ashrae_90" data-i18n="comfortModelAshrae90">ASHRAE 55 - 90% acceptability</option>
             <option value="none" data-i18n="comfortModelNone">No comfort band</option>
           </select>
           <label class="cb-label" id="comfort-showboth-wrap" style="margin-top:4px;"><input type="checkbox" id="cb-comfort-showboth"> <span data-i18n="showBothBands">Show both 80% and 90% bands</span></label>
@@ -1993,7 +2089,7 @@ const I18N = {
     to: 'To ',
     temperature: 'Temperature',
     humidity: 'Humidity',
-    threshold: '32\u201335\u00b0C Threshold',
+    threshold: '32-35\u00b0C Threshold',
     seasonLines: 'Season Lines',
     longTermMode: 'Long-Term Mode',
     densityHeatmap: 'Density Heatmap',
@@ -2032,7 +2128,7 @@ const I18N = {
     betaLag: 'Thermal Lag',
     betaQuality: 'Data Quality',
 
-    betaDiffTitle: 'Indoor\u2013Outdoor Temperature Differential',
+    betaDiffTitle: 'Indoor-Outdoor Temperature Differential',
     betaDecrementTitle: 'Decrement Factor by Room',
     betaLagTitle: 'Diurnal Thermal Lag by Room',
     betaQualityTitle: 'Data Quality & Anomaly Detection',
@@ -2044,7 +2140,7 @@ const I18N = {
     infoBetaDecrement: 'How much the building dampens the outdoor temperature swing each day. Calculated as indoor swing divided by outdoor swing. Example: outdoor high 35\u00b0C, low 23\u00b0C (swing = 12\u00b0C); indoor high 30\u00b0C, low 26\u00b0C (swing = 4\u00b0C). Factor = 4/12 = 0.33. Lower values mean the building smooths out temperature extremes better. A value of 1.0 means no damping at all.',
     infoBetaLag: 'Thermal lag measures how many hours the indoor temperature peak trails the outdoor peak. A 4-hour lag means the building\'s thermal mass absorbs heat slowly and releases it later, ideally when it\'s cooler outside.',
     infoBetaQuality: 'Data health overview showing per-sensor coverage and gap detection (periods >6h with no readings). Green = good data, orange = gap. Admin-flagged anomalous ranges shown in purple where applicable.',
-    infoBetaStats: 'Descriptive statistics for every selected logger over the chosen period, with group summaries for External, Room and Structural and an overall row. Coverage shows how much of the period each logger actually reported — treat figures with low coverage cautiously. Group rows average the per-logger statistics so that a fast-sampling logger does not outweigh a slower one. Choose "Difference from external" to see how far each space sits above or below outdoor ambient, split by day and night.',
+    infoBetaStats: 'Descriptive statistics for every selected logger over the chosen period, with group summaries for External, Room and Structural and an overall row. Coverage shows how much of the period each logger actually reported - treat figures with low coverage cautiously. Group rows average the per-logger statistics so that a fast-sampling logger does not outweigh a slower one. Choose "Difference from external" to see how far each space sits above or below outdoor ambient, split by day and night.',
 
     betaStats: 'Summary Statistics',
     betaStatsTitle: 'Summary Statistics',
@@ -2063,10 +2159,10 @@ const I18N = {
     statsTip_swing:     ['Mean diurnal range', 'On an average day, the gap between that day\'s highest and lowest reading. It shows how much conditions move over 24 hours: a small swing means the building holds steady.'],
     statsTip_meanDay:   ['Mean daytime difference', 'Average difference from outdoors between 06:00 and 18:00. Positive means warmer inside than out; negative means the space is giving relief from the daytime heat.'],
     statsTip_meanNight: ['Mean night-time difference', 'Average difference from outdoors between 18:00 and 06:00. Positive means the building is still releasing the day\'s heat after dark.'],
-    statsTip_exceed0:   ['Exceedance, 32°C', 'The share of readings at or above 32°C — the lower edge of the shaded heat band used elsewhere on the dashboard.'],
-    statsTip_exceed1:   ['Exceedance, 35°C', 'The share of readings at or above 35°C — the upper edge of the shaded heat band, and the point at which conditions are hard to tolerate.'],
+    statsTip_exceed0:   ['Exceedance, 32°C', 'The share of readings at or above 32°C - the lower edge of the shaded heat band used elsewhere on the dashboard.'],
+    statsTip_exceed1:   ['Exceedance, 35°C', 'The share of readings at or above 35°C - the upper edge of the shaded heat band, and the point at which conditions are hard to tolerate.'],
     statsNoMetric: 'Select at least one metric to see statistics.',
-    statsFootnote: 'Group and overall rows average the per-logger figures, so each logger counts once regardless of how often it samples; min and max are true extremes across the group. Coverage is the share of the selected period the logger actually reported — figures below 50% are highlighted. Sorting reorders loggers within their group.',
+    statsFootnote: 'Group and overall rows average the per-logger figures, so each logger counts once regardless of how often it samples; min and max are true extremes across the group. Coverage is the share of the selected period the logger actually reported - figures below 50% are highlighted. Sorting reorders loggers within their group.',
     statsVar_temperature: 'Temperature',
     statsVar_humidity: 'Humidity',
     statsVar_delta: 'Difference from external',
@@ -2163,24 +2259,23 @@ const I18N = {
     wetBulb: 'Wet Bulb',
     wetBulbSuffix: '(Wet bulb)',
     wetBulbHover: 'Wet bulb (Tw)',
-    infoWetBulb: 'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
+    infoWetBulb: 'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: -20 to 50°C and 5-99% RH. Readings below 5% RH are shown as gaps; readings above 99% RH (sensor saturation) are clamped to 99% before calculating. Shown as a dashed line in the same colour as the parent sensor.',
     infoComfortBand: 'The green band shows the range of indoor temperatures considered comfortable, based on the ASHRAE-55 adaptive comfort standard. The default model ignores humidity, which can overestimate overheating by around 30%. The Vellei et al. options use <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">humidity-aware comfort bands</a> derived from global field study data, better reflecting how people adapt in humid climates. <a href="https://actionresearchprojects.net/explainers/adaptive-comfort" target="_blank" style="color:#6a9fd8">Read more →</a>',
     infoRunningMean: 'The running mean is an exponentially weighted average of past outdoor temperatures, where recent days count most. It captures how people acclimatise to changing weather: when outdoor temperatures have been high, occupants can tolerate higher indoor temperatures. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Read more →</a>',
     // Wet bulb checkbox label
     wetBulbLabel: 'Wet Bulb (Tw)',
     // Comfort model dropdown
-    comfortModelAshrae80: 'ASHRAE 55 — 80% acceptability',
-    comfortModelAshrae90: 'ASHRAE 55 — 90% acceptability',
+    comfortModelAshrae80: 'ASHRAE 55 - 80% acceptability',
+    comfortModelAshrae90: 'ASHRAE 55 - 90% acceptability',
     comfortModelNone: 'No comfort band',
     thresholdWord: 'Threshold',
     comfortNoneInRange: "No readings fall inside ASHRAE 55's validated range",
-    comfortOutsideRangeNote: '% of points (grey) fall outside the validated {min}\u2013{max}\u00b0C running mean and are excluded from the statistics.',
-    comfortHeatingNote: 'ASHRAE 55 also requires that no heating is in operation. Heating status is not recorded at this site, so that criterion cannot be verified \u2014 readings taken while heating was on cannot be identified.',
-    comfortHeatingNoteShort: "ASHRAE 55's \u2018no heating in operation\u2019 criterion cannot be verified at this site.",
+    comfortOutsideRangeNote: '% of points (grey) fall outside the validated {min}-{max}\u00b0C running mean and are excluded from the statistics.',
+    comfortHeatingNote: 'ASHRAE 55 also requires that no heating is in operation. Heating status is not recorded at this site, so that criterion cannot be verified - readings taken while heating was on cannot be identified.',
     showBothBands: 'Show both 80% and 90% bands',
     airSpeedLabel: 'Air speed',
     airSpeedGateLabel: 'Air speed allowance applies above 25°C',
-    infoAirSpeed: 'ASHRAE 55 Table 5-13 allows a higher indoor temperature to count as comfortable when air is moving: +1.2°C at 0.6 m/s, +1.8°C at 0.9 m/s, +2.2°C at 1.2 m/s. It raises the top of the band only, and only above 25°C, which is why the boundary steps up part-way along. <b>This is an assumed value, not a measurement</b> — no air speed is recorded at these sites. Treat it as a scenario. The dotted green line shows where the upper limit would sit without the allowance, so the size of the adjustment stays visible. Note also that the Vellei et al. bands come from buildings where occupants were already using fans, so that benefit may already be counted once; layering this adjustment on top of them risks counting it twice.',
+    infoAirSpeed: 'ASHRAE 55 Table 5-13 allows a higher indoor temperature to count as comfortable when air is moving: +1.2°C at 0.6 m/s, +1.8°C at 0.9 m/s, +2.2°C at 1.2 m/s. It raises the top of the band only, and only above 25°C, which is why the boundary steps up part-way along. <b>This is an assumed value, not a measurement</b> - no air speed is recorded at these sites. Treat it as a scenario. The dotted green line shows where the upper limit would sit without the allowance, so the size of the adjustment stays visible. Note also that the Vellei et al. bands come from buildings where occupants were already using fans, so that benefit may already be counted once; layering this adjustment on top of them risks counting it twice.',
     // Applicability limits of the adaptive comfort method (ASHRAE 55 / EN 16798-1).
     // Shown wherever adaptive comfort is presented or explained, because the
     // method is only valid for buildings meeting all three conditions.
@@ -2212,7 +2307,7 @@ const I18N = {
     adminFlagged: 'Admin flagged',
     noDifference: 'no difference',
     // Average profiles group-by labels
-    phase18: 'Phase (1–8)',
+    phase18: 'Phase (1-8)',
     phasePNN: 'Phase (+/−/Neutral)',
     phaseENSO: 'Phase (Niño/Niña/Neutral)',
   },
@@ -2236,7 +2331,7 @@ const I18N = {
     to: 'Hadi ',
     temperature: 'Joto',
     humidity: 'Unyevunyevu',
-    threshold: 'Kiwango cha 32\u201335\u00b0C',
+    threshold: 'Kiwango cha 32-35\u00b0C',
     seasonLines: 'Mistari ya Msimu',
     longTermMode: 'Hali ya Muda Mrefu',
     densityHeatmap: 'Ramani ya Msongamano',
@@ -2274,7 +2369,7 @@ const I18N = {
     betaDecrement: 'Kipengele cha Kupunguza',
     betaLag: 'Ucheleweshaji wa Joto',
     betaQuality: 'Ubora wa Data',
-    betaDiffTitle: 'Tofauti ya Joto Ndani\u2013Nje',
+    betaDiffTitle: 'Tofauti ya Joto Ndani-Nje',
     betaDecrementTitle: 'Kipengele cha Kupunguza kwa Chumba',
     betaLagTitle: 'Ucheleweshaji wa Joto kwa Chumba',
     betaQualityTitle: 'Ubora wa Data na Ugunduzi wa Kasoro',
@@ -2285,7 +2380,7 @@ const I18N = {
     infoBetaDecrement: 'Uwiano wa mabadiliko ya joto la ndani na nje kwa siku. Nambari ndogo ni bora: inamaanisha jengo linapunguza joto la nje vizuri.',
     infoBetaLag: 'Masaa mangapi kilele cha joto la ndani kinachelewa nyuma ya kilele cha nje. Ucheleweshaji mrefu = thermal mass nzuri.',
     infoBetaQuality: 'Muhtasari wa afya ya data: muda wa sensor na mapungufu. Kijani = data nzuri, machungwa = pengo. Maeneo yaliyotambuliwa na msimamizi yanaonyeshwa kwa zambarau.',
-    infoBetaStats: 'Takwimu za kila kihisi kwa kipindi kilichochaguliwa, pamoja na muhtasari wa Nje, Chumba na Muundo na safu ya jumla. "Ufikiaji" unaonyesha kiasi cha kipindi ambacho kihisi kilirekodi — takwimu zenye ufikiaji mdogo zichukuliwe kwa tahadhari. Safu za kikundi zinatumia wastani wa takwimu za kila kihisi ili kihisi kinachorekodi mara nyingi kisizidi kile cha polepole. Chagua "Tofauti na nje" kuona jinsi kila chumba kilivyo juu au chini ya joto la nje, kwa mchana na usiku.',
+    infoBetaStats: 'Takwimu za kila kihisi kwa kipindi kilichochaguliwa, pamoja na muhtasari wa Nje, Chumba na Muundo na safu ya jumla. "Ufikiaji" unaonyesha kiasi cha kipindi ambacho kihisi kilirekodi - takwimu zenye ufikiaji mdogo zichukuliwe kwa tahadhari. Safu za kikundi zinatumia wastani wa takwimu za kila kihisi ili kihisi kinachorekodi mara nyingi kisizidi kile cha polepole. Chagua "Tofauti na nje" kuona jinsi kila chumba kilivyo juu au chini ya joto la nje, kwa mchana na usiku.',
 
     betaStats: 'Takwimu za Muhtasari',
     betaStatsTitle: 'Takwimu za Muhtasari',
@@ -2303,10 +2398,10 @@ const I18N = {
     statsTip_swing:     ['Mabadiliko ya kila siku', 'Kwa siku ya kawaida, tofauti kati ya usomaji wa juu na wa chini wa siku hiyo. Inaonyesha hali inabadilika kiasi gani kwa saa 24.'],
     statsTip_meanDay:   ['Tofauti ya wastani mchana', 'Tofauti ya wastani na nje kati ya saa 06:00 na 18:00. Chanya = ndani ni moto zaidi kuliko nje; hasi = chumba kinapunguza joto la mchana.'],
     statsTip_meanNight: ['Tofauti ya wastani usiku', 'Tofauti ya wastani na nje kati ya saa 18:00 na 06:00. Chanya = jengo bado linatoa joto la mchana baada ya giza.'],
-    statsTip_exceed0:   ['Kuzidi 32°C', 'Sehemu ya usomaji iliyo 32°C au zaidi — mpaka wa chini wa eneo la joto linaloonyeshwa kwenye chati nyingine.'],
-    statsTip_exceed1:   ['Kuzidi 35°C', 'Sehemu ya usomaji iliyo 35°C au zaidi — mpaka wa juu wa eneo la joto, na kiwango ambacho hali ni ngumu kuvumilika.'],
+    statsTip_exceed0:   ['Kuzidi 32°C', 'Sehemu ya usomaji iliyo 32°C au zaidi - mpaka wa chini wa eneo la joto linaloonyeshwa kwenye chati nyingine.'],
+    statsTip_exceed1:   ['Kuzidi 35°C', 'Sehemu ya usomaji iliyo 35°C au zaidi - mpaka wa juu wa eneo la joto, na kiwango ambacho hali ni ngumu kuvumilika.'],
     statsNoMetric: 'Chagua angalau kipimo kimoja kuona takwimu.',
-    statsFootnote: 'Safu za kikundi na jumla zinatumia wastani wa takwimu za kila kihisi, hivyo kila kihisi kinahesabiwa mara moja bila kujali kasi yake ya kurekodi; chini na juu ni viwango halisi vya kikundi. "Ufikiaji" ni sehemu ya kipindi ambayo kihisi kilirekodi — chini ya 50% imeangaziwa. Kupanga kunapanga vihisi ndani ya kikundi chake.',
+    statsFootnote: 'Safu za kikundi na jumla zinatumia wastani wa takwimu za kila kihisi, hivyo kila kihisi kinahesabiwa mara moja bila kujali kasi yake ya kurekodi; chini na juu ni viwango halisi vya kikundi. "Ufikiaji" ni sehemu ya kipindi ambayo kihisi kilirekodi - chini ya 50% imeangaziwa. Kupanga kunapanga vihisi ndani ya kikundi chake.',
     statsVar_temperature: 'Joto',
     statsVar_humidity: 'Unyevu',
     statsVar_delta: 'Tofauti na nje',
@@ -2395,22 +2490,21 @@ const I18N = {
     wetBulb: 'Joto la Mvua (Tw)',
     wetBulbSuffix: '(Joto la mvua)',
     wetBulbHover: 'Joto la mvua (Tw)',
-    infoWetBulb: 'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
+    infoWetBulb: 'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: -20 hadi 50°C na 5-99% RH. Maadili chini ya 5% RH yanaonyeshwa kama mapengo; maadili zaidi ya 99% RH (kipimo kikifikia kikomo chake) yanafupishwa hadi 99% kabla ya kuhesabu. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
     infoComfortBand: 'Bendi ya kijani inaonyesha kiwango cha joto la ndani kinachochukuliwa kuwa na starehe, kulingana na kiwango cha ASHRAE-55. Mtindo wa kawaida unapuuza unyevunyevu, ambao unaweza kukadiri kupita kiasi kwa karibu 30%. Chaguo za Vellei et al. zinatumia <a href="https://doi.org/10.1016/j.buildenv.2017.08.005" target="_blank" style="color:#6a9fd8">bendi za starehe zinazozingatia unyevunyevu</a> kutoka data ya utafiti wa kimataifa. <a href="https://actionresearchprojects.net/explainers/adaptive-comfort" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
     infoRunningMean: 'Wastani unaoendelea ni wastani uliopimwa kwa uzito zaidi kwa siku za hivi karibuni za joto la nje. Unaonyesha jinsi watu wanavyozoea hali ya hewa: joto la nje likiwa juu, wenyeji wanastahimili joto zaidi ndani, hivyo bendi ya starehe inasogea kulia. <a href="https://actionresearchprojects.net/explainers/running-mean" target="_blank" style="color:#6a9fd8">Soma zaidi →</a>',
     wetBulbLabel: 'Joto la Mvua (Tw)',
-    comfortModelAshrae80: 'ASHRAE 55 — ukubalifu 80%',
-    comfortModelAshrae90: 'ASHRAE 55 — ukubalifu 90%',
+    comfortModelAshrae80: 'ASHRAE 55 - ukubalifu 80%',
+    comfortModelAshrae90: 'ASHRAE 55 - ukubalifu 90%',
     comfortModelNone: 'Bila bendi ya starehe',
     thresholdWord: 'Kiwango',
     comfortNoneInRange: 'Hakuna visomo ndani ya kiwango kilichothibitishwa cha ASHRAE 55',
-    comfortOutsideRangeNote: '% ya alama (kijivu) ziko nje ya wastani ulioidhinishwa wa {min}\u2013{max}\u00b0C na hazihesabiwi katika takwimu.',
+    comfortOutsideRangeNote: '% ya alama (kijivu) ziko nje ya wastani ulioidhinishwa wa {min}-{max}\u00b0C na hazihesabiwi katika takwimu.',
     comfortHeatingNote: 'ASHRAE 55 pia inahitaji kuwa hakuna joto linalotumika. Hali ya joto haijarekodiwa katika jengo hili, hivyo kigezo hicho hakiwezi kuthibitishwa.',
-    comfortHeatingNoteShort: 'Kigezo cha ASHRAE 55 cha \u2018hakuna joto linalotumika\u2019 hakiwezi kuthibitishwa hapa.',
     showBothBands: 'Onyesha bendi zote mbili za 80% na 90%',
     airSpeedLabel: 'Kasi ya hewa',
     airSpeedGateLabel: 'Ruhusa ya kasi ya hewa inatumika zaidi ya 25°C',
-    infoAirSpeed: 'Jedwali 5-13 la ASHRAE 55 linaruhusu joto la ndani la juu zaidi kuhesabiwa kuwa la starehe wakati hewa inatembea: +1.2°C kwa 0.6 m/s, +1.8°C kwa 0.9 m/s, +2.2°C kwa 1.2 m/s. Inainua sehemu ya juu ya bendi pekee, na tu zaidi ya 25°C, ndiyo maana mpaka unapanda ghafla katikati. <b>Hii ni thamani inayodhaniwa, si kipimo</b> — hakuna kasi ya hewa inayorekodiwa katika maeneo haya. Ichukulie kama hali ya kudhania. Mstari wa nukta wa kijani unaonyesha mahali ambapo kikomo cha juu kingekuwa bila ruhusa hiyo, ili ukubwa wa marekebisho uonekane. Pia kumbuka kwamba bendi za Vellei et al. zinatoka kwenye majengo ambapo wakaaji walikuwa tayari wanatumia feni, hivyo faida hiyo inaweza kuwa tayari imehesabiwa mara moja; kuongeza marekebisho haya juu yake kunaweza kuihesabu mara mbili.',
+    infoAirSpeed: 'Jedwali 5-13 la ASHRAE 55 linaruhusu joto la ndani la juu zaidi kuhesabiwa kuwa la starehe wakati hewa inatembea: +1.2°C kwa 0.6 m/s, +1.8°C kwa 0.9 m/s, +2.2°C kwa 1.2 m/s. Inainua sehemu ya juu ya bendi pekee, na tu zaidi ya 25°C, ndiyo maana mpaka unapanda ghafla katikati. <b>Hii ni thamani inayodhaniwa, si kipimo</b> - hakuna kasi ya hewa inayorekodiwa katika maeneo haya. Ichukulie kama hali ya kudhania. Mstari wa nukta wa kijani unaonyesha mahali ambapo kikomo cha juu kingekuwa bila ruhusa hiyo, ili ukubwa wa marekebisho uonekane. Pia kumbuka kwamba bendi za Vellei et al. zinatoka kwenye majengo ambapo wakaaji walikuwa tayari wanatumia feni, hivyo faida hiyo inaweza kuwa tayari imehesabiwa mara moja; kuongeza marekebisho haya juu yake kunaweza kuihesabu mara mbili.',
     comfortApplicabilityLabel: 'Matumizi',
     comfortApplicability: 'Njia hii inatumika tu kwa nafasi zinazopitisha hewa kiasili na kudhibitiwa na wakaaji, zinazokidhi vigezo vyote vifuatavyo: (a) Hakuna mfumo wa kupoza wa mitambo uliowekwa. Hakuna mfumo wa kupasha joto unaofanya kazi; (b) Viwango vya kimetaboliki kati ya 1.0 na 1.5 met; na (c) Wakaaji wana uhuru wa kubadilisha mavazi yao kulingana na hali ya joto ya ndani na/au ya nje ndani ya kiwango kisichopungua 0.5-1.0 clo.',
     extDataWarningPre: 'Data ya joto la nje ya Open-Meteo inafika hadi',
@@ -2432,7 +2526,7 @@ const I18N = {
     gapLegend: 'Pengo (>6h)',
     adminFlagged: 'Iliyobainishwa na msimamizi',
     noDifference: 'hakuna tofauti',
-    phase18: 'Awamu (1–8)',
+    phase18: 'Awamu (1-8)',
     phasePNN: 'Awamu (+/−/Neutral)',
     phaseENSO: 'Awamu (Niño/Niña/Neutral)',
   }
@@ -2935,7 +3029,7 @@ function substratBuildOptions(cycle, gran) {
     }
     defaultVal = 0; lastVal = 23;
   } else if (cycle === 'day' && gran === 'synoptic') {
-    const synLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
+    const synLabels = [t('lateNight') + ' (00-06)', t('morning') + ' (06-12)', t('afternoon') + ' (12-18)', t('evening') + ' (18-00)'];
     for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + synLabels[s] + '</option>';
     defaultVal = 0; lastVal = 3;
   } else if (cycle === 'year' && gran === 'month') {
@@ -3007,7 +3101,7 @@ function substratRangeChanged(id) {
   f.from = parseInt(block.querySelector('.substrat-from').value);
   f.to = parseInt(block.querySelector('.substrat-to').value);
 
-  // Validate: Day of Month and Week are NOT cyclic — invalid if from > to
+  // Validate: Day of Month and Week are NOT cyclic - invalid if from > to
   const nonCyclic = (f.cycle === 'year' && (f.groupBy === 'day' || f.groupBy === 'week'));
   if (nonCyclic && f.from > f.to) {
     block.classList.add('invalid');
@@ -3100,7 +3194,7 @@ function passesAllSubstratFilters(ms) {
   }
 }
 
-// Apply substratification to a filtered series — returns new filtered object with non-matching points nulled
+// Apply substratification to a filtered series - returns new filtered object with non-matching points nulled
 function applySubstratFilter(filtered) {
   const active = getActiveSubstratFilters();
   if (active.length === 0) return filtered;
@@ -3277,7 +3371,7 @@ function renderCompareSets() {
         const otherM = otherDs.meta;
         // Offer individual buildings only. A region is the union of buildings
         // already listed here, so including it would repeat every logger under
-        // a second heading — and a region's own members are already on screen.
+        // a second heading - and a region's own members are already on screen.
         if (otherM.isCombined) continue;
         if ((m.members || []).includes(otherKey)) continue;
         const otherRoomSet = new Set(otherM.roomLoggers || []);
@@ -3604,7 +3698,7 @@ function describeCompareDiffs() {
 
 function describeFilters(filters) {
   if (!filters || filters.length === 0) return '';
-  const synLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
+  const synLabels = [t('lateNight') + ' (00-06)', t('morning') + ' (06-12)', t('afternoon') + ' (12-18)', t('evening') + ' (18-00)'];
   const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const sLabels = seasonLabels();
   const parts = [];
@@ -3613,17 +3707,17 @@ function describeFilters(filters) {
     if (f.cycle === 'day' && f.groupBy === 'hour') {
       const from = String(f.from).padStart(2, '0') + ':00';
       const to = String(f.to).padStart(2, '0') + ':00';
-      parts.push(f.from === f.to ? from : from + '\u2013' + to);
+      parts.push(f.from === f.to ? from : from + '-' + to);
     } else if (f.cycle === 'day' && f.groupBy === 'synoptic') {
-      parts.push(f.from === f.to ? synLabels[f.from] : synLabels[f.from] + '\u2013' + synLabels[f.to]);
+      parts.push(f.from === f.to ? synLabels[f.from] : synLabels[f.from] + '-' + synLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'month') {
-      parts.push(f.from === f.to ? monthLabels[f.from] : monthLabels[f.from] + '\u2013' + monthLabels[f.to]);
+      parts.push(f.from === f.to ? monthLabels[f.from] : monthLabels[f.from] + '-' + monthLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'season') {
       parts.push(f.from === f.to ? sLabels[f.from] : sLabels[f.from] + ' to ' + sLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'week') {
-      parts.push(f.from === f.to ? 'W' + f.from : 'W' + f.from + '\u2013W' + f.to);
+      parts.push(f.from === f.to ? 'W' + f.from : 'W' + f.from + '-W' + f.to);
     } else if (f.cycle === 'year' && f.groupBy === 'day') {
-      parts.push(f.from === f.to ? 'Day ' + f.from : 'Day ' + f.from + '\u2013' + f.to);
+      parts.push(f.from === f.to ? 'Day ' + f.from : 'Day ' + f.from + '-' + f.to);
     } else if (f.cycle === 'mjo') {
       const phases = [...(f.phases || [])].sort();
       parts.push('MJO ' + (phases.length > 0 ? phases.map(p => MJO_LABELS[p] || ('Ph' + p)).join(', ') : 'none'));
@@ -3679,11 +3773,11 @@ function getCompareIterations() {
 function isOpenMeteo(id) { return id && id.indexOf('(Open-Meteo)') !== -1; }
 function isForecast(id) { return id && id.indexOf('Forecast') !== -1 && isOpenMeteo(id); }
 
-// Stull (2011) wet-bulb approximation — accurate to ±0.3°C for tropical conditions
+// Stull (2011) wet-bulb approximation - accurate to ±0.3°C for tropical conditions
 // Valid range: T -20 to 50°C, RH 5 to 99%
 function stullWetBulb(T, RH) {
   if (T < -20 || T > 50 || RH < 5) return null;
-  if (RH > 99) RH = 99; // sensor saturation artefact — clamp to valid ceiling
+  if (RH > 99) RH = 99; // sensor saturation artefact - clamp to valid ceiling
   return T * Math.atan(0.151977 * Math.pow(RH + 8.313659, 0.5))
     + Math.atan(T + RH)
     - Math.atan(RH - 1.676331)
@@ -3713,7 +3807,7 @@ function applyUserConfig(config) {
   if (!config) return;
   for (const [dsKey, dsCfg] of Object.entries(config)) {
     // config.html edits buildings, never regions, so a building's overrides
-    // also have to be applied to every region that contains it — otherwise a
+    // also have to be applied to every region that contains it - otherwise a
     // logger renamed on House 5 would revert to its default under ARC Tanzania.
     const targets = [dsKey, ...Object.keys(ALL_DATA).filter(
       k => (ALL_DATA[k].meta.members || []).includes(dsKey))];
@@ -3772,7 +3866,7 @@ async function init() {
       const expectedMs = fetchMs - toleranceDays * DAY_MS;
       if (lastMs < expectedMs) {
         const lastDate = toLocalString(lastMs).split(',')[0].trim();
-        return `Data only extends to ${lastDate} — expected up to day before last update`;
+        return `Data only extends to ${lastDate} - expected up to day before last update`;
       }
       return null;
     }
@@ -3813,7 +3907,7 @@ async function init() {
       const ageDays = (Date.now() - fetchMs) / DAY_MS;
       if (ageDays <= 2) return null;
       const d = Math.floor(ageDays);
-      return `Fetched ${d} day${d !== 1 ? 's' : ''} ago — data may be out of date`;
+      return `Fetched ${d} day${d !== 1 ? 's' : ''} ago - data may be out of date`;
     }
     const lines = [];
     if (FETCH_TIMES.openmeteo) {
@@ -3829,7 +3923,7 @@ async function init() {
       lines.push(`Omnisense (Tanzania) last updated: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
     }
     if (FETCH_TIMES.omnisense_uk) {
-      // Added by hand, so no staleness warning — it would never stop firing.
+      // Added by hand, so no staleness warning - it would never stop firing.
       const ukDate = formatDataDate(df.omnisense_uk_last_ms);
       lines.push(`Omnisense (UK) last updated: ${ukDate || FETCH_TIMES.omnisense_uk}`);
     }
@@ -3855,7 +3949,7 @@ async function init() {
 
 function loadDataset(key) {
   state.datasetKey = key;
-  // House 5 is the default, but it is no longer the selector's first option —
+  // House 5 is the default, but it is no longer the selector's first option -
   // keep the control in step with the state whichever way the change came.
   const dsSel = document.getElementById('dataset-select');
   if (dsSel && dsSel.value !== key) dsSel.value = key;
@@ -4309,11 +4403,11 @@ function resetLineDefaults() {
 }
 
 // The overheating threshold is regional, so the control shows the region's own
-// numbers and disappears entirely where no threshold is defined — a checkbox
+// numbers and disappears entirely where no threshold is defined - a checkbox
 // offering "32-35 C" against UK data would be worse than no checkbox at all.
 // Settings whose correct default depends on the region: the comfort band and
 // the overheating threshold. These must be applied on every dataset change, not
-// only when "Reset to default" is pressed — resetComfortDefaults() is wired to
+// only when "Reset to default" is pressed - resetComfortDefaults() is wired to
 // that button alone and does not run on a dataset switch.
 function applyRegionDefaults() {
   // Vellei humidity model for Tanzania, ASHRAE 55 80% for the UK
@@ -5044,7 +5138,7 @@ function setupStaticListeners() {
     state.showDensity = e.target.checked; updatePlot();
   });
 
-  // Average profiles controls — recomputed on each call so it follows the language
+  // Average profiles controls - recomputed on each call so it follows the language
   function groupByOptionsFor(cycle) {
     const map = {
       day:  [{value:'hour', label:t('hour')}, {value:'synoptic', label:t('synopticHours')}],
@@ -5056,9 +5150,9 @@ function setupStaticListeners() {
     return map[cycle] || [];
   }
   const oscInfoTexts = {
-    mjo: 'Madden\u2013Julian Oscillation: a tropical weather pattern that circles the globe every 30\u201360 days, modulating rainfall and temperature. 8 phases track its position \u2014 Phases 2\u20133 (Indian Ocean) and 4\u20135 (Maritime Continent) are most relevant to East Africa. Weekly RMM phase data; weeks with amplitude < 1.0 are excluded.',
+    mjo: 'Madden-Julian Oscillation: a tropical weather pattern that circles the globe every 30-60 days, modulating rainfall and temperature. 8 phases track its position - Phases 2-3 (Indian Ocean) and 4-5 (Maritime Continent) are most relevant to East Africa. Weekly RMM phase data; weeks with amplitude < 1.0 are excluded.',
     iod: 'Indian Ocean Dipole: a sea-surface temperature gradient between the western and eastern Indian Ocean. Positive IOD brings wetter conditions to East Africa; Negative IOD brings drier conditions. Monthly DMI-based phases: Positive, Negative, or Neutral.',
-    enso: 'El Ni\u00f1o\u2013Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
+    enso: 'El Ni\u00f1o-Southern Oscillation: Pacific Ocean temperature cycles affecting global weather. El Ni\u00f1o tends to bring wetter short rains (Vuli) to East Africa; La Ni\u00f1a tends to bring drier conditions. Monthly ONI-based phases: El Ni\u00f1o, La Ni\u00f1a, or Neutral.',
   };
   function updatePeriodCycleInfo() {
     const infoIcon = document.getElementById('natural-cycles-info');
@@ -5265,7 +5359,7 @@ function downloadChartPng() {
     function dlDone()  { btn.disabled = false; spinner.style.display = 'none'; }
 
     // The statistics view is an HTML table, not a Plotly figure, so it exports
-    // as CSV — which is more use for a table of numbers than a picture of one.
+    // as CSV - which is more use for a table of numbers than a picture of one.
     if (state.chartType === 'beta-stats') { downloadStatsCsv(); return; }
 
     const ds = dsLabel();
@@ -5291,7 +5385,7 @@ function downloadChartPng() {
       metricStr = '_' + metrics.join('+');
     }
     const slug = s => s.replace(/[^a-zA-Z0-9]+/g, '_').replace(/_+$/,'');
-    // Sensor selection: name 1–2 selected sensors, count if a partial subset, omit if all selected
+    // Sensor selection: name 1-2 selected sensors, count if a partial subset, omit if all selected
     let sensorStr = '';
     if (state.chartType === 'line' || state.chartType === 'histogram' || state.chartType === 'periodic') {
       const selIds = [...state.selectedLoggers];
@@ -5721,7 +5815,7 @@ function thresholdBand() {
 }
 function thresholdLabel() {
   const b = thresholdBand();
-  return b ? `${b.low}\u2013${b.high}\u00b0C ${t('thresholdWord')}` : t('thresholdWord');
+  return b ? `${b.low}-${b.high}\u00b0C ${t('thresholdWord')}` : t('thresholdWord');
 }
 
 // ASHRAE 55-2020 Section 5.4.1(d) validates the adaptive method only between
@@ -5749,11 +5843,10 @@ function comfortCaveatLines(outCount, inCount) {
     lines.push(`\u26a0 ${pct.toFixed(0)}${t('comfortOutsideRangeNote')
       .replace('{min}', r.min).replace('{max}', r.max)}`);
   }
-  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
-  // The chart carries a terse flag; the sidebar's applicability panel and the
-  // method tooltips carry the full wording, so it is not abbreviated anywhere
-  // a reader would otherwise miss the detail.
-  if (d && d.meta && d.meta.heatingUnverified) lines.push('\u26a0 ' + t('comfortHeatingNoteShort'));
+  // The heating caveat is deliberately NOT repeated here. It is permanent for a
+  // site rather than a property of the current view, and the sidebar's
+  // applicability panel already carries it in full, immediately beside the
+  // chart. Only view-dependent caveats belong above the plot.
   return lines;
 }
 
@@ -5877,7 +5970,7 @@ function dsLabelFor(key) {
 }
 // ── Site-local time ───────────────────────────────────────────────────────────
 // Loggers record wall-clock time at their site, and that is what the charts must
-// show — never the viewer's browser timezone, and never a single global offset,
+// show - never the viewer's browser timezone, and never a single global offset,
 // since ARC UK observes DST and ARC Tanzania does not.
 //
 // Zones without DST are answered by a constant. For the rest, the UTC offset is
@@ -5950,8 +6043,8 @@ function toLocalString(ms) {
 const SEASON_SCHEMES = {
   tz: {
     monthIdx: [0,0,1,1,1,2,2,2,2,2,3,3],
-    labels: ['Kiangazi (Jan–Feb)','Masika (Mar–May)','Kiangazi (Jun–Oct)','Vuli (Nov–Dec)'],
-    labelsSw: ['Kiangazi (Jan–Feb)','Masika (Mac–Mei)','Kiangazi (Jun–Okt)','Vuli (Nov–Des)'],
+    labels: ['Kiangazi (Jan-Feb)','Masika (Mar-May)','Kiangazi (Jun-Oct)','Vuli (Nov-Dec)'],
+    labelsSw: ['Kiangazi (Jan-Feb)','Masika (Mac-Mei)','Kiangazi (Jun-Okt)','Vuli (Nov-Des)'],
     short: ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'],
     months: [[0,1],[2,4],[5,9],[10,11]],
     midpoints: [0.5, 3, 7, 10.5],
@@ -5964,8 +6057,8 @@ const SEASON_SCHEMES = {
   },
   uk: {
     monthIdx: [0,0,1,1,1,2,2,2,3,3,3,4],
-    labels: ['Winter (Jan–Feb)','Spring (Mar–May)','Summer (Jun–Aug)','Autumn (Sep–Nov)','Winter (Dec)'],
-    labelsSw: ['Majira ya Baridi (Jan–Feb)','Majira ya Kuchipua (Mac–Mei)','Majira ya Joto (Jun–Ago)','Majira ya Vuli (Sep–Nov)','Majira ya Baridi (Des)'],
+    labels: ['Winter (Jan-Feb)','Spring (Mar-May)','Summer (Jun-Aug)','Autumn (Sep-Nov)','Winter (Dec)'],
+    labelsSw: ['Majira ya Baridi (Jan-Feb)','Majira ya Kuchipua (Mac-Mei)','Majira ya Joto (Jun-Ago)','Majira ya Vuli (Sep-Nov)','Majira ya Baridi (Des)'],
     short: ['Winter-JanFeb','Spring-MarMay','Summer-JunAug','Autumn-SepNov','Winter-Dec'],
     months: [[0,1],[2,4],[5,7],[8,10],[11,11]],
     midpoints: [0.5, 3, 6, 9, 11],
@@ -6047,7 +6140,7 @@ function renderLineGraph() {
         }
       }
 
-      // Wet bulb trace (dashed, same colour) — renders even if main logger is deselected
+      // Wet bulb trace (dashed, same colour) - renders even if main logger is deselected
       if (_wbWanted) {
         const wbY = filtered.timestamps.map((_, i) => {
           const T = filtered.temperature[i], RH = filtered.humidity[i];
@@ -6102,7 +6195,7 @@ function renderLineGraph() {
           // In compare mode, use set colour; otherwise use logger's own colour
           const color = iter.baseColor || origColor;
           const dispName = lnFrom(otherM, lid);
-          const crossPrefix = namePrefix + otherName + ' \u2013 ';
+          const crossPrefix = namePrefix + otherName + ' - ';
           const source = otherM.loggerSources[lid] || '';
           const lgGroup = iter.setLabel ? 'compare_s' + iter.setIndex : 'cross_' + otherKey + '_' + lid;
           for (const metric of ['temperature','humidity']) {
@@ -6234,8 +6327,8 @@ function renderLineGraph() {
   const sm = window.innerWidth < 680;
 
   const plotTitle = state.historicMode
-    ? 'Dar es Salaam \u2013 Historic and Projected Temperatures'
-    : `${dsl} \u2013 ${chartTitle}`;
+    ? 'Dar es Salaam - Historic and Projected Temperatures'
+    : `${dsl} - ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
     autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:hasSeasonLabels?(sm?70:85):(sm?6:10), b:sm?40:60},
@@ -6479,7 +6572,7 @@ function renderHistogram() {
     plot_bgcolor:'white', paper_bgcolor:'white',
     hovermode:'closest',
     hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: (`${dsl} \u2013 ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
+  }, title: (`${dsl} - ${chartTitle}`).replace(/&amp;/g, '&'), _noData: !isFinite(globalMin)};
 }
 
 // ── Shared stats helpers (used by both histogram and comfort stats) ───────────
@@ -6515,7 +6608,7 @@ function buildGapDropdown(ddId, wrapId, seriesInfo, allAvailableInfo, start, end
     if (sg.secondary.length > 0) {
       const g = document.createElement('optgroup');
       const gl = {year:'years',season:'seasons',month:'months',week:'weeks'}[state.timeMode] || 'periods';
-      g.label = `Other ${gl} \u2013 ${sg.source} only`;
+      g.label = `Other ${gl} - ${sg.source} only`;
       sg.secondary.forEach(p => { const o = document.createElement('option'); o.value = JSON.stringify(Object.assign({}, p, {sourceType: sg.source})); o.textContent = p.label; g.appendChild(o); });
       dd.appendChild(g);
     }
@@ -6589,7 +6682,7 @@ function updateHistogramStats(start, end) {
     const gaps = detectSeriesGaps(series.timestamps, start, end);
     gapInfoMap[loggerId] = gaps;
     let filtered = filterSeries(series, start, end);
-    if (!filtered) continue; // no data in range — skip
+    if (!filtered) continue; // no data in range - skip
     filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
@@ -6728,7 +6821,7 @@ function renderAdaptiveComfort() {
       const cName = namePrefix + ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(cSource);
 
       if (isCompare) {
-        // Merge into per-set arrays — skip expensive per-point customdata
+        // Merge into per-set arrays - skip expensive per-point customdata
         for (let i = 0; i < filtered.extTemp.length; i++) {
           cmpX.push(filtered.extTemp[i]);
           cmpY.push(filtered.temperature[i]);
@@ -6757,7 +6850,7 @@ function renderAdaptiveComfort() {
     }
 
     if (isCompare && cmpX.length > 0) {
-      // Single merged trace per compare set — much faster than one per logger
+      // Single merged trace per compare set - much faster than one per logger
       const lgGroup = 'compare_s' + iter.setIndex;
       traces.push({x:cmpX, y:cmpY, type:'scatter', mode:'markers',
         name: iter.legendName, marker:{color: cmpColors, size:4, opacity:0.2},
@@ -6882,7 +6975,7 @@ function renderAdaptiveComfort() {
       .concat(comfortGateAnnotations())
       .concat(comfortApplicabilityAnnotation(caveatLines)),
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
-  }, title: `${dsl} \u2013 ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
+  }, title: `${dsl} - ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
 }
 
 // ── Data completeness detection ───────────────────────────────────────────────
@@ -6925,10 +7018,10 @@ function formatGapRange(startMs, endMs) {
   if (e.getUTCHours() < 1)   e = new Date(e.getTime() - 24*3600000);
   const mn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   if (s.getUTCFullYear() === e.getUTCFullYear() && s.getUTCMonth() === e.getUTCMonth())
-    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}\u2013${e.getUTCDate()}, ${s.getUTCFullYear()}`;
+    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}-${e.getUTCDate()}, ${s.getUTCFullYear()}`;
   if (s.getUTCFullYear() === e.getUTCFullYear())
-    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()} \u2013 ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${s.getUTCFullYear()}`;
-  return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}, ${s.getUTCFullYear()} \u2013 ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
+    return `${mn[s.getUTCMonth()]} ${s.getUTCDate()} - ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${s.getUTCFullYear()}`;
+  return `${mn[s.getUTCMonth()]} ${s.getUTCDate()}, ${s.getUTCFullYear()} - ${mn[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
 }
 
 function gapTooltipHTML(gaps, rangeStartMs, rangeEndMs) {
@@ -7178,7 +7271,7 @@ function updateComfortStats(start, end, params) {
     const series = dataset().series[loggerId];
     if (!series || !series.extTemp) continue;
     let filtered = filterSeries(series, start, end);
-    if (!filtered) continue; // no data in range — excluded from the graph, so no box
+    if (!filtered) continue; // no data in range - excluded from the graph, so no box
     filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     filtered = applySubstratFilter(filtered);
@@ -7202,7 +7295,7 @@ function updateComfortStats(start, end, params) {
       else if (mode === 'above_lower' && temp >= lower) inZone++;
       count++;
     }
-    if (count === 0) continue; // no paired comfort points in range — no box
+    if (count === 0) continue; // no paired comfort points in range - no box
     const pct = inZone/count*100;
     totalIn += inZone; totalAll += count;
     // Detect gaps only for a logger that is actually shown
@@ -7211,12 +7304,12 @@ function updateComfortStats(start, end, params) {
     roomStats.push({id: loggerId, name: ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
   if (roomStats.length === 0) {
-    // Readings exist but every one sits outside the standard's validated range —
+    // Readings exist but every one sits outside the standard's validated range -
     // a UK winter, for instance. Say so, rather than letting the panel vanish
     // as though there were simply no data.
     if (gatedOut > 0) {
       const r = comfortTpmaRange();
-      overall.textContent = `${t('comfortNoneInRange')} (${r.min}\u2013${r.max}\u00b0C ${t('runningMean').toLowerCase()})`;
+      overall.textContent = `${t('comfortNoneInRange')} (${r.min}-${r.max}\u00b0C ${t('runningMean').toLowerCase()})`;
       statsBox.style.display = '';
       return;
     }
@@ -7381,7 +7474,7 @@ function updatePeriodicCompleteness(start, end) {
     const series = dataset().series[loggerId];
     if (!series) continue;
     let filtered = filterSeries(series, start, end);
-    if (!filtered) continue; // no data in range — skip
+    if (!filtered) continue; // no data in range - skip
     filtered = applyAnomalousFilter(filtered, loggerId);
     if (!filtered) continue;
     const gaps = detectSeriesGaps(series.timestamps, start, end);
@@ -7416,7 +7509,7 @@ function emptyPeriodicResult(msg) {
       annotations: [{text: msg || t('noDataSelected'), xref: 'paper', yref: 'paper', x: 0.5, y: 0.5, showarrow: false, font: {size: 16, color: '#999'}}],
       plot_bgcolor: 'white', paper_bgcolor: 'white',
     },
-    title: dsLabel() + ' \u2013 ' + t('avgProfiles'),
+    title: dsLabel() + ' - ' + t('avgProfiles'),
     _noData: true,
   };
 }
@@ -7459,7 +7552,7 @@ function getExternalSeries() {
 // 1h, per-logger via GRANULARITY_MAP), so a plain arithmetic mean over one
 // logger's samples is unbiased. Granularity can differ BETWEEN loggers, though,
 // so group figures aggregate the per-logger statistics rather than pooling raw
-// samples — otherwise a 15-minute logger would outvote an hourly one 4:1.
+// samples - otherwise a 15-minute logger would outvote an hourly one 4:1.
 
 function _quantile(sorted, q) {
   if (sorted.length === 0) return null;
@@ -7680,10 +7773,10 @@ function buildStatsTable(metric, start, end) {
 
   // Columns
   const unit = metric === 'humidity' ? '%' : '°C';
-  const f1 = v => (v == null || !isFinite(v)) ? '–' : v.toFixed(1);
-  const fSigned = v => (v == null || !isFinite(v)) ? '–' : (v > 0 ? '+' : '') + v.toFixed(1);
+  const f1 = v => (v == null || !isFinite(v)) ? '-' : v.toFixed(1);
+  const fSigned = v => (v == null || !isFinite(v)) ? '-' : (v > 0 ? '+' : '') + v.toFixed(1);
   const fNum = isDelta ? fSigned : f1;
-  const pct = v => (v == null || !isFinite(v)) ? '–' : v.toFixed(0) + '%';
+  const pct = v => (v == null || !isFinite(v)) ? '-' : v.toFixed(0) + '%';
   const cols = [
     {key: 'label',    label: t('statsLogger'),   fmt: s => s.label, unit: ''},
     {key: 'n',        label: 'n',                fmt: s => s.n.toLocaleString(), unit: ''},
@@ -7702,8 +7795,8 @@ function buildStatsTable(metric, start, end) {
     cols.push({key: 'meanNight', label: t('statsMeanNight'), fmt: s => fSigned(s.meanNight), unit});
   }
   if (isTemp) {
-    cols.push({key: 'exceed0', label: '≥32°C', fmt: s => s.exceed ? s.exceed[0].toFixed(1) + '%' : '–', unit: '', sortVal: s => s.exceed ? s.exceed[0] : null});
-    cols.push({key: 'exceed1', label: '≥35°C', fmt: s => s.exceed ? s.exceed[1].toFixed(1) + '%' : '–', unit: '', sortVal: s => s.exceed ? s.exceed[1] : null});
+    cols.push({key: 'exceed0', label: '≥32°C', fmt: s => s.exceed ? s.exceed[0].toFixed(1) + '%' : '-', unit: '', sortVal: s => s.exceed ? s.exceed[0] : null});
+    cols.push({key: 'exceed1', label: '≥35°C', fmt: s => s.exceed ? s.exceed[1].toFixed(1) + '%' : '-', unit: '', sortVal: s => s.exceed ? s.exceed[1] : null});
   }
 
   // Sorting reorders loggers WITHIN their group, so that each group mean stays
@@ -7736,7 +7829,7 @@ function buildStatsTable(metric, start, end) {
     if (byGroup[g].length > 1) {
       const agg = aggregateStats(byGroup[g]);
       if (isDelta) addDayNightMeans(agg, byGroup[g]);
-      agg.label = `${groupLabels[g]} — ${t('statsGroupMean')} (${byGroup[g].length})`;
+      agg.label = `${groupLabels[g]} - ${t('statsGroupMean')} (${byGroup[g].length})`;
       rows.push({st: agg, kind: 'group'});
     }
   }
@@ -7762,7 +7855,7 @@ function statsMetrics() {
 
 function renderSummaryStats() {
   const {start, end} = getTimeRange();
-  const title = `${dsLabel()} – ${t('betaStatsTitle')}`;
+  const title = `${dsLabel()} - ${t('betaStatsTitle')}`;
   const metrics = statsMetrics();
   if (metrics.length === 0) return {_html: `<div class="stats-note">${escHtml(t('statsNoMetric'))}</div>`, title, _noData: true, _tables: []};
 
@@ -7848,11 +7941,11 @@ function statsExportRows() {
     for (const r of tbl.rows) {
       // Strip the formatting flourishes that only make sense on screen: percent
       // signs, leading +, the en-dash placeholder, and the thousands separators
-      // in n — all of which would make a spreadsheet read the cell as text.
+      // in n - all of which would make a spreadsheet read the cell as text.
       rows.push(tbl.cols.map(c => {
         const v = c.fmt(r.st);
         if (c.key === 'label') return v;
-        return String(v).replace(/[%+,]/g, '').replace(/^–$/, '');
+        return String(v).replace(/[%+,]/g, '').replace(/^-$/, '');
       }));
     }
   }
@@ -8033,7 +8126,7 @@ function renderBetaDifferential() {
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaDiffTitle')}`;
+  const title = `${dsl} - ${t('betaDiffTitle')}`;
   return {
     traces, title,
     layout: {
@@ -8125,7 +8218,7 @@ function renderBetaDecrement() {
   // Reference line at 1.0
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaDecrementTitle')}`;
+  const title = `${dsl} - ${t('betaDecrementTitle')}`;
   return {
     traces, title,
     layout: {
@@ -8228,7 +8321,7 @@ function renderBetaLag() {
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaLagTitle')}`;
+  const title = `${dsl} - ${t('betaLagTitle')}`;
   const maxLag = loggerLag.length > 0 ? Math.max(...loggerLag) : 1;
   const yTop = Math.ceil((maxLag * 1.15 + 0.2) * 2) / 2; // round up to nearest 0.5, with padding for text labels
   return {
@@ -8362,7 +8455,7 @@ function renderBetaQuality() {
 
   const sm = window.innerWidth < 680;
   const dsl = dsLabel();
-  const title = `${dsl} \u2013 ${t('betaQualityTitle')}`;
+  const title = `${dsl} - ${t('betaQualityTitle')}`;
   return {
     traces, title,
     layout: {
@@ -8402,7 +8495,7 @@ function renderPeriodicAverages() {
     getCategoryIdx = ms => localDate(ms).getUTCHours();
   } else if (pr === 'day' && pg === 'synoptic') {
     nCats = 4;
-    categoryLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
+    categoryLabels = [t('lateNight') + ' (00-06)', t('morning') + ' (06-12)', t('afternoon') + ' (12-18)', t('evening') + ' (18-00)'];
     getCategoryIdx = ms => {
       const h = localDate(ms).getUTCHours();
       if (h < 6) return 0; if (h < 12) return 1; if (h < 18) return 2; return 3;
@@ -8655,7 +8748,7 @@ function renderPeriodicAverages() {
     state.substratCombine = savedCombine;
   }
 
-  // Section average lines (External, Room, Structural) — hidden in compare mode
+  // Section average lines (External, Room, Structural) - hidden in compare mode
   if (!state.compareEnabled) {
   const sectionDefs = [
     {key: 'external', name: t('externalAvg'), color: '#1a1a1a'},
@@ -8719,7 +8812,7 @@ function renderPeriodicAverages() {
     });
   }
 
-  // 32–35°C threshold range for periodic averages
+  // 32-35°C threshold range for periodic averages
   // Only show threshold band when data approaches it, to avoid inflating y-axis
   const perThr = thresholdBand();
   const showThresholdBand = state.showThreshold && state.selectedMetrics.has('temperature') && !!perThr;
@@ -8739,7 +8832,7 @@ function renderPeriodicAverages() {
   const chartTitle = hasTemp && hasHum ? t('tempAndHumid') : hasTemp ? t('tempOnly') : t('humidOnly');
 
   const cycleLabels = {day:t('day'), year:t('year'), mjo:'MJO', iod:'IOD', enso:'ENSO'};
-  const rangeFullLabels = {day:t('day'), year:t('year'), mjo:'Madden\u2013Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o\u2013Southern Oscillation (ENSO)'};
+  const rangeFullLabels = {day:t('day'), year:t('year'), mjo:'Madden-Julian Oscillation (MJO)', iod:'Indian Ocean Dipole (IOD)', enso:'El Ni\u00f1o-Southern Oscillation (ENSO)'};
   const groupByLabels = {hour:t('hour'), synoptic:'Synoptic', month:t('month'), week:t('week'), day:t('day'), season:t('season'), phase:t('phase')};
   const isOsc = pr === 'mjo' || pr === 'iod' || pr === 'enso';
   const periodLabel = isOsc ? (cycleLabels[pr] || pr) + ' ' + t('phase') : (cycleLabels[pr] || pr) + ' / ' + (groupByLabels[pg] || pg);
@@ -8753,9 +8846,9 @@ function renderPeriodicAverages() {
   else if (pr === 'year' && pg === 'week') xTitle = t('weekOfYear');
   else if (pr === 'year' && pg === 'day') xTitle = t('dayOfYear');
   else if (pr === 'year' && pg === 'season') xTitle = t(dataset().meta.seasonScheme === 'tz' ? 'tanzanianSeason' : 'seasonGeneric');
-  else if (pr === 'mjo') xTitle = 'Madden\u2013Julian Oscillation (MJO) Phase';
+  else if (pr === 'mjo') xTitle = 'Madden-Julian Oscillation (MJO) Phase';
   else if (pr === 'iod') xTitle = 'Indian Ocean Dipole (IOD) Phase';
-  else if (pr === 'enso') xTitle = 'El Ni\u00f1o\u2013Southern Oscillation (ENSO) Phase';
+  else if (pr === 'enso') xTitle = 'El Ni\u00f1o-Southern Oscillation (ENSO) Phase';
   else xTitle = periodLabel;
 
   // Build x-axis config
@@ -8786,7 +8879,7 @@ function renderPeriodicAverages() {
           let dMin = Infinity;
           traces.forEach(tr => { if (tr.y) tr.y.forEach(v => { if (v != null && isFinite(v)) { if (v > dMax) dMax = v; if (v < dMin) dMin = v; }});});
           if (isFinite(dMax) && dMax < perThr.low - 2) {
-            // Data well below threshold — set range from data only with 5% padding
+            // Data well below threshold - set range from data only with 5% padding
             const pad = (dMax - dMin) * 0.05 || 1;
             cfg.range = [dMin - pad, dMax + pad];
           }
@@ -8798,7 +8891,7 @@ function renderPeriodicAverages() {
       hovermode: 'closest', hoverlabel: {font: {family: 'Ubuntu, sans-serif'}},
       shapes, annotations: [...annotations, ...(isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, true)] : [])],
     },
-    title: (dsl + ' \u2013 ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
+    title: (dsl + ' - ' + chartTitle + ': ' + periodFullLabel + ' Averages').replace(/&amp;/g, '&'),
   };
 }
 
@@ -9168,7 +9261,7 @@ function applicabilityNoteHtml() {
        + t('comfortApplicability') + heating + '</span>';
 }
 
-// Sidebar info tooltips — Compare Mode, Long-Term Mode, comfort band, running mean
+// Sidebar info tooltips - Compare Mode, Long-Term Mode, comfort band, running mean
 (function() {
   const items = [
     { iconId: 'compare-info-icon', tipId: 'compare-info-tip', key: 'infoCompare' },
@@ -9246,7 +9339,9 @@ function setupLegendTooltips() {
 
 
 # ── Sensor snapshot ─────────────────────────────────────────────────────────────
-OPENMETEO_IDS = {OPENMETEO_HISTORICAL_ID, OPENMETEO_FORECAST_ID, OPENMETEO_LEGACY_ID}
+OPENMETEO_IDS = {OPENMETEO_LEGACY_ID} | {
+    f[k] for f in OPENMETEO_FEEDS.values() for k in ("historical", "forecast")
+}
 
 
 def save_sensor_snapshot(datasets_dfs):
@@ -9473,17 +9568,20 @@ def main():
             raise SystemExit(1)
         datasets_dfs = load_sensor_snapshot()
 
-        # Load fresh Open-Meteo data and merge into each dataset's DataFrame
+        # Load fresh Open-Meteo data, one frame per feed, and merge into each
+        # dataset's DataFrame according to the feeds that dataset draws on.
         print("Loading fresh Open-Meteo data...")
-        ext_df_raw = load_external_temperature()
-        ext_df = pd.DataFrame()
-        if not ext_df_raw.empty:
-            # Localise the Open-Meteo timestamps (same as load_dataset does)
-            ext_df_raw["datetime"] = localize(
-                pd.to_datetime(ext_df_raw["datetime"], errors="coerce"), OPENMETEO_TZ)
-            ext_df_raw = ext_df_raw.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-            ext_df = add_iso_week(ext_df_raw)
-            print(f"  Open-Meteo: {len(ext_df):,} records")
+        ext_by_feed = {}
+        for feed in OPENMETEO_FEEDS:
+            raw = load_external_temperature(feed)
+            if raw.empty:
+                continue
+            raw["datetime"] = localize(
+                pd.to_datetime(raw["datetime"], errors="coerce"),
+                pytz.timezone(OPENMETEO_FEED_TZ.get(feed, "Africa/Dar_es_Salaam")))
+            raw = raw.dropna(subset=["datetime"]).set_index("datetime").sort_index()
+            ext_by_feed[feed] = add_iso_week(raw)
+            print(f"  Open-Meteo [{feed}]: {len(raw):,} records")
 
         # Load fresh Omnisense data per dataset (replaces snapshot Omnisense
         # where available). Each Omnisense source is read once and shared by the
@@ -9504,15 +9602,18 @@ def main():
             print(f"  {DATASETS[key]['label']}: {len(os_df):,} fresh records (replacing snapshot Omnisense)")
             update_snapshot_omnisense(key, omnisense_dfs[key])
 
-        # Buildings first — a region is the union of its members' final data.
+        # Buildings first - a region is the union of its members' final data.
         for key in BUILDING_KEYS:
             cfg = DATASETS[key]
             df = datasets_dfs.get(key, pd.DataFrame())
-            # Only merge Open-Meteo into datasets that use it as external logger
-            if cfg.get("external_logger") in OPENMETEO_IDS and not ext_df.empty:
-                ext_sensors = set(cfg.get("external_sensors", []))
-                filtered_ext = ext_df[ext_df["logger_id"].isin(ext_sensors)] if ext_sensors else ext_df
-                df = pd.concat([df, filtered_ext]).sort_index()
+            # Merge in whichever Open-Meteo feeds this dataset draws on
+            ext_sensors = set(cfg.get("external_sensors", []))
+            if ext_sensors & OPENMETEO_IDS:
+                for feed in dataset_feeds(key):
+                    feed_df = ext_by_feed.get(feed)
+                    if feed_df is None or feed_df.empty:
+                        continue
+                    df = pd.concat([df, feed_df[feed_df["logger_id"].isin(ext_sensors)]]).sort_index()
             # If fresh Omnisense is available, merge it over the snapshot copy.
             # Snapshot data older than the fresh CSV's window is preserved, so
             # history beyond the 90-day lookback is never discarded.
@@ -9598,7 +9699,7 @@ def main():
         if os_dt:
             data_freshness["omnisense_fetch_ms"] = int(os_dt.timestamp() * 1000)
     # UK Omnisense export is still added by hand, so it gets its own fetch time
-    # rather than being folded into the Tanzanian one's staleness check — a
+    # rather than being folded into the Tanzanian one's staleness check - a
     # manual file would trip the "fetched N days ago" warning permanently.
     os_uk_files = sorted(OMNISENSE_UK_DIR.glob("omnisense_uk_*.csv"))
     if os_uk_files:

@@ -361,11 +361,39 @@
     "hasCategories": true,
     "externalLoggers": [
       {
+        "id": "Grove Historical (Open-Meteo)",
+        "label": "Historical Temperature (Grove) (Open-Meteo)"
+      },
+      {
+        "id": "Grove Forecast (Open-Meteo)",
+        "label": "Forecast Temperature (Grove) (Open-Meteo)"
+      },
+      {
         "id": "1C290049",
         "label": "External Ambient (Omnisense)"
       }
     ],
     "loggers": [
+      {
+        "id": "Grove Historical (Open-Meteo)",
+        "name": "Historical Temperature (Grove)",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
+      {
+        "id": "Grove Forecast (Open-Meteo)",
+        "name": "Forecast Temperature (Grove)",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
       {
         "id": "1C290049",
         "name": "External Ambient",
@@ -385,7 +413,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "1C290049"
+        "external_source": "Grove Historical (Open-Meteo)"
       }
     ]
   },
@@ -394,11 +422,39 @@
     "hasCategories": true,
     "externalLoggers": [
       {
+        "id": "Holywell Historical (Open-Meteo)",
+        "label": "Historical Temperature (Holywell) (Open-Meteo)"
+      },
+      {
+        "id": "Holywell Forecast (Open-Meteo)",
+        "label": "Forecast Temperature (Holywell) (Open-Meteo)"
+      },
+      {
         "id": "19550131",
         "label": "External Ambient (full shade) (Omnisense)"
       }
     ],
     "loggers": [
+      {
+        "id": "Holywell Historical (Open-Meteo)",
+        "name": "Historical Temperature (Holywell)",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
+      {
+        "id": "Holywell Forecast (Open-Meteo)",
+        "name": "Forecast Temperature (Holywell)",
+        "source": "Open-Meteo",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
       {
         "id": "19550131",
         "name": "External Ambient (full shade)",
@@ -418,7 +474,7 @@
         "showInHistogram": true,
         "showInPeriodic": true,
         "showInComfort": true,
-        "external_source": "19550131"
+        "external_source": "Holywell Historical (Open-Meteo)"
       }
     ]
   }

@@ -1,5 +1,5 @@
 """
-send_alert_email.py – Send the ARC staleness alert email via Gmail SMTP.
+send_alert_email.py - Send the ARC staleness alert email via Gmail SMTP.
 
 Reads /tmp/alert_subject.txt and /tmp/alert_body.html written by check_staleness.py.
 Requires env vars: GMAIL_USERNAME, GMAIL_APP_PASSWORD, ALERT_EMAILS (comma-separated).
@@ -26,7 +26,7 @@ try:
     with open("/tmp/alert_body.html", encoding="utf-8") as f:
         html_body = f.read()
 except OSError:
-    html_body = "<p>Staleness check failed — please check the workflow logs.</p>"
+    html_body = "<p>Staleness check failed - please check the workflow logs.</p>"
 
 msg = MIMEMultipart("alternative")
 msg["Subject"] = subject

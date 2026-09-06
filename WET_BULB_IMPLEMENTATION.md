@@ -1,4 +1,4 @@
-# Wet Bulb Temperature Overlay — Implementation Guide
+# Wet Bulb Temperature Overlay - Implementation Guide
 
 Complete specification for implementing the wet bulb temperature overlay feature in a `build.py`-style Plotly dashboard. Copy this to a new chat alongside the target `build.py`.
 
@@ -10,7 +10,7 @@ Complete specification for implementing the wet bulb temperature overlay feature
 - When enabled, a **per-logger sub-checkbox** appears directly below each eligible logger's existing checkbox in the Loggers panel.
 - Eligible loggers: external + room loggers only (not structural, not comfort-panel-only loggers).
 - Each sub-checkbox defaults to **off**.
-- Wet bulb is calculated using the **Stull (2011)** approximation, with a range guard that returns `null` (gap) for T outside –20 to 50°C or RH outside 5–99%.
+- Wet bulb is calculated using the **Stull (2011)** approximation, with a range guard that returns `null` (gap) for T outside -20 to 50°C or RH outside 5-99%.
 - Wet bulb traces shown as **dashed lines** in the **same colour** as the parent sensor.
 - Supported on **line graph** and **periodic averages** chart types only; hidden in Long-Term/Historic mode and on all other chart types.
 - **Legend**: when both main logger and its wet bulb are shown → grey `+ (Wet bulb)` annotation is appended to the parent's legend entry; no separate wb legend item. When only wb is shown (parent deselected) → wb gets its own legend entry.
@@ -40,7 +40,7 @@ Add to the stylesheet:
 
 ---
 
-## 3. Sidebar HTML — Advanced Settings body
+## 3. Sidebar HTML - Advanced Settings body
 
 Inside the Advanced Settings collapsible body, add this block (hidden by default):
 
@@ -66,7 +66,7 @@ Inside the Advanced Settings collapsible body, add this block (hidden by default
 wetBulb:       'Wet Bulb',
 wetBulbSuffix: '(Wet bulb)',
 wetBulbHover:  'Wet bulb (Tw)',
-infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: –20 to 50°C and 5–99% RH; values outside this range are shown as gaps. Shown as a dashed line in the same colour as the parent sensor.',
+infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable by evaporative cooling, a key heat stress indicator. When Tw exceeds 32°C, cooling by sweating becomes difficult; above 35°C it is dangerous for prolonged exposure. Calculated using the Stull (2011) approximation, accurate to ±0.3°C in tropical conditions. Valid range: -20 to 50°C and 5-99% RH; values outside this range are shown as gaps. Shown as a dashed line in the same colour as the parent sensor.',
 ```
 
 ### Swahili
@@ -75,7 +75,7 @@ infoWetBulb:   'Wet bulb temperature (Tw) is the lowest temperature achievable b
 wetBulb:       'Joto la Mvua (Tw)',
 wetBulbSuffix: '(Joto la mvua)',
 wetBulbHover:  'Joto la mvua (Tw)',
-infoWetBulb:   'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: –20 hadi 50°C na 5–99% RH; maadili nje ya masafa haya yanaonyeshwa kama mapengo. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
+infoWetBulb:   'Joto la mvua (Tw) ni joto la chini kabisa linaloweza kufikiwa kwa kupoa kwa uvukizi, kiashiria muhimu cha msongo wa joto. Imehesabiwa kwa kutumia mkaribisho wa Stull (2011). Masafa halali: -20 hadi 50°C na 5-99% RH; maadili nje ya masafa haya yanaonyeshwa kama mapengo. Inaonyeshwa kama mstari wa nukta katika rangi ile ile ya sensor.',
 ```
 
 ---
@@ -95,7 +95,7 @@ function stullWetBulb(T, RH) {
 }
 ```
 
-Returns `null` for out-of-range inputs — callers must check for `null`.
+Returns `null` for out-of-range inputs - callers must check for `null`.
 
 ---
 
@@ -114,7 +114,7 @@ Adapt to match your dataset's logger categorisation. The rule is: external + roo
 
 ---
 
-## 7. `addCheckbox` — Inject wb Sub-Label
+## 7. `addCheckbox` - Inject wb Sub-Label
 
 `addCheckbox` is the function that builds each logger's `<label>` element and appends it to a container. Add the wet bulb sub-label injection **after** `container.appendChild(lbl)`:
 
@@ -145,13 +145,13 @@ function addCheckbox(container, stateSet, id, extraLabel, skipWb) {
 ```
 
 Key notes:
-- `skipWb` is a new 5th parameter — pass `true` when calling `addCheckbox` for the adaptive comfort logger panel.
+- `skipWb` is a new 5th parameter - pass `true` when calling `addCheckbox` for the adaptive comfort logger panel.
 - `ln(id)` is whatever your logger-name lookup function is called.
 - `t('wetBulbSuffix')` is your i18n function.
 
 ---
 
-## 8. `addSection` — Signature + All/None wb Sync
+## 8. `addSection` - Signature + All/None wb Sync
 
 `addSection` wraps `addCheckbox` calls and adds All/None buttons. Two changes:
 
@@ -165,7 +165,7 @@ function addSection(container, stateSet, title, ids, extraBtns, extraLabelFn, se
 }
 ```
 
-### 8b. All button — also check wb sub-checkboxes
+### 8b. All button - also check wb sub-checkboxes
 
 Inside the All button click handler, after `stateSet.add(id)`:
 
@@ -177,7 +177,7 @@ if (state.wetBulbEnabled && wbEligibleSet.has(id)) {
 }
 ```
 
-### 8c. None button — also uncheck wb sub-checkboxes
+### 8c. None button - also uncheck wb sub-checkboxes
 
 Inside the None button click handler, after `stateSet.delete(id)`:
 
@@ -191,7 +191,7 @@ if (state.wetBulbEnabled && wbEligibleSet.has(id)) {
 
 ---
 
-## 9. `mkSourceBtns` — TinyTag/Omnisense wb Sync
+## 9. `mkSourceBtns` - TinyTag/Omnisense wb Sync
 
 If your dashboard has TinyTag/Omnisense source-filter buttons, add a `syncWb` helper inside `mkSourceBtns` and call it from each button's handler:
 
@@ -218,7 +218,7 @@ mkSelBtn('TinyTag', () => {
 
 ---
 
-## 10. Comfort Panel — Pass `skipWb = true`
+## 10. Comfort Panel - Pass `skipWb = true`
 
 When calling `addSection` for the adaptive comfort logger panel (not the main logger panel), pass `true` as the final argument so no wb sub-checkboxes are injected there:
 
@@ -241,7 +241,7 @@ state.wetBulbLoggers = new Set();
 addSection(loggerDiv, state.selectedLoggers, t('sectionExternal'), m.externalLoggers, ...);
 // Room section
 addSection(loggerDiv, state.selectedLoggers, t('sectionRoom'), roomLoggers, ...);
-// Structural section (no skipWb needed — structural not in wbEligibleSet anyway)
+// Structural section (no skipWb needed - structural not in wbEligibleSet anyway)
 addSection(loggerDiv, state.selectedLoggers, t('sectionStructural'), midLoggers, ...);
 ```
 
@@ -308,7 +308,7 @@ document.querySelectorAll('input[data-wb-logger]').forEach(cb => { cb.checked = 
 
 ---
 
-## 15. `setLanguage` — Update wb-suffix Spans
+## 15. `setLanguage` - Update wb-suffix Spans
 
 In your language-switching function (e.g. `setLanguage`), add:
 
@@ -332,7 +332,7 @@ In your info-tooltip registration array/loop, add:
 
 ## 17. `renderLineGraph` Changes
 
-### 17a. Loop guard — proceed if main selected OR wb wanted
+### 17a. Loop guard - proceed if main selected OR wb wanted
 
 Replace the original `if (!selectedLoggers.has(loggerId)) continue;` with:
 
@@ -354,7 +354,7 @@ const _wbAnnotation = (_wbWanted && _mainSelected)
   : '';
 ```
 
-### 17c. Main trace — append annotation to first-metric name
+### 17c. Main trace - append annotation to first-metric name
 
 In the metric loop inside `if (_mainSelected)`, change the trace name from:
 ```javascript
@@ -482,7 +482,7 @@ if (doWb && state.selectedMetrics.has('temperature') && !isClimateOsc) {
       x: wbX, y: wbYArr, text: wbTxt, type: 'scatter', mode: 'lines+markers',
       name: wbName,
       // In periodic averages the parent is always present (we only iterate selectedLoggers),
-      // so always share legendgroup and hide from legend — annotated on parent instead.
+      // so always share legendgroup and hide from legend - annotated on parent instead.
       legendgroup: lgGroup,
       showlegend: false,
       meta: { loggerId },
@@ -499,20 +499,20 @@ if (doWb && state.selectedMetrics.has('temperature') && !isClimateOsc) {
 
 ## Dependency Notes
 
-- `buildGapArrays(timestamps, values)` — your existing gap-aware array builder. If you don't have one, use `{ x: timestamps.map(ms => toEATString(ms)), y: values }` (no gap splitting).
-- `meteoSuffix(id)`, `omniSuffix(source)` — your existing suffix helpers. If your dashboard doesn't have these, just omit them from the trace name.
-- `ln(id)` — your logger display-name lookup.
-- `t(key)` — your i18n lookup function.
-- `iter.setLabel`, `iter.setIndex` — compare-mode props. If your dashboard has no compare mode, use `loggerId` directly as `lgGroup` and `false` for `iter.setLabel`.
-- `isClimateOsc` — flag for climate oscillation loggers (Long-Term mode). If not applicable, just treat it as `false`.
-- `namePrefix` — prefix string for trace names (usually empty string or a compare-set label). Use `''` if not applicable.
+- `buildGapArrays(timestamps, values)` - your existing gap-aware array builder. If you don't have one, use `{ x: timestamps.map(ms => toEATString(ms)), y: values }` (no gap splitting).
+- `meteoSuffix(id)`, `omniSuffix(source)` - your existing suffix helpers. If your dashboard doesn't have these, just omit them from the trace name.
+- `ln(id)` - your logger display-name lookup.
+- `t(key)` - your i18n lookup function.
+- `iter.setLabel`, `iter.setIndex` - compare-mode props. If your dashboard has no compare mode, use `loggerId` directly as `lgGroup` and `false` for `iter.setLabel`.
+- `isClimateOsc` - flag for climate oscillation loggers (Long-Term mode). If not applicable, just treat it as `false`.
+- `namePrefix` - prefix string for trace names (usually empty string or a compare-set label). Use `''` if not applicable.
 
 ---
 
 ## What Not to Do
 
-- **Do not** add wb sub-checkboxes to the adaptive comfort logger panel — pass `skipWb: true` to those `addSection` calls.
-- **Do not** show `wetbulb-adv-wrap` in Long-Term/Historic mode — it must be hidden there.
-- **Do not** show `wetbulb-adv-wrap` on histogram, scatter (comfort), density, or beta chart types — line and periodic only.
-- **Do not** call `stullWetBulb` without handling its `null` return — the range guard returns `null` for invalid inputs.
-- **Do not** reset `state.wetBulbLoggers` after the `addSection` calls — reset it **before**, because `addCheckbox` reads it to set initial checkbox state.
+- **Do not** add wb sub-checkboxes to the adaptive comfort logger panel - pass `skipWb: true` to those `addSection` calls.
+- **Do not** show `wetbulb-adv-wrap` in Long-Term/Historic mode - it must be hidden there.
+- **Do not** show `wetbulb-adv-wrap` on histogram, scatter (comfort), density, or beta chart types - line and periodic only.
+- **Do not** call `stullWetBulb` without handling its `null` return - the range guard returns `null` for invalid inputs.
+- **Do not** reset `state.wetBulbLoggers` after the `addSection` calls - reset it **before**, because `addCheckbox` reads it to set initial checkbox state.

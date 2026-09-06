@@ -1,12 +1,12 @@
 """
-check_staleness.py – Data freshness checker for ARC monitoring.
+check_staleness.py - Data freshness checker for ARC monitoring.
 
 Reads all fetched data files under data/ and evaluates whether each source
 is current. Writes data/status.json on every run. When one or more sources
 are stale also writes:
-  /tmp/alert_subject.txt  – one-line email subject
-  /tmp/alert_body.html    – HTML email body
-  /tmp/ntfy_body.txt      – short push-notification message
+  /tmp/alert_subject.txt  - one-line email subject
+  /tmp/alert_body.html    - HTML email body
+  /tmp/ntfy_body.txt      - short push-notification message
 
 In a GitHub Actions environment ($GITHUB_OUTPUT is set) writes:
   stale=true|false
@@ -16,11 +16,11 @@ In a GitHub Actions environment ($GITHUB_OUTPUT is set) writes:
 Exit 0 if all sources are within tolerance, exit 1 if any are stale.
 
 status.json schema per source:
-  key, label, status        – overall ok/stale/unknown
-  fetch_date, fetch_age_hours, fetch_status  – when the action last fetched
-  data_date,  data_age_hours,  data_status   – latest timestamp in the data
-  note                      – human note about expected lag
-  series                    – optional: per-sensor breakdown (id, label,
+  key, label, status        - overall ok/stale/unknown
+  fetch_date, fetch_age_hours, fetch_status  - when the action last fetched
+  data_date,  data_age_hours,  data_status   - latest timestamp in the data
+  note                      - human note about expected lag
+  series                    - optional: per-sensor breakdown (id, label,
                               data_date, data_age_hours, data_status) for a
                               source that aggregates several individual
                               sensors, so the aggregate's "latest data" can't
@@ -63,9 +63,9 @@ LABELS = {
 }
 
 NOTES = {
-    "enso": "Monthly index; NOAA publishes with up to ~3 month lag — alerts only if data is >120 days old",
+    "enso": "Monthly index; NOAA publishes with up to ~3 month lag - alerts only if data is >120 days old",
     "iod":  "Weekly index from BoM; up to 14 days lag is normal",
-    "mjo":  "Daily index; NOAA typically lags 2–5 days",
+    "mjo":  "Daily index; NOAA typically lags 2-5 days",
     "openmeteo_fc": "Latest data shows forecast horizon (~16 days out); fetch date is the freshness signal",
 }
 
@@ -295,7 +295,7 @@ def entry(key: str, fetch_dt, data_dt) -> dict:
 def run():
     sources = []
 
-    # Omnisense – timestamped filenames → fetch date available. The fetch date
+    # Omnisense - timestamped filenames → fetch date available. The fetch date
     # is shared (one file, one fetch), but data currency is checked separately
     # per sensor group so a live group can't mask a dead one.
     omni_files = sorted(glob.glob(os.path.join(DATA, "omnisense", "omnisense_*.csv")))
@@ -324,7 +324,7 @@ def run():
         ))
     sources.append(th_entry)
 
-    # Open-Meteo – timestamped filenames → fetch date available
+    # Open-Meteo - timestamped filenames → fetch date available
     hist_files = sorted(glob.glob(os.path.join(DATA, "openmeteo", "historical_*.csv")))
     sources.append(entry("openmeteo_hist",
         fetch_dt=file_date_from_glob("openmeteo/historical_*.csv"),
@@ -334,7 +334,7 @@ def run():
         fetch_dt=file_date_from_glob("openmeteo/forecast_*.csv"),
         data_dt=latest_iso_in_file(fc_files[-1] if fc_files else None, col=0)))
 
-    # Climate cycles – files are overwritten in-place (no timestamp in name)
+    # Climate cycles - files are overwritten in-place (no timestamp in name)
     # so only data currency is tracked
     sources.append(entry("enso",
         fetch_dt=None,

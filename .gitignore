@@ -3,6 +3,8 @@ data/*
 
 # But track these:
 !data/openmeteo/
+!data/openmeteo_grove/
+!data/openmeteo_holywell/
 !data/omnisense/
 !data/omnisense_uk/
 !data/cycles/
@@ -17,6 +19,8 @@ data/*
 
 # Within openmeteo/, ignore legacy folder
 data/openmeteo/legacy/
+data/openmeteo_grove/legacy/
+data/openmeteo_holywell/legacy/
 
 # Within omnisense/, ignore legacy folders
 data/omnisense/legacy/

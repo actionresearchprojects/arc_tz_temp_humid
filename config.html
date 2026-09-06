@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Config — ARC Tanzania</title>
+<title>Dashboard Config - ARC Tanzania</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
@@ -82,7 +82,7 @@ td input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; }
         <input type="password" id="pat-input" placeholder="github_pat_…" autocomplete="off">
         <span class="hint">
           Needs <b>Contents: Read &amp; Write</b> on the <code>arc_temp_humid</code> repo.
-          Held in memory only — never stored.
+          Held in memory only - never stored.
           <a href="https://github.com/settings/tokens/new?scopes=repo&description=arc_tz_config" target="_blank">Generate token →</a>
         </span>
       </div>
@@ -197,7 +197,7 @@ document.getElementById('load-btn').addEventListener('click', async () => {
     manifest = await manifestResp.json();
 
     const cfgResp = await ghFetch(CONFIG_PATH);
-    if (cfgResp.status === 401 || cfgResp.status === 403) throw new Error('GitHub auth failed — check your PAT.');
+    if (cfgResp.status === 401 || cfgResp.status === 403) throw new Error('GitHub auth failed - check your PAT.');
     if (cfgResp.ok) {
       const cfgData = await cfgResp.json();
       configSha = cfgData.sha;
@@ -361,7 +361,7 @@ function buildUI() {
       // Adaptive Source Dropdown
       const tdAdapt = document.createElement('td');
       if (isExt) {
-        tdAdapt.innerHTML = '<span class="ext-note">—</span>';
+        tdAdapt.innerHTML = '<span class="ext-note">-</span>';
       } else {
         const sel = document.createElement('select');
         sel.className = 'source-select';
