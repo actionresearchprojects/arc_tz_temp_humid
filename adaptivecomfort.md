@@ -59,7 +59,39 @@ only". The dashboard offers both, but 80% is the one to quote.
 
 Section 5.4.1(d) restricts the method to a prevailing mean outdoor temperature
 **above 10 °C and below 33.5 °C**. Mkuranga sits comfortably inside that window
-(see section 7); some other programme sites may not.
+(see section 7); the UK sites do not, once a winter is on record.
+
+The dashboard enforces this on the chart. Readings whose running mean falls
+outside the window are **drawn in grey rather than removed**, annotated with the
+proportion they represent, and **excluded from the percentage statistic** — a
+figure quoted against ASHRAE 55 must not count conditions the method was never
+validated on. They stay visible because they are real readings worth seeing;
+they are simply not something this band can be used to judge.
+
+Filtering by calendar month was considered and rejected. Months are not the
+criterion: a fixed "May–September" would admit a cold June and exclude a warm
+October, would be wrong again at the next site, and would hide the very readings
+a reader should be told about. Gating on the running mean tests the actual rule.
+
+### The criterion that cannot be verified
+
+Section 5.4.1(a) also requires that **no heating system is in operation**. Unlike
+the temperature limits, this cannot be checked against the data: no site records
+whether the heating was on, and nothing in a temperature and humidity trace
+reliably distinguishes a heated room from a warm one.
+
+At Mkuranga the buildings have no heating, so the criterion is met by
+construction. **At the UK sites it is genuinely unknown**, and the dashboard says
+so rather than assuming it — a permanent note on the comfort chart, in the
+sidebar's applicability panel directly beneath the quoted criterion, and in the
+tooltips explaining the method.
+
+The practical consequence is worth stating plainly: the running-mean gate will
+catch cold-weather readings, but a mild day with the heating on will pass every
+test the dashboard can apply and still sit outside the standard's scope. No
+attempt is made to infer heating status from the data. Doing so would mean
+inventing a signal that is not there, and an inferred exclusion is harder to
+argue with than an acknowledged gap.
 
 ---
 
@@ -280,6 +312,10 @@ dataset dipping below roughly 18 °C running mean.
 ---
 
 ## 8. Known limitations
+
+**Heating status is not recorded, so ASHRAE 55 criterion (a) cannot be verified
+at the UK sites.** See section 2. The chart flags this rather than inferring it.
+
 
 **The chart's y-axis is air temperature; ASHRAE's is operative temperature.** Operative
 temperature combines air temperature with radiant temperature, and in these buildings the

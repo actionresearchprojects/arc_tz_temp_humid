@@ -446,8 +446,8 @@ def run():
   <p style="color:#9ca3af;font-size:12px;">
     Sent automatically by the ARC monitoring workflow.
     To change who receives these alerts, edit the ALERT_EMAILS secret in the
-    <a href="https://github.com/actionresearchprojects/arc_tz_temp_humid/settings/secrets/actions"
-       style="color:#9ca3af;">arc_tz_temp_humid repository settings</a>.
+    <a href="https://github.com/actionresearchprojects/arc_temp_humid/settings/secrets/actions"
+       style="color:#9ca3af;">arc_temp_humid repository settings</a>.
   </p>
 </body>
 </html>"""

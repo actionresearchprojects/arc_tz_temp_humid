@@ -81,7 +81,7 @@ td input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; }
         <label for="pat-input">Personal Access Token (PAT)</label>
         <input type="password" id="pat-input" placeholder="github_pat_…" autocomplete="off">
         <span class="hint">
-          Needs <b>Contents: Read &amp; Write</b> on the <code>arc_tz_temp_humid</code> repo.
+          Needs <b>Contents: Read &amp; Write</b> on the <code>arc_temp_humid</code> repo.
           Held in memory only — never stored.
           <a href="https://github.com/settings/tokens/new?scopes=repo&description=arc_tz_config" target="_blank">Generate token →</a>
         </span>
@@ -115,7 +115,7 @@ td input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; }
 <script>
 // ── Config ────────────────────────────────────────────────────────────────────
 const REPO_OWNER  = 'actionresearchprojects';
-const REPO_NAME   = 'arc_tz_temp_humid';
+const REPO_NAME   = 'arc_temp_humid';
 const CONFIG_PATH  = 'data/config.json';
 const LOGGERS_PATH = 'data/loggers.json';
 const GITHUB_API   = 'https://api.github.com';

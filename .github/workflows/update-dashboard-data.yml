@@ -108,7 +108,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
             https://api.github.com/repos/actionresearchprojects/actionresearchprojects.github.io/dispatches \
-            -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_temp_humid"}}'
+            -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_temp_humid"}}'
 
       # ── cascade: trigger dependent dashboards so they always get fresh data ──
       - name: Trigger arc_tz_line update

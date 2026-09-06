@@ -32,12 +32,38 @@ import pytz
 DATA_FOLDER = Path("data")
 OPENMETEO_DIR = DATA_FOLDER / "openmeteo"
 OMNISENSE_DIR = DATA_FOLDER / "omnisense"
+OMNISENSE_UK_DIR = DATA_FOLDER / "omnisense_uk"
 CYCLES_DIR = DATA_FOLDER / "cycles"
 SNAPSHOT_PATH = DATA_FOLDER / "sensor_snapshot.json"
 
 # ── Configuration ──────────────────────────────────────────────────────────────
+# Default timezone. Every dataset declares its own "timezone" below; this is the
+# fallback used for anything not tied to a specific dataset.
 TIMEZONE = pytz.timezone("Africa/Dar_es_Salaam")
 OUTPUT_FILE = Path("index.html")
+
+def dataset_tz(key):
+    """pytz timezone for a dataset, falling back to the Tanzanian default."""
+    return pytz.timezone(DATASETS[key].get("timezone", "Africa/Dar_es_Salaam"))
+
+
+def localize(series, tz):
+    """Localise naive sensor timestamps to a site's local timezone.
+
+    Logger exports record wall-clock time at the site, so the naive value is
+    localised (not converted). ambiguous="NaT" drops the hour repeated by a
+    DST fall-back rather than guessing which of the two it was.
+    """
+    return series.dt.tz_localize(tz, nonexistent="shift_forward", ambiguous="NaT")
+
+
+# ── Omnisense sources ─────────────────────────────────────────────────────────
+# Each Omnisense account/site exports one multi-block CSV covering every sensor
+# on it. A dataset names the source it draws from plus the sensor IDs it wants.
+OMNISENSE_SOURCES = {
+    "tz": {"dir": OMNISENSE_DIR,    "glob": "omnisense_*.csv"},
+    "uk": {"dir": OMNISENSE_UK_DIR, "glob": "omnisense_uk_*.csv"},
+}
 
 OMNISENSE_T_H_SENSORS = {
     "320E02D1", "327601CB", "32760371", "3276012B", "32760164",
@@ -45,14 +71,140 @@ OMNISENSE_T_H_SENSORS = {
     "32760048",
 }
 
+GROVE_SENSORS = {"1C290049", "169502D1"}
+HOLYWELL_SENSORS = {"19550131", "0E3C12EC"}
+
+
+# ── Season schemes ────────────────────────────────────────────────────────────
+# Seasons are per-region. Each scheme maps every calendar month to a season
+# index; a season may occupy more than one block of the year (both schemes have
+# one that does), so indices are not in month order and there may be more than
+# four of them. Every block must be a contiguous run of months within a single
+# calendar year — the period selector derives a season's date range from
+# "months", and the charts position seasons on a month-scale axis.
+SEASON_SCHEMES = {
+    "tz": {
+        # 0=Kiangazi(Jan–Feb) 1=Masika(Mar–May) 2=Kiangazi(Jun–Oct) 3=Vuli(Nov–Dec)
+        "monthIdx": [0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3],
+        "labels": ["Kiangazi (Jan–Feb)", "Masika (Mar–May)",
+                   "Kiangazi (Jun–Oct)", "Vuli (Nov–Dec)"],
+        "labelsSw": ["Kiangazi (Jan–Feb)", "Masika (Mac–Mei)",
+                     "Kiangazi (Jun–Okt)", "Vuli (Nov–Des)"],
+        "short": ["Kiangazi-JanFeb", "Masika-MarMay", "Kiangazi-JunOct", "Vuli-NovDec"],
+        "months": [[0, 1], [2, 4], [5, 9], [10, 11]],   # inclusive month ranges, 0-based
+        "midpoints": [0.5, 3, 7, 10.5],                 # month-scale x positions
+        # Boundary markers drawn on the line chart and periodic averages
+        "bounds": [{"month": 1, "name": "January Dry Season (Kiangazi)"},
+                   {"month": 3, "name": "Long Rains (Masika)"},
+                   {"month": 6, "name": "June Dry Season (Kiangazi)"},
+                   {"month": 11, "name": "Short Rains (Vuli)"}],
+        "boundsShort": [{"month": 1, "name": "Kiangazi"}, {"month": 3, "name": "Masika"},
+                        {"month": 6, "name": "Kiangazi"}, {"month": 11, "name": "Vuli"}],
+    },
+    "uk": {
+        # Meteorological seasons. Winter straddles the new year, so — exactly as
+        # Kiangazi does above — it occupies two blocks: Jan–Feb and Dec.
+        # 0=Winter(Jan–Feb) 1=Spring(Mar–May) 2=Summer(Jun–Aug) 3=Autumn(Sep–Nov) 4=Winter(Dec)
+        "monthIdx": [0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
+        "labels": ["Winter (Jan–Feb)", "Spring (Mar–May)", "Summer (Jun–Aug)",
+                   "Autumn (Sep–Nov)", "Winter (Dec)"],
+        "labelsSw": ["Majira ya Baridi (Jan–Feb)", "Majira ya Kuchipua (Mac–Mei)",
+                     "Majira ya Joto (Jun–Ago)", "Majira ya Vuli (Sep–Nov)",
+                     "Majira ya Baridi (Des)"],
+        "short": ["Winter-JanFeb", "Spring-MarMay", "Summer-JunAug", "Autumn-SepNov", "Winter-Dec"],
+        "months": [[0, 1], [2, 4], [5, 7], [8, 10], [11, 11]],
+        "midpoints": [0.5, 3, 6, 9, 11],
+        "bounds": [{"month": 3, "name": "Spring"}, {"month": 6, "name": "Summer"},
+                   {"month": 9, "name": "Autumn"}, {"month": 12, "name": "Winter"}],
+        "boundsShort": [{"month": 3, "name": "Spring"}, {"month": 6, "name": "Summer"},
+                        {"month": 9, "name": "Autumn"}, {"month": 12, "name": "Winter"}],
+    },
+}
+
+
+# The Open-Meteo feed covers one location, Dar es Salaam (see fetch_openmeteo.py
+# LOCATIONS). Its CSVs carry local time for that zone, so they are localised with
+# it rather than with the consuming dataset's zone — which is the same thing
+# today, since only the Tanzanian datasets use Open-Meteo, but would not be once
+# a UK location is added.
+OPENMETEO_TZ = pytz.timezone("Africa/Dar_es_Salaam")
+
+# Default adaptive comfort band per region.
+#
+# Tanzania uses a Vellei et al. humidity model: those regressions exist to correct
+# for how people adapt in humid tropical conditions, which is the case at Mkuranga.
+# The UK is not that case — there is no humidity correction to make — and the
+# Vellei slope of 0.53 (against ASHRAE's 0.31) makes the band very sensitive to
+# the running mean at the cool end of the range, where UK data sits. So the UK
+# defaults to ASHRAE 55's 80% acceptability band, which is the compliance limit
+# and the figure to quote. Either default is still user-selectable per session.
+COMFORT_MODEL_TZ = "rh_gt_60"
+COMFORT_MODEL_UK = "ashrae_80"
+
+# Overheating threshold band drawn on the line, histogram and averages charts.
+# 32-35 C is a Mkuranga heat-stress range; it means nothing against UK data that
+# peaks near 29 C, so the UK declares none and the control is hidden there.
+# A UK figure should come from CIBSE TM52/TM59 once the criterion is chosen —
+# those are per-room-type (TM59 uses 26 C for bedrooms), so it is not a single
+# number that can be assumed here.
+THRESHOLD_TZ = {"low": 32, "high": 35}
+THRESHOLD_UK = None
+
+# ASHRAE 55-2020 Section 5.4.1(d): the adaptive method is only validated for a
+# prevailing mean outdoor temperature in this range. Mkuranga sits inside it
+# year-round; UK winters do not.
+COMFORT_TPMA_MIN = 10.0
+COMFORT_TPMA_MAX = 33.5
+
+# ASHRAE 55 Section 5.4.1(a) also requires that no heating system is in
+# operation. Unlike the temperature limits, that cannot be checked against the
+# data -- nothing at any site records whether the heating was on. At Mkuranga
+# the buildings have no heating, so the criterion is met by construction. In the
+# UK it is genuinely unknown, and the chart says so rather than assuming it.
+HEATING_UNVERIFIED_TZ = False
+HEATING_UNVERIFIED_UK = True
 
 OPENMETEO_HISTORICAL_ID = "External Historical (Open-Meteo)"
 OPENMETEO_FORECAST_ID = "External Forecast (Open-Meteo)"
 OPENMETEO_LEGACY_ID = "External (Open-Meteo)"  # backward-compat with old single CSV
 
+# ── Datasets ──────────────────────────────────────────────────────────────────
+# Keys are ordered as they appear in the building selector. A dataset is either
+# a building (has data of its own) or a region (has "combine": [...] and is the
+# union of its member buildings). Regions appear in the dropdown above their
+# members and are selectable in their own right.
+#
+# Per-dataset keys that vary by site:
+#   region        i18n key of the region this building belongs to
+#   building      i18n key of the building itself (regions omit this)
+#   timezone      IANA zone the loggers record wall-clock time in
+#   tz_label      how that zone is annotated on chart axes
+#   season_scheme key into SEASON_SCHEMES
+#   omnisense     {"source": key into OMNISENSE_SOURCES, "sensors": {...}}
 DATASETS = {
+    "arc_tz": {
+        "label": "ARC Tanzania",
+        "region": "regionTz",
+        "combine": ["house5", "schoolteacher"],
+        "timezone": "Africa/Dar_es_Salaam",
+        "tz_label": "EAT, UTC+03:00",
+        "season_scheme": "tz",
+        "comfort_model": COMFORT_MODEL_TZ,
+        "heating_unverified": HEATING_UNVERIFIED_TZ,
+        "threshold": THRESHOLD_TZ,
+        "external_logger": OPENMETEO_HISTORICAL_ID,
+    },
     "house5": {
         "label": "House 5",
+        "region": "regionTz",
+        "building": "house5",
+        "timezone": "Africa/Dar_es_Salaam",
+        "tz_label": "EAT, UTC+03:00",
+        "season_scheme": "tz",
+        "comfort_model": COMFORT_MODEL_TZ,
+        "heating_unverified": HEATING_UNVERIFIED_TZ,
+        "threshold": THRESHOLD_TZ,
+        "omnisense": {"source": "tz", "sensors": OMNISENSE_T_H_SENSORS},
         "folder": Path("data/house5"),
         "skip_rows": 350,
         "external_logger": OPENMETEO_HISTORICAL_ID,
@@ -110,6 +262,14 @@ DATASETS = {
     },
     "schoolteacher": {
         "label": "Schoolteacher's House",
+        "region": "regionTz",
+        "building": "schoolteacher",
+        "timezone": "Africa/Dar_es_Salaam",
+        "tz_label": "EAT, UTC+03:00",
+        "season_scheme": "tz",
+        "comfort_model": COMFORT_MODEL_TZ,
+        "heating_unverified": HEATING_UNVERIFIED_TZ,
+        "threshold": THRESHOLD_TZ,
         "folder": Path("data/schoolteacher"),
         "skip_rows": 7,
         "external_logger": OPENMETEO_HISTORICAL_ID,
@@ -124,7 +284,58 @@ DATASETS = {
         # Per-dataset name overrides
         "logger_name_overrides": {"tinytag": "Bedroom 1"},
     },
+    "arc_uk": {
+        "label": "ARC UK",
+        "region": "regionUk",
+        "combine": ["grove", "holywell"],
+        "timezone": "Europe/London",
+        "tz_label": "GMT/BST",
+        "season_scheme": "uk",
+        "comfort_model": COMFORT_MODEL_UK,
+        "heating_unverified": HEATING_UNVERIFIED_UK,
+        "threshold": THRESHOLD_UK,
+        # No Open-Meteo yet: the fetch is Dar es Salaam only. Each UK building
+        # carries its own external ambient sensor, which is what the adaptive
+        # comfort running mean uses. See fetch_openmeteo.py LOCATIONS to add one.
+        "external_logger": None,
+    },
+    "grove": {
+        "label": "Grove Cottage",
+        "region": "regionUk",
+        "building": "grove",
+        "timezone": "Europe/London",
+        "tz_label": "GMT/BST",
+        "season_scheme": "uk",
+        "comfort_model": COMFORT_MODEL_UK,
+        "heating_unverified": HEATING_UNVERIFIED_UK,
+        "threshold": THRESHOLD_UK,
+        "omnisense": {"source": "uk", "sensors": GROVE_SENSORS},
+        "external_logger": "1C290049",
+        "external_sensors": ["1C290049"],
+        "room_loggers": ["169502D1"],
+        "sidebar_order": ["1C290049", "169502D1"],
+    },
+    "holywell": {
+        "label": "Holywell Barn",
+        "region": "regionUk",
+        "building": "holywell",
+        "timezone": "Europe/London",
+        "tz_label": "GMT/BST",
+        "season_scheme": "uk",
+        "comfort_model": COMFORT_MODEL_UK,
+        "heating_unverified": HEATING_UNVERIFIED_UK,
+        "threshold": THRESHOLD_UK,
+        "omnisense": {"source": "uk", "sensors": HOLYWELL_SENSORS},
+        "external_logger": "19550131",
+        "external_sensors": ["19550131"],
+        "room_loggers": ["0E3C12EC"],
+        "sidebar_order": ["19550131", "0E3C12EC"],
+    },
 }
+
+# Dataset keys that are regions (unions of member buildings) vs real buildings.
+COMBINED_KEYS = [k for k, c in DATASETS.items() if c.get("combine")]
+BUILDING_KEYS = [k for k, c in DATASETS.items() if not c.get("combine")]
 
 LOGGER_NAMES = {
     # TinyTag loggers
@@ -156,6 +367,11 @@ LOGGER_NAMES = {
     "32760205": "Bedroom 1",
     "3276028A": "Study",
     "32760208": "Washrooms area",
+    # Omnisense sensors — ARC UK
+    "1C290049": "External Ambient",              # Grove Cottage, Hereford
+    "169502D1": "Living Room (No. 57)",
+    "19550131": "External Ambient (full shade)",  # Holywell Barn, Criccieth
+    "0E3C12EC": "Internal Ambient",
     OPENMETEO_HISTORICAL_ID: "Historical Temperature",
     OPENMETEO_FORECAST_ID: "Forecast Temperature",
     OPENMETEO_LEGACY_ID: "External Temperature",  # backward compat
@@ -189,6 +405,10 @@ LOGGER_NAMES_SW = {
     "32760205": "Chumba cha kulala 1",
     "3276028A": "Chumba cha kusoma",
     "32760208": "Eneo la vyoo",
+    "1C290049": "Nje (Mazingira)",
+    "169502D1": "Sebule (Na. 57)",
+    "19550131": "Nje (Mazingira, kivulini)",
+    "0E3C12EC": "Ndani (Mazingira)",
     OPENMETEO_HISTORICAL_ID: "Joto la Kihistoria",
     OPENMETEO_FORECAST_ID: "Joto la Utabiri",
     OPENMETEO_LEGACY_ID: "Joto la Nje",
@@ -205,6 +425,8 @@ LOGGER_SOURCES = {
     "3276012B": "Omnisense", "32760164": "Omnisense", "3276003D": "Omnisense",
     "327601CD": "Omnisense", "32760205": "Omnisense", "3276028A": "Omnisense",
     "32760208": "Omnisense", "32760048": "Omnisense",
+    "1C290049": "Omnisense", "169502D1": "Omnisense",
+    "19550131": "Omnisense", "0E3C12EC": "Omnisense",
     OPENMETEO_HISTORICAL_ID: "Open-Meteo",
     OPENMETEO_FORECAST_ID: "Open-Meteo",
     OPENMETEO_LEGACY_ID: "Open-Meteo",
@@ -613,48 +835,108 @@ def load_omnisense_csv(path, sensor_filter=None):
     return pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()
 
 
+def find_omnisense_csv(key):
+    """Newest Omnisense export for a dataset's configured source, or None."""
+    om = DATASETS[key].get("omnisense")
+    if not om:
+        return None
+    src = OMNISENSE_SOURCES[om["source"]]
+    files = sorted(src["dir"].glob(src["glob"]))
+    if not files and om["source"] == "tz":
+        # Legacy location: exports used to land directly in data/
+        files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
+    return files[-1] if files else None
+
+
+def load_dataset_omnisense(key):
+    """Load a dataset's Omnisense sensors, with per-sensor reliability cutoffs
+    applied while timestamps are still naive site-local values."""
+    cfg = DATASETS[key]
+    om = cfg.get("omnisense")
+    path = find_omnisense_csv(key)
+    if not om or path is None:
+        return pd.DataFrame()
+    print(f"  Loading Omnisense CSV: {path.name}")
+    os_df = load_omnisense_csv(path, sensor_filter=om["sensors"])
+    if os_df.empty:
+        return os_df
+    # House 5's Weather Station T&RH (320E02D1) only became reliable partway
+    # through. Omnisense timestamps are naive site-local, so compare naively.
+    cutoff = pd.Timestamp("2026-02-17 12:00:00")
+    os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
+    print(f"  Omnisense: {len(os_df):,} records")
+    return os_df
+
+
+def apply_date_filters(key, df):
+    """Drop data outside each logger's configured [from, before) window."""
+    tz = dataset_tz(key)
+    for logger_id, filt in DATASETS[key].get("logger_date_filters", {}).items():
+        if "before" in filt:
+            cutoff = pd.Timestamp(filt["before"]).tz_localize(tz)
+            df = df[~((df["logger_id"] == logger_id) & (df.index >= cutoff))]
+        if "from" in filt:
+            cutoff = pd.Timestamp(filt["from"]).tz_localize(tz)
+            df = df[~((df["logger_id"] == logger_id) & (df.index < cutoff))]
+    return df
+
+
+def add_iso_week(df):
+    iso = df.index.isocalendar()
+    df["iso_year"] = iso.year.astype(int)
+    df["iso_week"] = iso.week.astype(int)
+    return df
+
+
+def combine_datasets(key, member_dfs):
+    """Build a region dataset as the union of its member buildings.
+
+    Members share a timezone (a region never spans zones), and their logger IDs
+    are disjoint apart from the Open-Meteo series, which is genuinely the same
+    data in both — deduplicating on (logger_id, timestamp) collapses it to one
+    series covering the union of the members' date filters.
+    """
+    dfs = [d for d in member_dfs if d is not None and not d.empty]
+    if not dfs:
+        return pd.DataFrame()
+    df = pd.concat(dfs).sort_index()
+    df = df[~df.reset_index().duplicated(subset=["datetime", "logger_id"]).values]
+    return add_iso_week(df)
+
+
 def load_dataset(key):
     cfg = DATASETS[key]
-    folder = cfg["folder"]
-    skip_rows = cfg["skip_rows"]
 
-    xlsx_files = sorted(
-        p for p in folder.glob("*.xlsx") if not p.name.startswith("~$")
-    )
-    if not xlsx_files:
-        raise ValueError(f"No .xlsx files found in {folder}")
+    if cfg.get("combine"):
+        return combine_datasets(key, [load_dataset(m) for m in cfg["combine"]])
 
-    dfs = [load_logger_excel(f, skip_rows) for f in xlsx_files]
-    dfs = [d for d in dfs if not d.empty]
-    if not dfs:
-        raise ValueError(f"No valid data loaded from {folder}")
+    dfs = []
+
+    folder = cfg.get("folder")
+    if folder is not None:
+        xlsx_files = sorted(
+            p for p in folder.glob("*.xlsx") if not p.name.startswith("~$")
+        )
+        if not xlsx_files:
+            raise ValueError(f"No .xlsx files found in {folder}")
+        dfs = [load_logger_excel(f, cfg["skip_rows"]) for f in xlsx_files]
+        dfs = [d for d in dfs if not d.empty]
+        if not dfs:
+            raise ValueError(f"No valid data loaded from {folder}")
 
     # Import specific loggers from other datasets' folders
     for logger_id, source_key in cfg.get("import_loggers", {}).items():
         source_cfg = DATASETS[source_key]
-        source_folder = source_cfg["folder"]
-        source_file = source_folder / f"{logger_id}.xlsx"
+        source_file = source_cfg["folder"] / f"{logger_id}.xlsx"
         if source_file.exists():
             imported = load_logger_excel(source_file, source_cfg["skip_rows"])
             if not imported.empty:
                 dfs.append(imported)
                 print(f"  Imported logger {logger_id} from {source_key} ({len(imported):,} records)")
 
-    # Load Omnisense CSV sensors (House 5 only)
-    if key == "house5":
-        omnisense_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
-        if not omnisense_files:
-            omnisense_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
-        if omnisense_files:
-            print(f"  Loading Omnisense CSV: {omnisense_files[-1].name}")
-            os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
-            if not os_df.empty:
-                # Weather Station T&RH (320E02D1): only reliable from 2026-02-17 12:00 EAT onwards
-                # Omnisense CSV timestamps are in EAT (local time), so compare against naive EAT value
-                cutoff = pd.Timestamp("2026-02-17 12:00:00")
-                os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
-                dfs.append(os_df)
-                print(f"  Omnisense: {len(os_df):,} records")
+    os_df = load_dataset_omnisense(key)
+    if not os_df.empty:
+        dfs.append(os_df)
 
     # Load Open-Meteo external data for any dataset that uses it
     ext_sensors = set(cfg.get("external_sensors", []))
@@ -666,6 +948,9 @@ def load_dataset(key):
             dfs.append(ext_df)
             print(f"  Open-Meteo: {len(ext_df):,} records")
 
+    if not dfs:
+        raise ValueError(f"No data sources produced any rows for dataset '{key}'")
+
     df = pd.concat(dfs, ignore_index=True).sort_values("datetime")
 
     # Exclude loggers not belonging to this dataset
@@ -673,25 +958,11 @@ def load_dataset(key):
     if exclude:
         df = df[~df["logger_id"].isin(exclude)]
 
-    df["datetime"] = (
-        pd.to_datetime(df["datetime"], errors="coerce")
-        .dt.tz_localize(TIMEZONE, nonexistent="shift_forward", ambiguous="NaT")
-    )
+    df["datetime"] = localize(pd.to_datetime(df["datetime"], errors="coerce"), dataset_tz(key))
     df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
 
-    # Apply per-logger date filters (e.g. for loggers moved between sites)
-    for logger_id, filt in cfg.get("logger_date_filters", {}).items():
-        if "before" in filt:
-            cutoff = pd.Timestamp(filt["before"]).tz_localize(TIMEZONE)
-            df = df[~((df["logger_id"] == logger_id) & (df.index >= cutoff))]
-        if "from" in filt:
-            cutoff = pd.Timestamp(filt["from"]).tz_localize(TIMEZONE)
-            df = df[~((df["logger_id"] == logger_id) & (df.index < cutoff))]
-
-    iso = df.index.isocalendar()
-    df["iso_year"] = iso.year.astype(int)
-    df["iso_week"] = iso.week.astype(int)
-    return df
+    df = apply_date_filters(key, df)
+    return add_iso_week(df)
 
 
 # ── Running mean ───────────────────────────────────────────────────────────────
@@ -779,12 +1050,107 @@ GRANULARITY_MAP = {
     "1h": "1h", "2h": "2h", "3h": "3h", "6h": "6h", "12h": "12h", "1d": "1D",
 }
 
-def build_dataset_json(key, df, logger_overrides=None):
+def _dedupe(seq):
+    """Order-preserving de-duplication."""
+    seen, out = set(), []
+    for x in seq:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+
+
+def resolve_cfg(key, member_data=None):
+    """Effective config for a dataset.
+
+    Building datasets are returned as-is. A region's logger layout is taken from
+    its members' *built* metadata rather than their raw config, because a member
+    may leave its room list to be derived (Schoolteacher's House does). Every
+    member's externals come first — so the shared Open-Meteo series sits once at
+    the top — then rooms building by building, then structurals. That ordering
+    is what produces the sidebar's building blocks.
+    """
     cfg = DATASETS[key]
+    members = cfg.get("combine")
+    if not members:
+        return cfg
+    member_data = member_data or {}
+
+    # A region carries no date filters of its own: combine_datasets unions data
+    # its members have already filtered, so each logger arrives with its own
+    # building's window applied. A logger both members hold (Open-Meteo) ends up
+    # covering the union of their windows, which is what a region should show.
+    ext, rooms, structural = [], [], []
+    anomalous, name_overrides = {}, {}
+    for m in members:
+        mc = DATASETS[m]
+        meta = (member_data.get(m) or {}).get("meta")
+        if meta:
+            ext += meta["externalLoggers"]
+            rooms += meta["roomLoggers"]
+            structural += meta["structuralLoggers"]
+        else:
+            ext += mc.get("external_sensors", [])
+            rooms += mc.get("room_loggers") or []
+            structural += mc.get("structural_loggers", [])
+        anomalous.update(mc.get("anomalous_ranges", {}))
+        name_overrides.update(mc.get("logger_name_overrides", {}))
+
+    ext, rooms, structural = _dedupe(ext), _dedupe(rooms), _dedupe(structural)
+    # Sections are already in member order; keep each member's internal ordering
+    order = ext + rooms + structural
+
+    return {
+        **cfg,
+        "external_sensors": ext,
+        "room_loggers": rooms,
+        "structural_loggers": structural,
+        "sidebar_order": order,
+        "anomalous_ranges": anomalous,
+        "logger_name_overrides": name_overrides,
+    }
+
+
+def member_of(key, logger_id, member_data=None):
+    """For a region, which member building a logger belongs to.
+
+    Returns None for a logger no single member owns — Open-Meteo, which is
+    external model data rather than any building's sensor, and anything two
+    members share. Those get no building heading in the sidebar.
+    """
+    members = DATASETS[key].get("combine")
+    if not members or logger_id in OPENMETEO_IDS:
+        return None
+    member_data = member_data or {}
+    owners = []
+    for m in members:
+        meta = (member_data.get(m) or {}).get("meta")
+        if meta:
+            owned = set(meta["loggers"])
+        else:
+            owned = (set(DATASETS[m].get("external_sensors", []))
+                     | set(DATASETS[m].get("room_loggers") or [])
+                     | set(DATASETS[m].get("structural_loggers", [])))
+        if logger_id in owned:
+            owners.append(m)
+    return owners[0] if len(owners) == 1 else None
+
+
+def build_dataset_json(key, df, logger_overrides=None, member_data=None):
+    member_data = member_data or {}
+    cfg = resolve_cfg(key, member_data)
     logger_overrides = logger_overrides or {}
+    tz = dataset_tz(key)
+    season = SEASON_SCHEMES[cfg.get("season_scheme", "tz")]
 
     # Default external source for the dataset
-    default_external_logger = cfg["external_logger"]
+    default_external_logger = cfg.get("external_logger")
+    # In a region, each logger keeps the external source its own building uses
+    default_ext_for = {}
+    for m in cfg.get("combine", []):
+        m_default = DATASETS[m].get("external_logger")
+        for lid, entry in (member_data.get(m) or {}).get("series", {}).items():
+            default_ext_for[lid] = entry.get("extSource", m_default)
 
     # Fallback loggers are always the Open-Meteo set
     fallback_loggers = [l for l in cfg.get("external_sensors", []) if l in OPENMETEO_IDS]
@@ -799,7 +1165,7 @@ def build_dataset_json(key, df, logger_overrides=None):
         unique_loggers = sorted(unique_loggers, key=lambda l: order_map.get(l, 9999))
 
     # Room loggers (ordered by sidebar_order if available)
-    if cfg["room_loggers"] is not None:
+    if cfg.get("room_loggers") is not None:
         room_loggers = [l for l in cfg["room_loggers"] if l in unique_loggers]
     else:
         room_loggers = [l for l in unique_loggers if l != default_external_logger]
@@ -823,10 +1189,10 @@ def build_dataset_json(key, df, logger_overrides=None):
         if lid in unique_loggers:
             entry = {}
             if "before" in rng:
-                dt = pd.Timestamp(rng["before"]).tz_localize(TIMEZONE)
+                dt = pd.Timestamp(rng["before"]).tz_localize(tz)
                 entry["before"] = int(dt.timestamp() * 1000)
             if "after" in rng:
-                dt = pd.Timestamp(rng["after"]).tz_localize(TIMEZONE)
+                dt = pd.Timestamp(rng["after"]).tz_localize(tz)
                 entry["after"] = int(dt.timestamp() * 1000)
             if "reason" in rng:
                 entry["reason"] = rng["reason"]
@@ -868,10 +1234,9 @@ def build_dataset_json(key, df, logger_overrides=None):
     available_months = sorted({(int(y), int(m)) for y, m in zip(df.index.year, df.index.month)})
     available_weeks  = sorted({(int(y), int(w)) for y, w in zip(df["iso_year"], df["iso_week"])})
     available_days   = sorted(df.index.normalize().unique())
-    # Tanzanian seasons: 0=Kiangazi(Jan-Feb), 1=Masika(Mar-May), 2=Kiangazi(Jun-Oct), 3=Vuli(Nov-Dec)
-    _tz_season_idx = [0,0,1,1,1,2,2,2,2,2,3,3]
-    _tz_season_names = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)']
-    available_seasons = sorted({(int(y), _tz_season_idx[int(m)-1]) for y, m in zip(df.index.year, df.index.month)})
+    # Seasons follow the dataset's regional scheme (see SEASON_SCHEMES)
+    available_seasons = sorted({(int(y), season["monthIdx"][int(m) - 1])
+                                for y, m in zip(df.index.year, df.index.month)})
 
     series = {}
     for logger_id in unique_loggers:
@@ -891,7 +1256,8 @@ def build_dataset_json(key, df, logger_overrides=None):
 
         # Adaptive comfort running mean for THIS logger
         if logger_id not in ext_sensor_set:
-            source_id = logger_overrides.get(logger_id, {}).get("external_source", default_external_logger)
+            own_default = default_ext_for.get(logger_id, default_external_logger)
+            source_id = logger_overrides.get(logger_id, {}).get("external_source", own_default)
             # Ensure the source exists in data and isn't forecast
             if source_id not in unique_loggers or source_id == OPENMETEO_FORECAST_ID:
                 source_id = default_external_logger
@@ -916,8 +1282,30 @@ def build_dataset_json(key, df, logger_overrides=None):
 
         series[logger_id] = entry
 
+    # Which building each logger belongs to, for the sidebar's sub-headings in a
+    # region view. Loggers shared between buildings (Open-Meteo) get no entry.
+    logger_building = {}
+    if cfg.get("combine"):
+        for lid in unique_loggers:
+            owner = member_of(key, lid, member_data)
+            if owner and DATASETS[owner].get("building"):
+                logger_building[lid] = DATASETS[owner]["building"]
+
     return {
         "meta": {
+            "label":        cfg["label"],
+            "region":       cfg.get("region"),
+            "building":     cfg.get("building"),
+            "isCombined":   bool(cfg.get("combine")),
+            "members":      cfg.get("combine", []),
+            "loggerBuilding": logger_building,
+            "timezone":     cfg.get("timezone", "Africa/Dar_es_Salaam"),
+            "tzLabel":      cfg.get("tz_label", "EAT, UTC+03:00"),
+            "seasonScheme": cfg.get("season_scheme", "tz"),
+            "comfortModel": cfg.get("comfort_model", COMFORT_MODEL_TZ),
+            "threshold":    cfg.get("threshold", THRESHOLD_TZ),
+            "comfortTpmaRange": {"min": COMFORT_TPMA_MIN, "max": COMFORT_TPMA_MAX},
+            "heatingUnverified": cfg.get("heating_unverified", False),
             "loggers":      unique_loggers,
             "loggerNames":  logger_names,
             "loggerNamesSw": {k: LOGGER_NAMES_SW.get(k, v) for k, v in logger_names.items()},
@@ -938,7 +1326,7 @@ def build_dataset_json(key, df, logger_overrides=None):
                 for y, m in available_months
             ],
             "availableSeasons": [
-                {"label": f"{_tz_season_names[s]} {y}", "year": y, "season": s}
+                {"label": f"{season['labels'][s]} {y}", "year": y, "season": s}
                 for y, s in available_seasons
             ],
             "availableWeeks": [
@@ -979,7 +1367,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 // the user can still pinch-zoom the Plotly chart afterwards.
 (function(){var m=document.querySelector('meta[name=viewport]');if(!m)return;var c=m.content;m.content=c+',maximum-scale=1';requestAnimationFrame(function(){m.content=c;});})();
 </script>
-<title>Ecovillage Temperature &amp; Humidity</title>
+<title>ARC Temperature &amp; Humidity</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
@@ -1052,6 +1440,7 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
    comfort chart is selected rather than tucked behind a hover, because the
    method is invalid outside these conditions. */
 #comfort-applicability { margin-top: 8px; background: #fff8e6; border: 1px solid #e8c877; border-left: 3px solid #d8a520; border-radius: 4px; padding: 7px 9px; font-size: 10.5px; line-height: 1.45; color: #6a5320; }
+#comfort-heating-caveat { display: block; margin-top: 6px; padding-top: 5px; border-top: 1px dashed #d8c48a; font-weight: 600; }
 #comfort-applicability b { display: block; margin-bottom: 2px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #8a6d20; }
 #comfort-stats { background: #eef6ee; border: 1px solid #b8d4b8; border-radius: 6px; padding: 8px; }
 #comfort-overall { font-weight: 600; font-size: 12px; margin-bottom: 6px; }
@@ -1126,6 +1515,12 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 .lock-btn.locked { color: #fff; background: #888; border-color: #777; }
 .lock-indicator { color: #bbb; font-size: 10px; margin-left: 3px; }
 .sub-section-title { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.05em; margin: 6px 0 2px; }
+/* Building heading inside a section, used only in region (combined) views.
+   Sits a step below .sub-section-title so the section still reads as the
+   outer grouping. */
+.building-sub-title { font-size: 10px; font-weight: 600; color: #777; margin: 5px 0 2px; padding-left: 5px; border-left: 2px solid #ddd; }
+.building-sub-title:first-of-type { margin-top: 3px; }
+.compare-set-body .building-sub-title { font-size: 9px; }
 #room-logger-checkboxes .sub-section-title:first-of-type { margin-top: 0.1px; }
 #download-btn { padding: 4px 10px; font-size: 12px; border: none; border-radius: 4px; cursor: pointer; background: #28a745; color: white; font-weight: 500; white-space: nowrap; }
 #download-btn:hover { background: #218838; }
@@ -1136,7 +1531,37 @@ input[type=date] { font-size: 12px; padding: 3px 5px; border: 1px solid #ccc; bo
 #dl-spinner { display:none; width:16px; height:16px; border:2px solid rgba(40,167,69,0.3); border-top-color:#28a745; border-radius:50%; animation:dlspin 0.7s linear infinite; flex-shrink:0; }
 @keyframes dlspin { to { transform:rotate(360deg); } }
 hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
-#dataset-select { font-weight: 600; font-size: 13px; padding: 3px 7px; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
+/* Styled select menus (building selector, chart type). Chrome ignores nearly all
+   styling on <option> — it cannot show a region heading that is also selectable,
+   nor an italic red entry — so these menus are drawn by hand. The real <select>
+   stays in the DOM, hidden, as the source of truth: its change event, its value
+   and the data-i18n translation pass all keep working untouched. Without JS the
+   native selects render normally, since the class that hides them is added by JS. */
+.ds-picker { position: relative; display: inline-block; flex-shrink: 0; }
+.ds-picker-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ds-picker-btn { display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: 12px; padding: 3px 6px 3px 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer; }
+.ds-picker-btn:hover { background: #f7f7f7; }
+.ds-picker-btn[aria-expanded="true"] { border-color: #4a90d9; }
+/* The building selector is the primary control on the bar, so it sits heavier */
+#dataset-select-picker .ds-picker-btn { font-weight: 600; font-size: 13px; border-color: #aaa; background: #f5f5f5; color: #222; padding: 3px 7px 3px 9px; }
+#dataset-select-picker .ds-picker-btn:hover { background: #ededed; }
+#dataset-select-picker .ds-picker-btn[aria-expanded="true"] { background: #fff; border-color: #4a90d9; }
+.ds-picker-caret { font-size: 9px; color: #888; margin-left: auto; }
+.ds-picker-menu { position: absolute; top: calc(100% + 3px); left: 0; min-width: 100%; white-space: nowrap; background: #fff; border: 1px solid #bbb; border-radius: 5px; box-shadow: 0 4px 14px rgba(0,0,0,0.14); padding: 3px; z-index: 400; display: none; }
+.ds-picker-menu.open { display: block; }
+.ds-opt { display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer; border-radius: 3px; color: #333; font-size: 12px; padding: 4px 10px; font-family: inherit; }
+.ds-opt:hover, .ds-opt:focus { background: #eef4fb; color: #1f77b4; outline: none; }
+/* Region rows: styled as a heading, but selectable in their own right */
+.ds-opt-region { font-size: 10px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; padding-top: 6px; border-top: 1px solid #eee; }
+.ds-picker-menu > .ds-opt-region:first-child { margin-top: 0; padding-top: 4px; border-top: 0; }
+.ds-opt-child { padding-left: 22px; }
+.ds-opt-selected { background: #e8f0f9; color: #1f77b4; }
+.ds-opt-child.ds-opt-selected, .ds-opt-region.ds-opt-selected { font-weight: 600; }
+/* Accented entries (Beta Features) — red and italic, in the menu and on the button */
+.ds-opt-accent { color: #c0392b; font-style: italic; }
+.ds-opt-accent:hover, .ds-opt-accent:focus { background: #fdecea; color: #c0392b; }
+.ds-opt-accent.ds-opt-selected { background: #fdecea; color: #c0392b; }
+.ds-picker-btn-accent { color: #c0392b; font-style: italic; }
 #sidebar-toggle { display: none; background: none; border: 1px solid #ccc; border-radius: 4px; padding: 4px 7px; cursor: pointer; font-size: 16px; line-height: 1; color: #555; flex-shrink: 0; }
 #sidebar-toggle:hover { background: #f0f0f0; }
 #lang-wrap { position: relative; flex-shrink: 0; }
@@ -1181,7 +1606,10 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
 <div id="header">
   <button id="sidebar-toggle" aria-label="Toggle controls">☰</button>
   <a href="https://actionresearchprojects.net"><img id="logo" src="logo/logotrim.png" alt="ARC logo"></a>
-  <h1 data-i18n="title">ARC Tanzania - Temperature &amp; Humidity Graphs</h1>
+  <h1 data-i18n="title">ARC - Temperature &amp; Humidity Graphs</h1>
+  <!-- Explainer path follows the SITE, not this repo. It stays on the old
+       slug until explainers/arc-tz-temp-humid is renamed on the main site;
+       switching it early would ship a 404. See OUTSTANDING.md section 1. -->
   <a href="https://actionresearchprojects.net/explainers/arc-tz-temp-humid" target="_blank" class="info-i" id="about-info-icon" title="About this dashboard" style="text-decoration:none;margin-left:auto;">i</a>
   <div id="lang-wrap">
     <button id="lang-btn" onclick="document.getElementById('lang-menu').classList.toggle('open')" title="Language"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
@@ -1279,7 +1707,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
       <hr class="divider">
       <div class="section" id="line-options-section">
         <div class="section-title" data-i18n="options">Options</div>
-        <label class="cb-label"><input type="checkbox" id="cb-threshold" checked> 32–35°C Threshold</label>
+        <label class="cb-label" id="cb-threshold-label"><input type="checkbox" id="cb-threshold" checked> <span id="cb-threshold-text">32–35°C Threshold</span></label>
         <label class="cb-label"><input type="checkbox" id="cb-seasons" checked> Season Lines</label>
       </div>
       <hr class="divider" id="line-options-divider">
@@ -1345,6 +1773,7 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
         <div id="comfort-applicability">
           <b data-i18n="comfortApplicabilityLabel">Applicability</b>
           <span data-i18n="comfortApplicability">Method is applicable only for occupant-controlled naturally conditioned spaces that meet all of the following criteria: (a) There is no mechanical cooling system installed. No heating system is in operation; (b) Metabolic rates ranging from 1.0 to 1.5 met; and (c) Occupants are free to adapt their clothing to the indoor and/or outdoor thermal conditions within a range at least as wide as 0.5-1.0 clo.</span>
+          <span id="comfort-heating-caveat" data-i18n="comfortHeatingNote" style="display:none"></span>
         </div>
       </div>
       <hr class="divider">
@@ -1382,16 +1811,20 @@ hr.divider { border: none; border-top: 1px solid #eee; margin: 2px 0; }
     <div id="time-bar">
       <div id="time-bar-top">
         <div id="time-bar-left">
-          <select id="dataset-select">
-            <option value="house5" data-i18n="house5">House 5</option>
-            <option value="schoolteacher" data-i18n="schoolteacher">Schoolteacher's House</option>
+          <select id="dataset-select" title="Building or region to show">
+            <option value="arc_tz" data-i18n="arc_tz" data-opt-group="1">ARC Tanzania</option>
+            <option value="house5" data-i18n="house5" data-i18n-indent="1">&nbsp;&nbsp;&nbsp;House 5</option>
+            <option value="schoolteacher" data-i18n="schoolteacher" data-i18n-indent="1">&nbsp;&nbsp;&nbsp;Schoolteacher's House</option>
+            <option value="arc_uk" data-i18n="arc_uk" data-opt-group="1">ARC UK</option>
+            <option value="grove" data-i18n="grove" data-i18n-indent="1">&nbsp;&nbsp;&nbsp;Grove Cottage</option>
+            <option value="holywell" data-i18n="holywell" data-i18n-indent="1">&nbsp;&nbsp;&nbsp;Holywell Barn</option>
           </select>
           <select id="chart-type">
             <option value="line" data-i18n="lineGraph">Line Graph</option>
             <option value="comfort" data-i18n="adaptiveComfort">Adaptive Comfort</option>
             <option value="histogram" data-i18n="histogram">Histogram</option>
             <option value="periodic" data-i18n="averageProfiles">Average Profiles</option>
-            <option value="beta" style="color:#c0392b" data-i18n="betaFeatures">Beta Features</option>
+            <option value="beta" style="color:#c0392b" data-opt-accent="1" data-i18n="betaFeatures">Beta Features</option>
           </select>
           <select id="beta-chart-type" style="display:none">
             <option value="beta-diff" data-i18n="betaDiff">Temperature Differential</option>
@@ -1510,7 +1943,7 @@ const state = {
   showDensity: true,
   historicMode: false,
   selectedHistoricSeries: new Set(),
-  comfortModel: 'rh_gt_60',
+  comfortModel: 'rh_gt_60',   // replaced per dataset from meta.comfortModel
   comfortPctMode: 'below_upper',
   comfortAirSpeed: '0.3',   // ASHRAE 55-2020 Table 5-13 baseline; no adjustment
   comfortShowBoth: false,   // draw nested 80%/90% pair (ASHRAE models only)
@@ -1541,7 +1974,7 @@ const state = {
 let currentLang = localStorage.getItem('arcLang') || 'en';
 const I18N = {
   en: {
-    title: 'ARC Tanzania - Temperature & Humidity Graphs',
+    title: 'ARC - Temperature & Humidity Graphs',
     periodSettings: 'Period Settings',
     histogramSettings: 'Histogram Settings',
     advancedSettings: 'Advanced Settings',
@@ -1659,6 +2092,12 @@ const I18N = {
     // Dataset labels
     house5: 'House 5',
     schoolteacher: "Schoolteacher's House",
+    grove: 'Grove Cottage',
+    holywell: 'Holywell Barn',
+    arc_tz: 'ARC Tanzania',
+    arc_uk: 'ARC UK',
+    regionTz: 'ARC Tanzania',
+    regionUk: 'ARC UK',
     // Section sub-headers
     sectionExternal: 'External',
     sectionRoom: 'Room',
@@ -1680,6 +2119,7 @@ const I18N = {
     weekOfYear: 'Week of Year',
     dayOfYear: 'Day of Year',
     tanzanianSeason: 'Tanzanian Season',
+    seasonGeneric: 'Season',
     tempAxis: 'Temperature (\u00b0C)',
     humidAxis: 'Humidity (%RH)',
     tempHumidAxis: 'Temperature (\u00b0C) / Humidity (%RH)',
@@ -1732,6 +2172,11 @@ const I18N = {
     comfortModelAshrae80: 'ASHRAE 55 — 80% acceptability',
     comfortModelAshrae90: 'ASHRAE 55 — 90% acceptability',
     comfortModelNone: 'No comfort band',
+    thresholdWord: 'Threshold',
+    comfortNoneInRange: "No readings fall inside ASHRAE 55's validated range",
+    comfortOutsideRangeNote: '% of points (grey) fall outside the validated {min}\u2013{max}\u00b0C running mean and are excluded from the statistics.',
+    comfortHeatingNote: 'ASHRAE 55 also requires that no heating is in operation. Heating status is not recorded at this site, so that criterion cannot be verified \u2014 readings taken while heating was on cannot be identified.',
+    comfortHeatingNoteShort: "ASHRAE 55's \u2018no heating in operation\u2019 criterion cannot be verified at this site.",
     showBothBands: 'Show both 80% and 90% bands',
     airSpeedLabel: 'Air speed',
     airSpeedGateLabel: 'Air speed allowance applies above 25°C',
@@ -1772,7 +2217,7 @@ const I18N = {
     phaseENSO: 'Phase (Niño/Niña/Neutral)',
   },
   sw: {
-    title: 'ARC Tanzania - Grafu za Joto na Unyevunyevu',
+    title: 'ARC - Grafu za Joto na Unyevunyevu',
     periodSettings: 'Mipangilio ya Kipindi',
     histogramSettings: 'Mipangilio ya Histogramu',
     advancedSettings: 'Mipangilio ya Juu',
@@ -1886,6 +2331,12 @@ const I18N = {
     aboveLower: 'Juu ya mpaka wa chini',
     house5: 'Nyumba 5',
     schoolteacher: 'Nyumba ya Mwalimu',
+    grove: 'Grove Cottage',
+    holywell: 'Holywell Barn',
+    arc_tz: 'ARC Tanzania',
+    arc_uk: 'ARC UK',
+    regionTz: 'ARC Tanzania',
+    regionUk: 'ARC UK',
     sectionExternal: 'Nje',
     sectionRoom: 'Chumba',
     sectionStructural: 'Muundo',
@@ -1904,6 +2355,7 @@ const I18N = {
     weekOfYear: 'Wiki ya Mwaka',
     dayOfYear: 'Siku ya Mwaka',
     tanzanianSeason: 'Msimu wa Tanzania',
+    seasonGeneric: 'Msimu',
     tempAxis: 'Joto (\u00b0C)',
     humidAxis: 'Unyevunyevu (%RH)',
     tempHumidAxis: 'Joto (\u00b0C) / Unyevunyevu (%RH)',
@@ -1950,6 +2402,11 @@ const I18N = {
     comfortModelAshrae80: 'ASHRAE 55 — ukubalifu 80%',
     comfortModelAshrae90: 'ASHRAE 55 — ukubalifu 90%',
     comfortModelNone: 'Bila bendi ya starehe',
+    thresholdWord: 'Kiwango',
+    comfortNoneInRange: 'Hakuna visomo ndani ya kiwango kilichothibitishwa cha ASHRAE 55',
+    comfortOutsideRangeNote: '% ya alama (kijivu) ziko nje ya wastani ulioidhinishwa wa {min}\u2013{max}\u00b0C na hazihesabiwi katika takwimu.',
+    comfortHeatingNote: 'ASHRAE 55 pia inahitaji kuwa hakuna joto linalotumika. Hali ya joto haijarekodiwa katika jengo hili, hivyo kigezo hicho hakiwezi kuthibitishwa.',
+    comfortHeatingNoteShort: 'Kigezo cha ASHRAE 55 cha \u2018hakuna joto linalotumika\u2019 hakiwezi kuthibitishwa hapa.',
     showBothBands: 'Onyesha bendi zote mbili za 80% na 90%',
     airSpeedLabel: 'Kasi ya hewa',
     airSpeedGateLabel: 'Ruhusa ya kasi ya hewa inatumika zaidi ya 25°C',
@@ -2005,10 +2462,13 @@ function setLanguage(lang) {
   applyLanguage();
 }
 
+// Indent marking a building as belonging to the region above it in the selector.
+const DS_INDENT = '\u00a0\u00a0\u00a0';
+
 function applyLanguage() {
   // All elements with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
+    el.textContent = (el.dataset.i18nIndent ? DS_INDENT : '') + t(el.dataset.i18n);
   });
   // Translate beta chart type dropdown
   document.querySelectorAll('#beta-chart-type [data-i18n]').forEach(el => {
@@ -2018,7 +2478,7 @@ function applyLanguage() {
   // Checkbox labels: text node after checkbox input
   const cbMap = {
     'cb-temperature': 'temperature', 'cb-humidity': 'humidity',
-    'cb-threshold': 'threshold', 'cb-seasons': 'seasonLines',
+    'cb-seasons': 'seasonLines',
     'cb-exclude-anomalous': 'excludeAnomalous',
   };
   for (const [id, key] of Object.entries(cbMap)) {
@@ -2185,18 +2645,148 @@ function applyLanguage() {
     else if (txt === 'single' || txt === 'moja') el.textContent = t('singleToggle');
   });
 
+  if (typeof refreshPickers === 'function') refreshPickers();
+  if (typeof syncThresholdControl === 'function') syncThresholdControl();
+
   // Re-render chart with translated labels
   if (typeof updatePlot === 'function') {
     try { updatePlot(); } catch(e) {}
   }
 }
 
+// ── Styled select menus ───────────────────────────────────────────────────────
+// Draws a <select> as a bespoke menu (see the CSS note above for why). The
+// select itself remains the source of truth; picking a row writes its value and
+// fires a real change event, so every existing listener keeps working.
+const PICKERS = [];
+
+function pickerOptionText(opt) {
+  // The indent belongs to the native select's own rendering; this menu shows
+  // hierarchy through styling instead.
+  return opt ? opt.text.replace(/^[\u00a0\s]+/, '') : '';
+}
+
+function renderPicker(p) {
+  const sel = p.sel;
+  const current = sel.options[sel.selectedIndex];
+  p.label.textContent = pickerOptionText(current);
+  p.btn.classList.toggle('ds-picker-btn-accent', !!(current && current.dataset.optAccent));
+  p.menu.innerHTML = '';
+  for (const opt of sel.options) {
+    const isSel = opt.value === sel.value;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'ds-opt'
+      + (opt.dataset.optGroup ? ' ds-opt-region' : '')
+      + (opt.dataset.i18nIndent ? ' ds-opt-child' : '')
+      + (opt.dataset.optAccent ? ' ds-opt-accent' : '')
+      + (isSel ? ' ds-opt-selected' : '');
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', isSel ? 'true' : 'false');
+    b.textContent = pickerOptionText(opt);
+    b.addEventListener('click', () => {
+      closePickers(p);
+      if (opt.value !== sel.value) {
+        sel.value = opt.value;
+        sel.dispatchEvent(new Event('change', {bubbles: true}));
+      }
+      renderPicker(p);
+    });
+    p.menu.appendChild(b);
+  }
+}
+
+function refreshPickers() { PICKERS.forEach(renderPicker); }
+
+function closePickers(refocus) {
+  for (const p of PICKERS) {
+    if (!p.menu.classList.contains('open')) continue;
+    p.menu.classList.remove('open');
+    p.btn.setAttribute('aria-expanded', 'false');
+    if (refocus === p) p.btn.focus();
+  }
+}
+
+// Show or hide a whole control (the beta sub-menu is hidden until Beta Features
+// is picked). The native select is permanently hidden, so visibility belongs to
+// the wrapper.
+function setPickerVisible(selectId, visible) {
+  const wrap = document.getElementById(selectId + '-picker');
+  if (wrap) wrap.style.display = visible ? '' : 'none';
+}
+
+function initPicker(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel || sel.dataset.pickerReady) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'ds-picker';
+  wrap.id = selectId + '-picker';
+  // An inline display:none belongs to the control as a whole, not to the
+  // now-permanently-hidden select underneath it.
+  if (sel.style.display === 'none') { wrap.style.display = 'none'; sel.style.display = ''; }
+  sel.parentNode.insertBefore(wrap, sel);
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ds-picker-btn';
+  btn.id = selectId + '-picker-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  if (sel.title) btn.title = sel.title;
+  const label = document.createElement('span');
+  label.className = 'ds-picker-label';
+  const caret = document.createElement('span');
+  caret.className = 'ds-picker-caret';
+  caret.innerHTML = '&#9662;';
+  btn.append(label, caret);
+
+  const menu = document.createElement('div');
+  menu.className = 'ds-picker-menu';
+  menu.id = selectId + '-picker-menu';
+  menu.setAttribute('role', 'listbox');
+
+  wrap.append(btn, menu);
+  sel.classList.add('ds-picker-native');
+  sel.setAttribute('tabindex', '-1');
+  sel.setAttribute('aria-hidden', 'true');
+  sel.dataset.pickerReady = '1';
+  wrap.appendChild(sel);
+
+  const p = {sel, wrap, btn, menu, label};
+  PICKERS.push(p);
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasOpen = menu.classList.contains('open');
+    closePickers();
+    if (!wasOpen) { menu.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+  });
+  menu.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const rows = [...menu.querySelectorAll('.ds-opt')];
+    const i = rows.indexOf(document.activeElement);
+    const next = (i + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length;
+    if (rows[next]) rows[next].focus();
+  });
+  // Anything that sets the value programmatically and fires change keeps the
+  // menu in step without every caller having to remember to refresh it.
+  sel.addEventListener('change', () => renderPicker(p));
+  renderPicker(p);
+}
+
+function setupPickers() {
+  ['dataset-select', 'chart-type', 'beta-chart-type'].forEach(initPicker);
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.ds-picker')) closePickers();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePickers(); });
+}
+
 function dataset() { return ALL_DATA[state.datasetKey]; }
 
 // ── Substratification (Advanced Filtering) ────────────────────────────────────
 let _substratIdCounter = 0;
-
-const TZ_SEASON_IDX_GLOBAL = [0,0,1,1,1,2,2,2,2,2,3,3];
 
 function toggleAdvancedSettings() {
   const body = document.getElementById('advanced-settings-body');
@@ -2359,9 +2949,9 @@ function substratBuildOptions(cycle, gran) {
     for (let d = 1; d <= 31; d++) html += '<option value="' + d + '">' + d + '</option>';
     defaultVal = 1; lastVal = 31;
   } else if (cycle === 'year' && gran === 'season') {
-    const sLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
-    for (let s = 0; s < 4; s++) html += '<option value="' + s + '">' + sLabels[s] + '</option>';
-    defaultVal = 0; lastVal = 3;
+    const sLabels = seasonLabels();
+    for (let s = 0; s < sLabels.length; s++) html += '<option value="' + s + '">' + sLabels[s] + '</option>';
+    defaultVal = 0; lastVal = sLabels.length - 1;
   }
   return { html, defaultVal, lastVal };
 }
@@ -2458,7 +3048,7 @@ function inCyclicRange(val, from, to, max) {
 }
 
 function passesFilter(ms, f) {
-  const d = eatDate(ms);
+  const d = localDate(ms);
   if (f.cycle === 'day') {
     const h = d.getUTCHours();
     if (f.groupBy === 'hour') return inCyclicRange(h, f.from, f.to, 24);
@@ -2468,7 +3058,7 @@ function passesFilter(ms, f) {
     }
   } else if (f.cycle === 'year') {
     if (f.groupBy === 'month') return inCyclicRange(d.getUTCMonth(), f.from, f.to, 12);
-    if (f.groupBy === 'season') return inCyclicRange(TZ_SEASON_IDX_GLOBAL[d.getUTCMonth()], f.from, f.to, 4);
+    if (f.groupBy === 'season') { const sc = seasonScheme(); return inCyclicRange(sc.monthIdx[d.getUTCMonth()], f.from, f.to, sc.labels.length); }
     if (f.groupBy === 'week') {
       const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
       const wk = Math.min(53, Math.floor((d - jan1) / (7 * 86400000)) + 1);
@@ -2638,7 +3228,20 @@ function renderCompareSets() {
         }));
       }
       loggerWrap.appendChild(secBtnRow);
+      const cmpBuildingOf = m.isCombined ? (m.loggerBuilding || {}) : null;
+      let cmpLastBuilding = null;
       for (const id of ids) {
+        if (cmpBuildingOf) {
+          const b = cmpBuildingOf[id] || null;
+          if (b && b !== cmpLastBuilding) {
+            const bEl = document.createElement('div');
+            bEl.className = 'building-sub-title';
+            bEl.dataset.i18n = b;
+            bEl.textContent = t(b);
+            loggerWrap.appendChild(bEl);
+          }
+          cmpLastBuilding = b;
+        }
         const lbl = document.createElement('label');
         lbl.className = 'cb-label';
         lbl.dataset.tooltip = loggerTooltip(id, m);
@@ -2672,6 +3275,11 @@ function renderCompareSets() {
         if (otherKey === state.datasetKey) continue;
         const otherDs = ALL_DATA[otherKey];
         const otherM = otherDs.meta;
+        // Offer individual buildings only. A region is the union of buildings
+        // already listed here, so including it would repeat every logger under
+        // a second heading — and a region's own members are already on screen.
+        if (otherM.isCombined) continue;
+        if ((m.members || []).includes(otherKey)) continue;
         const otherRoomSet = new Set(otherM.roomLoggers || []);
         const otherExtSet = new Set(otherM.externalLoggers || []);
         const otherRoomLoggers = otherM.loggers.filter(id => !otherExtSet.has(id) && otherRoomSet.has(id));
@@ -2681,7 +3289,7 @@ function renderCompareSets() {
         const crossSet = cs.selectedCrossLoggers[otherKey];
         // Divider
         const hr = document.createElement('hr'); hr.className = 'divider'; loggerWrap.appendChild(hr);
-        const otherName = otherKey === 'house5' ? t('house5') : otherKey === 'schoolteacher' ? t('schoolteacher') : otherKey;
+        const otherName = dsLabelFor(otherKey);
         const titleEl = document.createElement('div');
         titleEl.className = 'sub-section-title';
         titleEl.textContent = otherName;
@@ -2998,7 +3606,7 @@ function describeFilters(filters) {
   if (!filters || filters.length === 0) return '';
   const synLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
   const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const seasonLabels = ['Kiangazi (Jan\u2013Feb)', 'Masika (Mar\u2013May)', 'Kiangazi (Jun\u2013Oct)', 'Vuli (Nov\u2013Dec)'];
+  const sLabels = seasonLabels();
   const parts = [];
   for (const f of filters) {
     if (f.cycle === 'none') continue;
@@ -3011,7 +3619,7 @@ function describeFilters(filters) {
     } else if (f.cycle === 'year' && f.groupBy === 'month') {
       parts.push(f.from === f.to ? monthLabels[f.from] : monthLabels[f.from] + '\u2013' + monthLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'season') {
-      parts.push(f.from === f.to ? seasonLabels[f.from] : seasonLabels[f.from] + ' to ' + seasonLabels[f.to]);
+      parts.push(f.from === f.to ? sLabels[f.from] : sLabels[f.from] + ' to ' + sLabels[f.to]);
     } else if (f.cycle === 'year' && f.groupBy === 'week') {
       parts.push(f.from === f.to ? 'W' + f.from : 'W' + f.from + '\u2013W' + f.to);
     } else if (f.cycle === 'year' && f.groupBy === 'day') {
@@ -3104,37 +3712,45 @@ async function loadUserConfig() {
 function applyUserConfig(config) {
   if (!config) return;
   for (const [dsKey, dsCfg] of Object.entries(config)) {
-    const ds = ALL_DATA[dsKey];
-    if (!ds) continue;
-    const meta = ds.meta;
-    const overrides = dsCfg.loggers || {};
-    for (const [lid, ov] of Object.entries(overrides)) {
-      if (!meta.loggers.includes(lid)) continue;
-      if (ov.name) meta.loggerNames[lid] = ov.name;
-      if (ov.section) {
-        meta.roomLoggers = (meta.roomLoggers || []).filter(id => id !== lid);
-        meta.structuralLoggers = (meta.structuralLoggers || []).filter(id => id !== lid);
-        meta.externalLoggers = (meta.externalLoggers || []).filter(id => id !== lid);
-        if (ov.section === 'room') meta.roomLoggers.push(lid);
-        else if (ov.section === 'structural') meta.structuralLoggers.push(lid);
-        else if (ov.section === 'external') meta.externalLoggers.push(lid);
-      }
-      if (typeof ov.showInComfort === 'boolean') {
-        meta.comfortLoggers = (meta.comfortLoggers || []).filter(id => id !== lid);
-        if (ov.showInComfort) meta.comfortLoggers.push(lid);
-      }
-      if (typeof ov.showInLine === 'boolean') {
-        meta.lineLoggers = (meta.lineLoggers || [...meta.loggers]).filter(id => id !== lid);
-        if (ov.showInLine) meta.lineLoggers.push(lid);
-      }
-      if (typeof ov.showInHistogram === 'boolean') {
-        meta.histogramLoggers = (meta.histogramLoggers || [...meta.loggers]).filter(id => id !== lid);
-        if (ov.showInHistogram) meta.histogramLoggers.push(lid);
-      }
-      if (typeof ov.showInPeriodic === 'boolean') {
-        meta.periodicLoggers = (meta.periodicLoggers || [...meta.loggers]).filter(id => id !== lid);
-        if (ov.showInPeriodic) meta.periodicLoggers.push(lid);
-      }
+    // config.html edits buildings, never regions, so a building's overrides
+    // also have to be applied to every region that contains it — otherwise a
+    // logger renamed on House 5 would revert to its default under ARC Tanzania.
+    const targets = [dsKey, ...Object.keys(ALL_DATA).filter(
+      k => (ALL_DATA[k].meta.members || []).includes(dsKey))];
+    for (const target of targets) applyDatasetOverrides(target, dsCfg.loggers || {});
+  }
+}
+
+function applyDatasetOverrides(dsKey, overrides) {
+  const ds = ALL_DATA[dsKey];
+  if (!ds) return;
+  const meta = ds.meta;
+  for (const [lid, ov] of Object.entries(overrides)) {
+    if (!meta.loggers.includes(lid)) continue;
+    if (ov.name) meta.loggerNames[lid] = ov.name;
+    if (ov.section) {
+      meta.roomLoggers = (meta.roomLoggers || []).filter(id => id !== lid);
+      meta.structuralLoggers = (meta.structuralLoggers || []).filter(id => id !== lid);
+      meta.externalLoggers = (meta.externalLoggers || []).filter(id => id !== lid);
+      if (ov.section === 'room') meta.roomLoggers.push(lid);
+      else if (ov.section === 'structural') meta.structuralLoggers.push(lid);
+      else if (ov.section === 'external') meta.externalLoggers.push(lid);
+    }
+    if (typeof ov.showInComfort === 'boolean') {
+      meta.comfortLoggers = (meta.comfortLoggers || []).filter(id => id !== lid);
+      if (ov.showInComfort) meta.comfortLoggers.push(lid);
+    }
+    if (typeof ov.showInLine === 'boolean') {
+      meta.lineLoggers = (meta.lineLoggers || [...meta.loggers]).filter(id => id !== lid);
+      if (ov.showInLine) meta.lineLoggers.push(lid);
+    }
+    if (typeof ov.showInHistogram === 'boolean') {
+      meta.histogramLoggers = (meta.histogramLoggers || [...meta.loggers]).filter(id => id !== lid);
+      if (ov.showInHistogram) meta.histogramLoggers.push(lid);
+    }
+    if (typeof ov.showInPeriodic === 'boolean') {
+      meta.periodicLoggers = (meta.periodicLoggers || [...meta.loggers]).filter(id => id !== lid);
+      if (ov.showInPeriodic) meta.periodicLoggers.push(lid);
     }
   }
 }
@@ -3147,7 +3763,7 @@ async function init() {
 
   // Populate data freshness notes with stale-data warnings
   const ftDiv = document.getElementById('fetch-time-notes');
-  if (ftDiv && (FETCH_TIMES.openmeteo || FETCH_TIMES.omnisense || FETCH_TIMES.cycles)) {
+  if (ftDiv && (FETCH_TIMES.openmeteo || FETCH_TIMES.omnisense || FETCH_TIMES.omnisense_uk || FETCH_TIMES.cycles)) {
     const DAY_MS = 86400000;
     const df = DATA_FRESHNESS;
     function staleCheck(fetchMs, lastMs, toleranceDays) {
@@ -3155,7 +3771,7 @@ async function init() {
       if (!fetchMs || !lastMs) return null;
       const expectedMs = fetchMs - toleranceDays * DAY_MS;
       if (lastMs < expectedMs) {
-        const lastDate = toEATString(lastMs).split(',')[0].trim();
+        const lastDate = toLocalString(lastMs).split(',')[0].trim();
         return `Data only extends to ${lastDate} — expected up to day before last update`;
       }
       return null;
@@ -3185,8 +3801,8 @@ async function init() {
     }
     function formatDataDate(ms) {
       if (!ms) return null;
-      // Timestamps are UTC ms; display in EAT (UTC+3)
-      const d = new Date(ms + 3 * 3600000);
+      // Timestamps are UTC ms; display in the active dataset's site-local time
+      const d = localDate(ms);
       const day = d.getUTCDate();
       const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       const suffix = (day === 1 || day === 21 || day === 31) ? 'st' : (day === 2 || day === 22) ? 'nd' : (day === 3 || day === 23) ? 'rd' : 'th';
@@ -3210,7 +3826,12 @@ async function init() {
       const warn = staleCheck(df.omnisense_fetch_ms, df.omnisense_last_ms, 2) || fetchAgeWarn(df.omnisense_fetch_ms);
       const warnHtml = warn ? ` <span class="stale-warn" title="${warn}">&#9888;</span>` : '';
       const dataDate = formatDataDate(df.omnisense_last_ms);
-      lines.push(`Omnisense last updated: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
+      lines.push(`Omnisense (Tanzania) last updated: ${dataDate || FETCH_TIMES.omnisense}${warnHtml}`);
+    }
+    if (FETCH_TIMES.omnisense_uk) {
+      // Added by hand, so no staleness warning — it would never stop firing.
+      const ukDate = formatDataDate(df.omnisense_uk_last_ms);
+      lines.push(`Omnisense (UK) last updated: ${ukDate || FETCH_TIMES.omnisense_uk}`);
     }
     if (FETCH_TIMES.cycles) {
       const warn = cycleStaleCheck(df.openmeteo_fetch_ms || Date.now());
@@ -3219,6 +3840,7 @@ async function init() {
     }
     ftDiv.innerHTML = lines.join('<br>');
   }
+  setupPickers();
   setupStaticListeners();
   setupStatsSorting();
   loadDataset('house5');
@@ -3233,6 +3855,11 @@ async function init() {
 
 function loadDataset(key) {
   state.datasetKey = key;
+  // House 5 is the default, but it is no longer the selector's first option —
+  // keep the control in step with the state whichever way the change came.
+  const dsSel = document.getElementById('dataset-select');
+  if (dsSel && dsSel.value !== key) dsSel.value = key;
+  refreshPickers();
   const m = dataset().meta;
 
   // Reset selections
@@ -3368,7 +3995,25 @@ function loadDataset(key) {
     }
     if (extraBtns) extraBtns.forEach(b => btnRow.appendChild(b));
     container.appendChild(btnRow);
-    ids.forEach(id => addCheckbox(container, stateSet, id, extraLabelFn ? extraLabelFn(id) : '', skipWb));
+    // In a region view, loggers of the same name exist in more than one
+    // building, so each building's block gets a heading. Loggers shared between
+    // buildings (Open-Meteo) carry no building and stay unheaded at the top.
+    const buildingOf = m.isCombined ? (m.loggerBuilding || {}) : null;
+    let lastBuilding = null;
+    ids.forEach(id => {
+      if (buildingOf) {
+        const b = buildingOf[id] || null;
+        if (b && b !== lastBuilding) {
+          const bEl = document.createElement('div');
+          bEl.className = 'building-sub-title';
+          bEl.dataset.i18n = b;
+          bEl.textContent = t(b);
+          container.appendChild(bEl);
+        }
+        lastBuilding = b;
+      }
+      addCheckbox(container, stateSet, id, extraLabelFn ? extraLabelFn(id) : '', skipWb);
+    });
   }
   function mkSourceBtns(container, stateSet, ids) {
     const hasTT = ids.some(id => m.loggerSources[id] === 'TinyTag');
@@ -3444,6 +4089,8 @@ function loadDataset(key) {
 
   // Show historic section if data available
   document.getElementById('historic-section').style.display = HISTORIC ? '' : 'none';
+
+  applyRegionDefaults();
 
   // Rebuild time dropdowns
   const ysel = document.getElementById('year-select');
@@ -3598,8 +4245,8 @@ function resetLineDefaults() {
       cb.checked = true;
     });
   } else {
-    state.showThreshold = true;
-    document.getElementById('cb-threshold').checked = true;
+    state.showThreshold = !!thresholdBand();
+    document.getElementById('cb-threshold').checked = state.showThreshold;
     state.showSeasonLines = true;
     document.getElementById('cb-seasons').checked = true;
     document.getElementById('line-options-section').style.display = '';
@@ -3661,6 +4308,46 @@ function resetLineDefaults() {
   updatePlot();
 }
 
+// The overheating threshold is regional, so the control shows the region's own
+// numbers and disappears entirely where no threshold is defined — a checkbox
+// offering "32-35 C" against UK data would be worse than no checkbox at all.
+// Settings whose correct default depends on the region: the comfort band and
+// the overheating threshold. These must be applied on every dataset change, not
+// only when "Reset to default" is pressed — resetComfortDefaults() is wired to
+// that button alone and does not run on a dataset switch.
+function applyRegionDefaults() {
+  // Vellei humidity model for Tanzania, ASHRAE 55 80% for the UK
+  const defaultModel = (dataset().meta.comfortModel) || 'rh_gt_60';
+  state.comfortModel = defaultModel;
+  const sel = document.getElementById('comfort-model');
+  if (sel) sel.value = defaultModel;
+  syncComfortShowBoth();
+  syncThresholdControl();
+  syncHeatingCaveat();
+}
+
+// ASHRAE 55 criterion (a) requires that no heating is in operation. Nothing
+// records heating status at any site, so where it cannot be ruled out the
+// requirement is flagged instead of being quietly treated as satisfied.
+function syncHeatingCaveat() {
+  const el = document.getElementById('comfort-heating-caveat');
+  if (!el) return;
+  const unverified = !!(dataset().meta && dataset().meta.heatingUnverified);
+  el.style.display = unverified ? '' : 'none';
+  if (unverified) el.textContent = t('comfortHeatingNote');
+}
+
+function syncThresholdControl() {
+  const band = thresholdBand();
+  const wrap = document.getElementById('cb-threshold-label');
+  const text = document.getElementById('cb-threshold-text');
+  const cb = document.getElementById('cb-threshold');
+  if (!wrap || !text || !cb) return;
+  wrap.style.display = band ? '' : 'none';
+  if (band) text.textContent = thresholdLabel();
+  else { cb.checked = false; state.showThreshold = false; }
+}
+
 function resetComfortDefaults() {
   const m = dataset().meta;
   state.selectedRoomLoggers.clear();
@@ -3668,8 +4355,7 @@ function resetComfortDefaults() {
   document.getElementById('room-logger-checkboxes').querySelectorAll('input[data-logger-id]').forEach(cb => {
     cb.checked = state.selectedRoomLoggers.has(cb.dataset.loggerId);
   });
-  state.comfortModel = 'rh_gt_60';
-  document.getElementById('comfort-model').value = 'rh_gt_60';
+  applyRegionDefaults();
   state.comfortPctMode = 'below_upper';
   document.getElementById('comfort-pct-mode').value = 'below_upper';
   state.comfortAirSpeed = '0.3';
@@ -4075,14 +4761,15 @@ function setupStaticListeners() {
     const betaSel = document.getElementById('beta-chart-type');
     const mainSel = document.getElementById('chart-type');
     if (newType.startsWith('beta-') || newType === 'beta') {
-      betaSel.style.display = '';
+      setPickerVisible('beta-chart-type', true);
       mainSel.value = 'beta';
-      mainSel.style.color = '#c0392b';
       if (newType === 'beta') { state.chartType = betaSel.value; }
     } else {
-      betaSel.style.display = 'none';
-      mainSel.style.color = '';
+      setPickerVisible('beta-chart-type', false);
     }
+    // mainSel.value may have been set programmatically just now, which fires no
+    // change event, so the menus are refreshed explicitly.
+    refreshPickers();
     const isLine = state.chartType === 'line';
     const isHistogram = state.chartType === 'histogram';
     const isComfort = state.chartType === 'comfort';
@@ -4213,7 +4900,7 @@ function setupStaticListeners() {
       // Show options but hide season lines checkbox (not applicable to histogram)
       document.getElementById('line-options-section').style.display = '';
       document.getElementById('line-options-divider').style.display = '';
-      document.getElementById('cb-threshold').parentElement.style.display = '';
+      document.getElementById('cb-threshold').parentElement.style.display = thresholdBand() ? '' : 'none';
       document.getElementById('cb-seasons').parentElement.style.display = 'none';
       if (HISTORIC) document.getElementById('historic-section').style.display = '';
       if (state.historicMode) {
@@ -4225,7 +4912,7 @@ function setupStaticListeners() {
         document.getElementById('historic-series-checkboxes').style.display = '';
       }
     } else if (isLine) {
-      document.getElementById('cb-threshold').parentElement.style.display = '';
+      document.getElementById('cb-threshold').parentElement.style.display = thresholdBand() ? '' : 'none';
       document.getElementById('cb-seasons').parentElement.style.display = '';
       document.getElementById('line-options-section').style.display = '';
       document.getElementById('line-options-divider').style.display = '';
@@ -4581,8 +5268,7 @@ function downloadChartPng() {
     // as CSV — which is more use for a table of numbers than a picture of one.
     if (state.chartType === 'beta-stats') { downloadStatsCsv(); return; }
 
-    const dsSel = document.getElementById('dataset-select');
-    const ds = dsSel.options[dsSel.selectedIndex].text;
+    const ds = dsLabel();
     const chart = state.chartType === 'line' ? 'Line' : state.chartType === 'histogram' ? 'Histogram' : state.chartType === 'periodic' ? 'PeriodicAvg' : 'AdaptiveComfort';
     const rangeStr = exportRangeStr();
     const m = dataset().meta;
@@ -4897,7 +5583,8 @@ function getTimeRange() {
     case 'season': {
       if (!state.selectedSeason) return {start: min, end: max};
       const {year: y, season: si} = state.selectedSeason;
-      const sm = [[0,1],[2,4],[5,9],[10,11]][si];
+      const sm = seasonScheme().months[si];
+      if (!sm) return {start: min, end: max};
       return {start: Date.UTC(y, sm[0], 1), end: Date.UTC(y, sm[1]+1, 0, 23, 59, 59, 999)};
     }
     case 'month': {
@@ -4976,24 +5663,19 @@ function buildGapArrays(timestamps, values) {
   const x = [], y = [];
   for (let i = 0; i < timestamps.length; i++) {
     if (i > 0 && timestamps[i] - timestamps[i-1] > GAP_MS) { x.push(null); y.push(null); }
-    x.push(toEATString(timestamps[i])); y.push(values[i]);
+    x.push(toLocalString(timestamps[i])); y.push(values[i]);
   }
   return {x, y};
 }
 
 // ── Season lines ──────────────────────────────────────────────────────────────
-const SEASONS = [
-  {month:6,  day:1, name:'June Dry Season (Kiangazi)'},
-  {month:11, day:1, name:'Short Rains (Vuli)'},
-  {month:1,  day:1, name:'January Dry Season (Kiangazi)'},
-  {month:3,  day:1, name:'Long Rains (Masika)'},
-];
 function getSeasonBoundaries(startMs, endMs) {
   const results = [];
   const sy = new Date(startMs).getFullYear(), ey = new Date(endMs).getFullYear();
   for (let y = sy-1; y <= ey+1; y++) {
-    for (const s of SEASONS) {
-      const ts = Date.UTC(y, s.month-1, s.day) + 3*3600000;
+    for (const s of seasonScheme().bounds) {
+      // Season boundaries are always the first of their month
+      const ts = localToMs(y, s.month - 1, 1);
       if (ts >= startMs && ts <= endMs) results.push({ts, name: s.name});
     }
   }
@@ -5030,6 +5712,74 @@ const AIR_SPEED_DT = {'0.3': 0, '0.6': 1.2, '0.9': 1.8, '1.2': 2.2};
 // Section 5.4.2.4 gates the air speed allowance on operative temperature above
 // this threshold, which is what produces the step in the upper boundary.
 const AIR_SPEED_GATE_C = 25;
+
+// Overheating threshold band for the current region, or null where none is
+// defined. 32-35 C is a Mkuranga heat-stress range and means nothing elsewhere.
+function thresholdBand() {
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  return (d && d.meta && d.meta.threshold) || null;
+}
+function thresholdLabel() {
+  const b = thresholdBand();
+  return b ? `${b.low}\u2013${b.high}\u00b0C ${t('thresholdWord')}` : t('thresholdWord');
+}
+
+// ASHRAE 55-2020 Section 5.4.1(d) validates the adaptive method only between
+// these prevailing-mean-outdoor-temperature limits. Mkuranga sits inside them
+// year-round; a UK winter does not. Points outside are drawn greyed rather than
+// dropped: the readings are real and worth seeing, they just are not something
+// the standard's band can be used to judge.
+// Says plainly how much of what is drawn the standard does not actually cover.
+// The temperature limit can be checked against the data; the "no heating in
+// operation" criterion cannot, since nothing here records whether the heating
+// was on, so it is stated rather than tested.
+// The caveats on the chart's applicability, in the order they matter.
+//
+// The temperature limit is testable against the data, so it is reported only
+// when it actually bites. The "no heating in operation" criterion is not
+// testable at all -- nothing records whether the heating was on -- so where it
+// cannot be verified it is shown permanently. An unverifiable criterion that is
+// silently passed over reads as one that was met.
+function comfortCaveatLines(outCount, inCount) {
+  const lines = [];
+  if (outCount) {
+    const total = outCount + inCount;
+    const r = comfortTpmaRange();
+    const pct = total ? (outCount / total * 100) : 0;
+    lines.push(`\u26a0 ${pct.toFixed(0)}${t('comfortOutsideRangeNote')
+      .replace('{min}', r.min).replace('{max}', r.max)}`);
+  }
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  // The chart carries a terse flag; the sidebar's applicability panel and the
+  // method tooltips carry the full wording, so it is not abbreviated anywhere
+  // a reader would otherwise miss the detail.
+  if (d && d.meta && d.meta.heatingUnverified) lines.push('\u26a0 ' + t('comfortHeatingNoteShort'));
+  return lines;
+}
+
+function comfortApplicabilityAnnotation(lines) {
+  if (!lines.length) return [];
+  const chartEl = document.getElementById('chart');
+  const avail = chartEl ? Math.max(220, chartEl.clientWidth - 90) : 700;
+  return [{
+    xref: 'paper', yref: 'paper', x: 0, y: 1.02, xanchor: 'left', yanchor: 'bottom',
+    showarrow: false, align: 'left', font: {size: 10, color: '#b06c00'},
+    // A fixed width makes Plotly wrap; without it a long line is clipped at the
+    // plot edge rather than flowing onto a second line.
+    width: avail,
+    text: lines.join('<br>'),
+  }];
+}
+
+function comfortTpmaRange() {
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  return (d && d.meta && d.meta.comfortTpmaRange) || {min: 10, max: 33.5};
+}
+function tpmaInRange(ext) {
+  const r = comfortTpmaRange();
+  return ext >= r.min && ext <= r.max;
+}
+const COMFORT_OUT_OF_RANGE_COLOR = '#bbb';
 
 function getComfortParams() {
   return COMFORT_MODELS[state.comfortModel] || null;
@@ -5114,12 +5864,125 @@ function omniSuffix(source) {
 function meteoSuffix(id) {
   return isOpenMeteo(id) ? '<span style="color:#aaa"> (Open-Meteo)</span>' : '';
 }
-function dsLabel() { const s = document.getElementById('dataset-select'); return s.options[s.selectedIndex].text; }
-// Converts a UTC epoch ms value to an EAT local time string (YYYY-MM-DD HH:MM:SS).
-// Plotly treats bare date strings as calendar-absolute (no browser-timezone conversion),
-// so this ensures timestamps always display in EAT regardless of the viewer's browser timezone.
-function toEATString(ms) {
-  return new Date(ms + 3 * 3600 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+function dsLabel() {
+  const s = document.getElementById('dataset-select');
+  const opt = s.options[s.selectedIndex];
+  return opt ? opt.text.replace(/^[\u00a0\s]+/, '') : '';
+}
+// Display name for any dataset key, indent-free (used for the other side of a
+// cross-dataset comparison).
+function dsLabelFor(key) {
+  const d = ALL_DATA[key];
+  return (d && d.meta && (t(key) !== key ? t(key) : d.meta.label)) || key;
+}
+// ── Site-local time ───────────────────────────────────────────────────────────
+// Loggers record wall-clock time at their site, and that is what the charts must
+// show — never the viewer's browser timezone, and never a single global offset,
+// since ARC UK observes DST and ARC Tanzania does not.
+//
+// Zones without DST are answered by a constant. For the rest, the UTC offset is
+// resolved with Intl and memoised per UTC hour: DST transitions land exactly on
+// an hour boundary, so an hour bucket has one unambiguous offset, and a few
+// thousand cached buckets cover years of data.
+const TZ_FIXED_OFFSET = {'Africa/Dar_es_Salaam': 3 * 3600 * 1000};
+const _tzOffsetCache = new Map();
+const _tzFormatters = new Map();
+function _tzFormatter(tz) {
+  let f = _tzFormatters.get(tz);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-GB', {timeZone: tz, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'});
+    _tzFormatters.set(tz, f);
+  }
+  return f;
+}
+function tzOffsetMs(tz, ms) {
+  const fixed = TZ_FIXED_OFFSET[tz];
+  if (fixed !== undefined) return fixed;
+  // Intl throws on an invalid date. A single bad timestamp should degrade to a
+  // wrong offset, not stop the chart rendering.
+  if (!isFinite(ms)) return 0;
+  const bucket = Math.floor(ms / 3600000);
+  const key = tz + '|' + bucket;
+  let off = _tzOffsetCache.get(key);
+  if (off === undefined) {
+    const bucketMs = bucket * 3600000;
+    const p = {};
+    for (const part of _tzFormatter(tz).formatToParts(new Date(bucketMs))) p[part.type] = part.value;
+    off = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - bucketMs;
+    _tzOffsetCache.set(key, off);
+  }
+  return off;
+}
+// IANA zone of the dataset currently on screen.
+function dsTimezone() {
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  return (d && d.meta && d.meta.timezone) || 'Africa/Dar_es_Salaam';
+}
+// How that zone is annotated on axes, e.g. 'EAT, UTC+03:00' or 'GMT/BST'.
+function dsTzLabel() {
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  return (d && d.meta && d.meta.tzLabel) || 'EAT, UTC+03:00';
+}
+// A Date whose *UTC* fields read as site-local time. Every caller reads it with
+// getUTC*, which is what keeps the browser's own timezone out of the result.
+function localDate(ms) { return new Date(ms + tzOffsetMs(dsTimezone(), ms)); }
+// Inverse of localDate: site-local wall-clock fields → epoch ms. The first pass
+// picks an offset from the guessed instant, the second corrects it when that
+// guess fell the wrong side of a DST transition.
+function localToMs(y, mo, d, h, mi, s) {
+  const tz = dsTimezone();
+  const wall = Date.UTC(y, mo, d, h || 0, mi || 0, s || 0);
+  return wall - tzOffsetMs(tz, wall - tzOffsetMs(tz, wall));
+}
+// Converts a UTC epoch ms value to a site-local time string (YYYY-MM-DD HH:MM:SS).
+// Plotly treats bare date strings as calendar-absolute (no browser-timezone
+// conversion), so timestamps display identically for every viewer.
+function toLocalString(ms) {
+  return localDate(ms).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// ── Seasons ───────────────────────────────────────────────────────────────────
+// Seasons are regional. A scheme maps every month to a season index; a season
+// may occupy more than one block of the year (Kiangazi and UK winter both do),
+// so there may be more or fewer than four and they are not in month order.
+const SEASON_SCHEMES = {
+  tz: {
+    monthIdx: [0,0,1,1,1,2,2,2,2,2,3,3],
+    labels: ['Kiangazi (Jan–Feb)','Masika (Mar–May)','Kiangazi (Jun–Oct)','Vuli (Nov–Dec)'],
+    labelsSw: ['Kiangazi (Jan–Feb)','Masika (Mac–Mei)','Kiangazi (Jun–Okt)','Vuli (Nov–Des)'],
+    short: ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'],
+    months: [[0,1],[2,4],[5,9],[10,11]],
+    midpoints: [0.5, 3, 7, 10.5],
+    bounds: [{month:1, name:'January Dry Season (Kiangazi)'},
+             {month:3, name:'Long Rains (Masika)'},
+             {month:6, name:'June Dry Season (Kiangazi)'},
+             {month:11, name:'Short Rains (Vuli)'}],
+    boundsShort: [{month:1, name:'Kiangazi'},{month:3, name:'Masika'},
+                  {month:6, name:'Kiangazi'},{month:11, name:'Vuli'}],
+  },
+  uk: {
+    monthIdx: [0,0,1,1,1,2,2,2,3,3,3,4],
+    labels: ['Winter (Jan–Feb)','Spring (Mar–May)','Summer (Jun–Aug)','Autumn (Sep–Nov)','Winter (Dec)'],
+    labelsSw: ['Majira ya Baridi (Jan–Feb)','Majira ya Kuchipua (Mac–Mei)','Majira ya Joto (Jun–Ago)','Majira ya Vuli (Sep–Nov)','Majira ya Baridi (Des)'],
+    short: ['Winter-JanFeb','Spring-MarMay','Summer-JunAug','Autumn-SepNov','Winter-Dec'],
+    months: [[0,1],[2,4],[5,7],[8,10],[11,11]],
+    midpoints: [0.5, 3, 6, 9, 11],
+    bounds: [{month:3, name:'Spring'},{month:6, name:'Summer'},
+             {month:9, name:'Autumn'},{month:12, name:'Winter'}],
+    boundsShort: [{month:3, name:'Spring'},{month:6, name:'Summer'},
+                  {month:9, name:'Autumn'},{month:12, name:'Winter'}],
+  },
+};
+function seasonScheme() {
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  return SEASON_SCHEMES[(d && d.meta && d.meta.seasonScheme) || 'tz'];
+}
+// Season names in the active language.
+function seasonLabels() {
+  const s = seasonScheme();
+  return (currentLang === 'sw' && s.labelsSw) ? s.labelsSw : s.labels;
 }
 
 // ── Line graph ────────────────────────────────────────────────────────────────
@@ -5224,7 +6087,7 @@ function renderLineGraph() {
         const otherDs = ALL_DATA[otherKey];
         if (!otherDs) continue;
         const otherM = otherDs.meta;
-        const otherName = otherKey === 'house5' ? t('house5') : otherKey === 'schoolteacher' ? t('schoolteacher') : otherKey;
+        const otherName = dsLabelFor(otherKey);
         for (const lid of crossSet) {
           const series = otherDs.series[lid];
           if (!series) continue;
@@ -5297,20 +6160,27 @@ function renderLineGraph() {
   // Threshold and season lines span the full visible range
   const rangeMinMs = state.timeMode === 'all' ? dataMinMs : start;
   const rangeMaxMs = state.timeMode === 'all' ? dataMaxMs : end;
-  if (state.showThreshold) {
+  const thrBand = thresholdBand();
+  if (state.showThreshold && thrBand) {
     shapes.push({type:'rect', xref:'x', yref:'y',
-      x0:toEATString(rangeMinMs), x1:toEATString(rangeMaxMs), y0:32, y1:35,
+      x0:toLocalString(rangeMinMs), x1:toLocalString(rangeMaxMs), y0:thrBand.low, y1:thrBand.high,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
     traces.push({x:[null], y:[null], type:'scatter', mode:'lines',
-      name:'32–35°C Threshold', line:{color:'rgba(231,76,60,0.35)', width:8},
+      name:thresholdLabel(), line:{color:'rgba(231,76,60,0.35)', width:8},
       hoverinfo:'skip', showlegend:true});
   }
 
+  // Whether any season label is actually drawn, which is not the same as the
+  // checkbox being on: a window shorter than the gap between two boundaries
+  // contains none. The top margin is reserved for those rotated labels, so
+  // keying it off the checkbox alone left an empty strip above the plot.
+  let hasSeasonLabels = false;
   if (state.showSeasonLines) {
     const seasons = getSeasonBoundaries(rangeMinMs, rangeMaxMs);
+    hasSeasonLabels = seasons.length > 0;
     seasons.forEach(s => {
-      shapes.push({type:'line', xref:'x', yref:'paper', x0:toEATString(s.ts), x1:toEATString(s.ts), y0:0, y1:1, line:{color:'#bbb', width:1, dash:'dot'}});
-      annotations.push({x:toEATString(s.ts), xref:'x', yref:'paper', y:1.01, yanchor:'bottom', xanchor:'left', text:s.name, showarrow:false, font:{size:9, color:'#888'}, textangle:-30});
+      shapes.push({type:'line', xref:'x', yref:'paper', x0:toLocalString(s.ts), x1:toLocalString(s.ts), y0:0, y1:1, line:{color:'#bbb', width:1, dash:'dot'}});
+      annotations.push({x:toLocalString(s.ts), xref:'x', yref:'paper', y:1.01, yanchor:'bottom', xanchor:'left', text:s.name, showarrow:false, font:{size:9, color:'#888'}, textangle:-30});
     });
   }
 
@@ -5368,8 +6238,8 @@ function renderLineGraph() {
     : `${dsl} \u2013 ${chartTitle}`;
   const barTitle = plotTitle.replace(/&amp;/g, '&');
   return {traces, layout: {
-    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:state.showSeasonLines?(sm?70:85):(sm?6:10), b:sm?40:60},
-    xaxis:{title:t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range: state.timeMode === 'all' ? [toEATString(dataMinMs), toEATString(dataMaxMs)] : [toEATString(start), toEATString(end)],
+    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:hasSeasonLabels?(sm?70:85):(sm?6:10), b:sm?40:60},
+    xaxis:{title:t('dateTime') + ' <i><span style="color:#aaa">(' + dsTzLabel() + ')</span></i>', type:'date', showgrid:true, gridcolor:'#eee', range: state.timeMode === 'all' ? [toLocalString(dataMinMs), toLocalString(dataMaxMs)] : [toLocalString(start), toLocalString(end)],
       nticks:20, tickangle:-30, automargin:true},
     yaxis:{title:yTitle, ticksuffix:ySuffix, showgrid:true, gridcolor:'#eee', range: yLo !== undefined ? [yLo, yHi] : undefined},
     legend:{orientation:'v', x:1.01, y:1, xanchor:'left', ...legendStyle(state.selectedLoggers.size), itemclick:false, itemdoubleclick:false},
@@ -5388,9 +6258,9 @@ function actualDataRange(timestamps, startMs, endMs) {
   if (lo < 0 || hi < lo) return null;
   return [timestamps[lo], timestamps[hi]];
 }
-function fmtDateEAT(ms, isStart) {
-  // Shift to EAT (UTC+3) so UTC date/hour reflect local time
-  let d = new Date(ms + 3 * 3600 * 1000);
+function fmtDateLocal(ms, isStart) {
+  // Read in site-local time, so the UTC date/hour fields reflect local time
+  let d = localDate(ms);
   const hour = d.getUTCHours();
   // If a start reading falls in the last hour of the day, attribute it to the next day
   if (isStart && hour >= 23) d = new Date(d.getTime() + 24 * 3600 * 1000);
@@ -5399,7 +6269,7 @@ function fmtDateEAT(ms, isStart) {
   return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
 }
 function dateRangeAnnotation(actualStartMs, actualEndMs, atTop, extraLine) {
-  let text = `${t('dataRangesFrom')} ${fmtDateEAT(actualStartMs, true)} ${t('dataRangesTo')} ${fmtDateEAT(actualEndMs, false)}`;
+  let text = `${t('dataRangesFrom')} ${fmtDateLocal(actualStartMs, true)} ${t('dataRangesTo')} ${fmtDateLocal(actualEndMs, false)}`;
   if (extraLine) text += `<br>${extraLine}`;
   return {
     xref: 'paper', yref: 'paper',
@@ -5584,10 +6454,11 @@ function renderHistogram() {
     }
   }
 
-  // 32–35°C threshold range
+  // Overheating threshold range (per region; absent where none is defined)
   const shapes = [];
-  if (state.showThreshold && hasTemp) {
-    shapes.push({type:'rect', xref:'x', yref:'paper', x0:32, x1:35, y0:0, y1:1,
+  const histThr = thresholdBand();
+  if (state.showThreshold && hasTemp && histThr) {
+    shapes.push({type:'rect', xref:'x', yref:'paper', x0:histThr.low, x1:histThr.high, y0:0, y1:1,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
   }
 
@@ -5799,6 +6670,7 @@ function renderAdaptiveComfort() {
   const m = dataset().meta;
   const traces = [], params = getComfortParams();
   const allExtTemps = [], allTemps = [];
+  let outOfRangeCount = 0, inRangeCount = 0;
   let actualStartMs = Infinity, actualEndMs = -Infinity;
   const seenSpans = new Map();
   const perLoggerSources = {}; // loggerId → Set of source labels
@@ -5866,8 +6738,16 @@ function renderAdaptiveComfort() {
       } else {
         const lgGroup = loggerId;
         const customdata = filtered.timestamps.map(ts => extSourcesForPoint(series.extSourceSpans, ts, m));
+        // Readings the standard does not cover are greyed in place, so the gap
+        // in applicability is visible without the data going missing.
+        const ptColors = filtered.extTemp.map(ext =>
+          (ext != null && !tpmaInRange(ext)) ? COMFORT_OUT_OF_RANGE_COLOR : color);
+        for (const ext of filtered.extTemp) {
+          if (ext == null) continue;
+          tpmaInRange(ext) ? inRangeCount++ : outOfRangeCount++;
+        }
         traces.push({x:filtered.extTemp, y:filtered.temperature, type:'scatter', mode:'markers',
-          name:cName, marker:{color, size:4, opacity:0.2},
+          name:cName, marker:{color: ptColors, size:4, opacity:0.2},
           legendgroup:lgGroup, showlegend:false, meta:{loggerId}, customdata,
           hovertemplate:`${ln(loggerId)}<br>${t('runningMean')}: %{x:.1f}°C<br>${t('roomTemp')}: %{y:.1f}°C<br>${t('extSource')}: %{customdata}<br>${t('sensor')}: ${cSource}${cIdLabel}<extra></extra>`});
         traces.push({x:[null], y:[null], type:'scatter', mode:'markers',
@@ -5989,13 +6869,18 @@ function renderAdaptiveComfort() {
     _comfortLoggerSources[lid] = [...types].join(' + ');
   }
 
+  // Caveat lines sit above the plot, so the top margin has to make room for them
+  const caveatLines = comfortCaveatLines(outOfRangeCount, inRangeCount);
+  const caveatSpace = caveatLines.length * (sm ? 13 : 15);
   return {traces, layout: {
-    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:sm?15:30, b:sm?60:100},
+    autosize:true, font:{family:'Ubuntu, sans-serif'}, margin:{l:sm?45:65, r:sm?8:20, t:(sm?15:30) + caveatSpace, b:sm?60:100},
     xaxis:{title:t('runningMeanAxis'), showgrid:true, gridcolor:'#eee'},
     yaxis:{title:t('airTempAxis'), showgrid:true, gridcolor:'#eee'},
     legend:{orientation:'h', x:0.5, y:-0.22, xanchor:'center', font:{size:11}, itemclick:false, itemdoubleclick:false},
     shapes: comfortGateShapes(),
-    annotations: (isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : []).concat(comfortGateAnnotations()),
+    annotations: (isFinite(actualStartMs) ? [dateRangeAnnotation(actualStartMs, actualEndMs, false, comfortSourceLabel(extSrcText))] : [])
+      .concat(comfortGateAnnotations())
+      .concat(comfortApplicabilityAnnotation(caveatLines)),
     plot_bgcolor:'white', paper_bgcolor:'white', hovermode:'closest', hoverlabel:{font:{family:'Ubuntu, sans-serif'}},
   }, title: `${dsl} \u2013 ${t('adaptiveComfortTitle')}`, _noData: allExtTemps.length === 0};
 }
@@ -6033,8 +6918,8 @@ function hasGapsInRange(ts, startMs, endMs) {
 }
 
 function formatGapRange(startMs, endMs) {
-  let s = new Date(startMs + 3*3600000), e = new Date(endMs + 3*3600000);
-  // Mirror fmtDateEAT rounding: last reading before gap at ≥23:00 → gap starts next day;
+  let s = localDate(startMs), e = localDate(endMs);
+  // Mirror fmtDateLocal rounding: last reading before gap at ≥23:00 → gap starts next day;
   // first reading after gap at <01:00 → gap ends previous day.
   if (s.getUTCHours() >= 23) s = new Date(s.getTime() + 24*3600000);
   if (e.getUTCHours() < 1)   e = new Date(e.getTime() - 24*3600000);
@@ -6064,7 +6949,8 @@ function gapTooltipHTML(gaps, rangeStartMs, rangeEndMs) {
 function periodRangeMs(gran, info) {
   if (gran === 'year') return {s: Date.UTC(info.y, 0, 1), e: Date.UTC(info.y, 11, 31, 23, 59, 59, 999)};
   if (gran === 'season') {
-    const sm = [[0,1],[2,4],[5,9],[10,11]][info.si];
+    const sm = seasonScheme().months[info.si];
+    if (!sm) return {s: 0, e: -1};
     return {s: Date.UTC(info.y, sm[0], 1), e: Date.UTC(info.y, sm[1]+1, 0, 23, 59, 59, 999)};
   }
   if (gran === 'month') return {s: Date.UTC(info.y, info.m-1, 1), e: Date.UTC(info.y, info.m, 0, 23, 59, 59, 999)};
@@ -6096,7 +6982,7 @@ function _searchCompletePeriods(tsArrays, rangeStart, rangeEnd) {
     if (allOK(r.s, r.e)) { results.push({label: String(y), gran: 'year', y, fi: ol/(r.e-r.s) >= 0.99}); found = true; }
   }
   if (!found) {
-    const SN = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)'];
+    const SN = seasonLabels();
     for (const as of (m.availableSeasons || [])) {
       const r = periodRangeMs('season', {y: as.year, si: as.season});
       if (r.s > rangeEnd || r.e < rangeStart) continue;
@@ -6284,7 +7170,7 @@ function updateComfortStats(start, end, params) {
   statsBox.classList.remove('has-gaps');
   if (!params) { overall.textContent = 'No comfort band selected'; statsBox.style.display = ''; return; }
   const m = dataset().meta;
-  let totalIn = 0, totalAll = 0;
+  let totalIn = 0, totalAll = 0, gatedOut = 0;
   const roomStats = [];
   const gapInfoMap = {};
   for (const loggerId of (m.comfortLoggers || m.roomLoggers)) {
@@ -6303,6 +7189,10 @@ function updateComfortStats(start, end, params) {
     for (let i = 0; i < filtered.temperature.length; i++) {
       const ext = filtered.extTemp[i], temp = filtered.temperature[i];
       if (ext == null || temp == null) continue;
+      // A percentage quoted against ASHRAE 55 must only count readings the
+      // standard actually covers, or it is a compliance figure for conditions
+      // the method was never validated on.
+      if (!tpmaInRange(ext)) { gatedOut++; continue; }
       const mid = params.m*ext + params.c;
       // Air speed raises the upper limit only; the lower limit is unaffected.
       const upper = comfortUpperAt(ext, params, dt);
@@ -6320,7 +7210,19 @@ function updateComfortStats(start, end, params) {
     gapInfoMap[loggerId] = gaps;
     roomStats.push({id: loggerId, name: ln(loggerId) + meteoSuffix(loggerId) + omniSuffix(m.loggerSources[loggerId] || ''), pct, hasGap: gaps.length > 0});
   }
-  if (roomStats.length === 0) { statsBox.style.display = 'none'; return; }
+  if (roomStats.length === 0) {
+    // Readings exist but every one sits outside the standard's validated range —
+    // a UK winter, for instance. Say so, rather than letting the panel vanish
+    // as though there were simply no data.
+    if (gatedOut > 0) {
+      const r = comfortTpmaRange();
+      overall.textContent = `${t('comfortNoneInRange')} (${r.min}\u2013${r.max}\u00b0C ${t('runningMean').toLowerCase()})`;
+      statsBox.style.display = '';
+      return;
+    }
+    statsBox.style.display = 'none';
+    return;
+  }
   statsBox.style.display = '';
   const overallPct = totalAll > 0 ? (totalIn/totalAll*100).toFixed(1) : '-';
   const modeLabel = {below_upper: t('belowUpper').toLowerCase(), within: t('withinComfort').toLowerCase(), above_lower: t('aboveLower').toLowerCase()}[state.comfortPctMode || 'below_upper'];
@@ -6425,12 +7327,11 @@ function expandHorizontalLegendSpacing(root, extraGap) {
 }
 
 // ── Average Profiles ──────────────────────────────────────────────────────────
-function eatDate(ms) { return new Date(ms + 3 * 3600 * 1000); }
 
 __CYCLE_PHASES__
-// Helper: get ISO week string from ms timestamp (EAT-adjusted)
+// Helper: get ISO week string from ms timestamp (site-local)
 function getISOWeekStr(ms) {
-  const d = eatDate(ms);
+  const d = localDate(ms);
   const jan4 = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
   const dayOfYear = Math.floor((d - new Date(Date.UTC(d.getUTCFullYear(), 0, 1))) / 86400000);
   const dow = d.getUTCDay() || 7;
@@ -6569,7 +7470,7 @@ function _quantile(sorted, q) {
   return sorted[lo] + (pos - lo) * (sorted[hi] - sorted[lo]);
 }
 
-// Mean daily (max − min) swing, over EAT calendar days.
+// Mean daily (max − min) swing, over site-local calendar days.
 // Days are only counted if they are reasonably complete: a part-day cannot show
 // its full swing, and the first and last day of any selected window are almost
 // always partial, which would otherwise bias the mean downwards.
@@ -6578,7 +7479,7 @@ function _meanDiurnalSwing(timestamps, values, stepMs) {
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
     if (v == null) continue;
-    const d = eatDate(timestamps[i]);
+    const d = localDate(timestamps[i]);
     const key = d.getUTCFullYear() * 10000 + d.getUTCMonth() * 100 + d.getUTCDate();
     let e = byDay.get(key);
     if (!e) { e = {min: v, max: v, n: 1}; byDay.set(key, e); }
@@ -6763,7 +7664,7 @@ function buildStatsTable(metric, start, end) {
       const dayV = [], nightV = [];
       for (let i = 0; i < values.length; i++) {
         if (values[i] == null) continue;
-        const h = eatDate(timestamps[i]).getUTCHours();
+        const h = localDate(timestamps[i]).getUTCHours();
         (h >= 6 && h < 18 ? dayV : nightV).push(values[i]);
       }
       st.meanDay   = dayV.length   ? dayV.reduce((a, b) => a + b, 0) / dayV.length : null;
@@ -6919,7 +7820,7 @@ function exportRangeStr() {
   switch (state.timeMode) {
     case 'between': return `${fmtDate(state.betweenStart || m.dateRange.min)}_to_${fmtDate(state.betweenEnd || m.dateRange.max)}`;
     case 'year': return `${state.selectedYear}`;
-    case 'season': if (state.selectedSeason) { const sn = ['Kiangazi-JanFeb','Masika-MarMay','Kiangazi-JunOct','Vuli-NovDec'][state.selectedSeason.season]; return `${state.selectedSeason.year}-${sn}`; } return 'AllTime';
+    case 'season': if (state.selectedSeason) { const sn = seasonScheme().short[state.selectedSeason.season] || 'Season'; return `${state.selectedSeason.year}-${sn}`; } return 'AllTime';
     case 'month': if (state.selectedMonth) return `${state.selectedMonth.year}-${String(state.selectedMonth.month).padStart(2, '0')}`; return 'AllTime';
     case 'week': if (state.selectedWeek) return `${state.selectedWeek.year}-W${String(state.selectedWeek.week).padStart(2, '0')}`; return 'AllTime';
     case 'day': if (state.selectedDay) return fmtDate(state.selectedDay); return 'AllTime';
@@ -6933,10 +7834,10 @@ function exportRangeStr() {
 // this, so the two formats stay identical.
 function statsExportRows() {
   const {start, end} = getTimeRange();
-  const fmt = ms => isFinite(ms) ? toEATString(ms).replace('T', ' ').slice(0, 16) : '';
+  const fmt = ms => isFinite(ms) ? toLocalString(ms).replace('T', ' ').slice(0, 16) : '';
   const rows = [];
   rows.push([t('betaStatsTitle'), dsLabel()]);
-  rows.push(['Period', fmt(start) + ' to ' + fmt(end) + ' (EAT, UTC+03:00)']);
+  rows.push(['Period', fmt(start) + ' to ' + fmt(end) + ' (' + dsTzLabel() + ')']);
   if (state.statsSortKey) rows.push(['Sorted by', state.statsSortKey + ' ' + state.statsSortDir]);
   rows.push(['Exported', new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC']);
 
@@ -7083,7 +7984,7 @@ function renderBetaDifferential() {
       const tOutdoor = interpolateExtTemp(extFiltered.timestamps, extFiltered.temperature, tMs);
       if (tOutdoor == null) continue;
       const d = tIndoor - tOutdoor;
-      diffX.push(toEATString(tMs));
+      diffX.push(toLocalString(tMs));
       diffY.push(+d.toFixed(2));
       const bucket = Math.floor(tMs / HOUR) * HOUR;
       const b = groupBuckets[group];
@@ -7115,7 +8016,7 @@ function renderBetaDifferential() {
     const gx = [], gy = [];
     for (const k of keys) {
       const e = buckets.get(k);
-      gx.push(toEATString(k));
+      gx.push(toLocalString(k));
       gy.push(+(e.sum / e.n).toFixed(2));
     }
     const {color, label} = groupStyle[g];
@@ -7138,7 +8039,7 @@ function renderBetaDifferential() {
     layout: {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm?45:65, r: sm?8:20, t: sm?6:10, b: sm?40:60},
-      xaxis: {title: t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type: 'date', showgrid: true, gridcolor: '#eee'},
+      xaxis: {title: t('dateTime') + ' <i><span style="color:#aaa">(' + dsTzLabel() + ')</span></i>', type: 'date', showgrid: true, gridcolor: '#eee'},
       yaxis: {title: t('betaDiffAxis'), showgrid: true, gridcolor: '#eee', zeroline: true, zerolinecolor: '#999', zerolinewidth: 1},
       legend: {orientation: 'v', x: 1.01, y: 1, xanchor: 'left', itemclick: false, itemdoubleclick: false},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
@@ -7159,10 +8060,10 @@ function renderBetaDecrement() {
   const extFiltered = filterSeries(ext.series, start, end);
   if (!extFiltered) return {traces:[], layout:{autosize:true, font:{family:'Ubuntu, sans-serif'}, annotations:[{text:t('noDataRange'),xref:'paper',yref:'paper',x:0.5,y:0.5,showarrow:false,font:{size:16,color:'#999'}}], plot_bgcolor:'white',paper_bgcolor:'white'}, title: t('betaDecrementTitle'), _noData: true};
 
-  // Group external data by day (EAT)
+  // Group external data by day (site-local)
   const extByDay = {};
   for (let i = 0; i < extFiltered.timestamps.length; i++) {
-    const d = toEATString(extFiltered.timestamps[i]).slice(0, 10);
+    const d = toLocalString(extFiltered.timestamps[i]).slice(0, 10);
     if (!extByDay[d]) extByDay[d] = [];
     extByDay[d].push(extFiltered.temperature[i]);
   }
@@ -7184,7 +8085,7 @@ function renderBetaDecrement() {
     // Group indoor data by day
     const indoorByDay = {};
     for (let i = 0; i < filtered.timestamps.length; i++) {
-      const d = toEATString(filtered.timestamps[i]).slice(0, 10);
+      const d = toLocalString(filtered.timestamps[i]).slice(0, 10);
       if (!indoorByDay[d]) indoorByDay[d] = [];
       indoorByDay[d].push(filtered.temperature[i]);
     }
@@ -7255,7 +8156,7 @@ function renderBetaLag() {
   const extPeakByDay = {};
   const extByDay = {};
   for (let i = 0; i < extFiltered.timestamps.length; i++) {
-    const ds = toEATString(extFiltered.timestamps[i]);
+    const ds = toLocalString(extFiltered.timestamps[i]);
     const day = ds.slice(0, 10);
     const hour = parseInt(ds.slice(11, 13), 10) + parseInt(ds.slice(14, 16), 10) / 60;
     if (!extByDay[day]) extByDay[day] = [];
@@ -7286,7 +8187,7 @@ function renderBetaLag() {
     // Group indoor data by day, find peak hour
     const indoorByDay = {};
     for (let i = 0; i < filtered.timestamps.length; i++) {
-      const ds = toEATString(filtered.timestamps[i]);
+      const ds = toLocalString(filtered.timestamps[i]);
       const day = ds.slice(0, 10);
       const hour = parseInt(ds.slice(11, 13), 10) + parseInt(ds.slice(14, 16), 10) / 60;
       if (!indoorByDay[day]) indoorByDay[day] = [];
@@ -7376,7 +8277,7 @@ function renderBetaQuality() {
       if (isGap) {
         if (i > segStart) {
           traces.push({
-            x: [toEATString(ts[segStart]), toEATString(ts[i-1])],
+            x: [toLocalString(ts[segStart]), toLocalString(ts[i-1])],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#27ae60', width: 8}, showlegend: false,
             hovertemplate: `${nameWithSrc}<br>Good data<br>%{x}<extra></extra>`,
@@ -7386,7 +8287,7 @@ function renderBetaQuality() {
           // Gap segment (orange)
           const gapHours = ((ts[i] - ts[i-1]) / 3600000).toFixed(1);
           traces.push({
-            x: [toEATString(ts[i-1]), toEATString(ts[i])],
+            x: [toLocalString(ts[i-1]), toLocalString(ts[i])],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#e67e22', width: 8}, showlegend: false,
             hovertemplate: `${nameWithSrc}<br>Gap: ${gapHours}h<br>%{x}<extra></extra>`,
@@ -7409,7 +8310,7 @@ function renderBetaQuality() {
         const rangeEnd = Math.min(rng.before, ts[ts.length - 1]);
         if (rangeStart < rangeEnd) {
           traces.push({
-            x: [toEATString(rangeStart), toEATString(rangeEnd)],
+            x: [toLocalString(rangeStart), toLocalString(rangeEnd)],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
             hoverlabel: {align: 'left'},
@@ -7422,7 +8323,7 @@ function renderBetaQuality() {
         const rangeEnd = ts[ts.length - 1];
         if (rangeStart < rangeEnd) {
           traces.push({
-            x: [toEATString(rangeStart), toEATString(rangeEnd)],
+            x: [toLocalString(rangeStart), toLocalString(rangeEnd)],
             y: [y, y], type: 'scatter', mode: 'lines',
             line: {color: '#8e44ad', width: 12}, opacity: 0.35, showlegend: false,
             hoverlabel: {align: 'left'},
@@ -7467,7 +8368,7 @@ function renderBetaQuality() {
     layout: {
       autosize: true, font: {family: 'Ubuntu, sans-serif'},
       margin: {l: sm?120:180, r: sm?8:20, t: sm?6:10, b: sm?40:60},
-      xaxis: {title: t('dateTime') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>', type: 'date', showgrid: true, gridcolor: '#eee'},
+      xaxis: {title: t('dateTime') + ' <i><span style="color:#aaa">(' + dsTzLabel() + ')</span></i>', type: 'date', showgrid: true, gridcolor: '#eee'},
       yaxis: {tickvals: tickVals, ticktext: tickText, showgrid: false, zeroline: false, automargin: true},
       legend: {orientation: 'h', x: 0.5, y: -0.15, xanchor: 'center', itemclick: false, itemdoubleclick: false},
       plot_bgcolor: 'white', paper_bgcolor: 'white',
@@ -7485,10 +8386,9 @@ function renderPeriodicAverages() {
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const pr = state.periodCycle, pg = state.periodGroupBy;
 
-  // Tanzanian seasons: month → season index
-  // 0=Kiangazi (Jan-Feb), 1=Masika (Mar-May), 2=Kiangazi (Jun-Oct), 3=Vuli (Nov-Dec)
-  const TZ_SEASON_IDX  = [0,0,1,1,1,2,2,2,2,2,3,3]; // indexed by month 0-11
-  const TZ_SEASON_LABELS = ['Kiangazi (Jan\u2013Feb)','Masika (Mar\u2013May)','Kiangazi (Jun\u2013Oct)','Vuli (Nov\u2013Dec)'];
+  // Seasons follow the dataset's regional scheme (see SEASON_SCHEMES)
+  const SEASON_IDX = seasonScheme().monthIdx;   // indexed by month 0-11
+  const SEASON_LABELS = seasonLabels();
 
   let nCats, categoryLabels, getCategoryIdx;
   // xPositions: numeric positions for each category on x-axis (null = use categoryLabels as-is on category axis)
@@ -7499,23 +8399,23 @@ function renderPeriodicAverages() {
   if (pr === 'day' && pg === 'hour') {
     nCats = 24;
     categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
-    getCategoryIdx = ms => eatDate(ms).getUTCHours();
+    getCategoryIdx = ms => localDate(ms).getUTCHours();
   } else if (pr === 'day' && pg === 'synoptic') {
     nCats = 4;
     categoryLabels = [t('lateNight') + ' (00\u201306)', t('morning') + ' (06\u201312)', t('afternoon') + ' (12\u201318)', t('evening') + ' (18\u201300)'];
     getCategoryIdx = ms => {
-      const h = eatDate(ms).getUTCHours();
+      const h = localDate(ms).getUTCHours();
       if (h < 6) return 0; if (h < 12) return 1; if (h < 18) return 2; return 3;
     };
   } else if (pr === 'year' && pg === 'month') {
     nCats = 12;
     categoryLabels = MN;
-    getCategoryIdx = ms => eatDate(ms).getUTCMonth();
+    getCategoryIdx = ms => localDate(ms).getUTCMonth();
   } else if (pr === 'year' && pg === 'week') {
     nCats = 53;
     categoryLabels = Array.from({length: 53}, (_, i) => 'W' + (i + 1));
     getCategoryIdx = ms => {
-      const d = eatDate(ms);
+      const d = localDate(ms);
       const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
       return Math.min(52, Math.floor((d - jan1) / (7 * 86400000)));
     };
@@ -7527,17 +8427,16 @@ function renderPeriodicAverages() {
       for (let d = 1; d <= daysPerMonth[mo]; d++)
         categoryLabels.push(MN[mo] + ' ' + d);
     getCategoryIdx = ms => {
-      const d = eatDate(ms);
+      const d = localDate(ms);
       const jan1 = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
       return Math.min(365, Math.floor((d - jan1) / 86400000));
     };
   } else if (pr === 'year' && pg === 'season') {
     // Seasons positioned at temporal midpoints on a month-scale linear axis
-    nCats = 4;
-    categoryLabels = TZ_SEASON_LABELS;
-    // Midpoints in month-units: Kiangazi Jan-Feb=0.5, Masika Mar-May=3, Kiangazi Jun-Oct=7, Vuli Nov-Dec=10.5
-    xPositions = [0.5, 3, 7, 10.5];
-    getCategoryIdx = ms => TZ_SEASON_IDX[eatDate(ms).getUTCMonth()];
+    nCats = SEASON_LABELS.length;
+    categoryLabels = SEASON_LABELS;
+    xPositions = seasonScheme().midpoints;
+    getCategoryIdx = ms => SEASON_IDX[localDate(ms).getUTCMonth()];
   } else if (pr === 'mjo') {
     nCats = 8;
     categoryLabels = MJO_LABELS;
@@ -7550,7 +8449,7 @@ function renderPeriodicAverages() {
     nCats = 3;
     categoryLabels = IOD_LABELS;
     getCategoryIdx = ms => {
-      const d = eatDate(ms);
+      const d = localDate(ms);
       const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
       const ph = IOD_PHASES[key];
       return ph != null ? ph : -1;
@@ -7559,7 +8458,7 @@ function renderPeriodicAverages() {
     nCats = 3;
     categoryLabels = ENSO_LABELS;
     getCategoryIdx = ms => {
-      const d = eatDate(ms);
+      const d = localDate(ms);
       const key = d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0');
       const ph = ENSO_PHASES[key];
       return ph != null ? ph : -1;
@@ -7567,7 +8466,7 @@ function renderPeriodicAverages() {
   } else {
     nCats = 24;
     categoryLabels = Array.from({length: 24}, (_, i) => String(i).padStart(2, '0') + ':00');
-    getCategoryIdx = ms => eatDate(ms).getUTCHours();
+    getCategoryIdx = ms => localDate(ms).getUTCHours();
   }
   // xVal: maps category index to x-axis value (linear position or category label)
   const xVal = ci => xPositions ? xPositions[ci] : categoryLabels[ci];
@@ -7806,7 +8705,7 @@ function renderPeriodicAverages() {
   // Season boundary lines for year cycle (all sub-groupings)
   const shapes = [], annotations = [];
   if (pr === 'year' && state.showSeasonLines) {
-    const seasonBounds = [{ci:0, name:'Kiangazi'},{ci:2, name:'Masika'},{ci:5, name:'Kiangazi'},{ci:10, name:'Vuli'}];
+    const seasonBounds = seasonScheme().boundsShort.map(b => ({ci: b.month - 1, name: b.name}));
     seasonBounds.forEach(s => {
       // Convert month index to x position based on grouping
       let xPos;
@@ -7822,9 +8721,10 @@ function renderPeriodicAverages() {
 
   // 32–35°C threshold range for periodic averages
   // Only show threshold band when data approaches it, to avoid inflating y-axis
-  const showThresholdBand = state.showThreshold && state.selectedMetrics.has('temperature');
+  const perThr = thresholdBand();
+  const showThresholdBand = state.showThreshold && state.selectedMetrics.has('temperature') && !!perThr;
   if (showThresholdBand) {
-    shapes.push({type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:32, y1:35,
+    shapes.push({type:'rect', xref:'paper', yref:'y', x0:0, x1:1, y0:perThr.low, y1:perThr.high,
       fillcolor:'rgba(231,76,60,0.12)', line:{width:0}});
   }
 
@@ -7847,12 +8747,12 @@ function renderPeriodicAverages() {
   const dsl = dsLabel();
   const sm = window.innerWidth < 680;
   let xTitle;
-  if (pr === 'day' && pg === 'hour') xTitle = t('hourOfDay') + ' <i><span style="color:#aaa">(EAT, UTC+03:00)</span></i>';
-  else if (pr === 'day' && pg === 'synoptic') xTitle = t('timeOfDay') + ' <i><span style="color:#aaa">(EAT)</span></i>';
+  if (pr === 'day' && pg === 'hour') xTitle = t('hourOfDay') + ' <i><span style="color:#aaa">(' + dsTzLabel() + ')</span></i>';
+  else if (pr === 'day' && pg === 'synoptic') xTitle = t('timeOfDay') + ' <i><span style="color:#aaa">(' + dsTzLabel() + ')</span></i>';
   else if (pr === 'year' && pg === 'month') xTitle = t('monthOfYear');
   else if (pr === 'year' && pg === 'week') xTitle = t('weekOfYear');
   else if (pr === 'year' && pg === 'day') xTitle = t('dayOfYear');
-  else if (pr === 'year' && pg === 'season') xTitle = t('tanzanianSeason');
+  else if (pr === 'year' && pg === 'season') xTitle = t(dataset().meta.seasonScheme === 'tz' ? 'tanzanianSeason' : 'seasonGeneric');
   else if (pr === 'mjo') xTitle = 'Madden\u2013Julian Oscillation (MJO) Phase';
   else if (pr === 'iod') xTitle = 'Indian Ocean Dipole (IOD) Phase';
   else if (pr === 'enso') xTitle = 'El Ni\u00f1o\u2013Southern Oscillation (ENSO) Phase';
@@ -7885,7 +8785,7 @@ function renderPeriodicAverages() {
           let dMax = -Infinity;
           let dMin = Infinity;
           traces.forEach(tr => { if (tr.y) tr.y.forEach(v => { if (v != null && isFinite(v)) { if (v > dMax) dMax = v; if (v < dMin) dMin = v; }});});
-          if (isFinite(dMax) && dMax < 30) {
+          if (isFinite(dMax) && dMax < perThr.low - 2) {
             // Data well below threshold — set range from data only with 5% padding
             const pad = (dMax - dMin) * 0.05 || 1;
             cfg.range = [dMin - pad, dMax + pad];
@@ -8084,9 +8984,9 @@ function syncPeriodDropdowns() {
   if (key === _lastDropdownKey) return;
   _lastDropdownKey = key;
 
-  const EAT = 3 * 3600 * 1000;
-  const TZ_SI = [0,0,1,1,1,2,2,2,2,2,3,3];
-  const TZ_SN = ['Kiangazi (Jan–Feb)','Masika (Mar–May)','Kiangazi (Jun–Oct)','Vuli (Nov–Dec)'];
+  const SCHEME = seasonScheme();
+  const SI = SCHEME.monthIdx;
+  const SN = seasonLabels();
   const MN_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const MN_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -8101,14 +9001,15 @@ function syncPeriodDropdowns() {
     const s = data.series[id];
     if (!s || !s.timestamps) continue;
     for (const ts of s.timestamps) {
-      const d = new Date(ts + EAT);
+      const off = tzOffsetMs(dsTimezone(), ts);
+      const d = new Date(ts + off);
       const y = d.getUTCFullYear(), mo = d.getUTCMonth();
       const wkStr = getISOWeekStr(ts);
       const dashIdx = wkStr.indexOf('-W');
       const wy = parseInt(wkStr.slice(0, dashIdx)), wk = parseInt(wkStr.slice(dashIdx + 2));
-      const dayMs = Math.floor((ts + EAT) / 86400000) * 86400000 - EAT;
+      const dayMs = Math.floor((ts + off) / 86400000) * 86400000 - off;
       yearsSet.add(y);
-      seasonsMap.set(`${y}-${TZ_SI[mo]}`, {y, season: TZ_SI[mo]});
+      seasonsMap.set(`${y}-${SI[mo]}`, {y, season: SI[mo]});
       monthsMap.set(`${y}-${mo+1}`, {y, month: mo+1});
       weeksMap.set(`${wy}-${wk}`, {wy, wk});
       daysSet.add(dayMs);
@@ -8130,7 +9031,7 @@ function syncPeriodDropdowns() {
     return {label: `W/s ${dd}/${mm}/${yy}`, year: wy, week: wk};
   });
   const days = [...daysSet].sort((a,b) => a-b).map(ts => {
-    const d = new Date(ts + EAT);
+    const d = localDate(ts);
     return {label: `${String(d.getUTCDate()).padStart(2,'0')} ${MN_SHORT[d.getUTCMonth()]} ${d.getUTCFullYear()}`, ts};
   });
 
@@ -8150,7 +9051,7 @@ function syncPeriodDropdowns() {
   }
 
   ssel.innerHTML = '';
-  seasons.forEach(({y, season}) => ssel.add(new Option(`${TZ_SN[season]} ${y}`, `${y}-${season}`)));
+  seasons.forEach(({y, season}) => ssel.add(new Option(`${SN[season]} ${y}`, `${y}-${season}`)));
   const curSK = state.selectedSeason ? `${state.selectedSeason.year}-${state.selectedSeason.season}` : '';
   if (state.selectedSeason && seasons.some(s => `${s.y}-${s.season}` === curSK)) {
     ssel.value = curSK;
@@ -8259,8 +9160,12 @@ requestAnimationFrame(() => requestAnimationFrame(() => Plotly.relayout('chart',
 // tooltip boxes. Appended to every explanation of the method so the conditions
 // travel with it rather than living in one place a reader may not visit.
 function applicabilityNoteHtml() {
+  const d = (typeof ALL_DATA !== 'undefined' && typeof dataset === 'function') ? dataset() : null;
+  const heating = (d && d.meta && d.meta.heatingUnverified)
+    ? '<span style="display:block;margin-top:5px;font-weight:600">' + t('comfortHeatingNote') + '</span>'
+    : '';
   return '<span style="display:block;margin-top:7px;padding-top:6px;border-top:1px solid #555;color:#f0c674">'
-       + t('comfortApplicability') + '</span>';
+       + t('comfortApplicability') + heating + '</span>';
 }
 
 // Sidebar info tooltips — Compare Mode, Long-Term Mode, comfort band, running mean
@@ -8351,6 +9256,10 @@ def save_sensor_snapshot(datasets_dfs):
     in the snapshot as a fallback for when the automated Omnisense fetch fails."""
     snapshot = {}
     for key, df in datasets_dfs.items():
+        # Regions are rebuilt from their members, so storing them would just
+        # duplicate every reading.
+        if DATASETS[key].get("combine") or df.empty:
+            continue
         # Exclude Open-Meteo loggers (always fetched fresh). Keep Omnisense as fallback.
         sensor_df = df[~df["logger_id"].isin(OPENMETEO_IDS)]
         loggers = {}
@@ -8366,8 +9275,8 @@ def save_sensor_snapshot(datasets_dfs):
     print(f"  Saved sensor snapshot → {SNAPSHOT_PATH} ({size_mb:.1f} MB)")
 
 
-def update_snapshot_omnisense(omnisense_df):
-    """Merge fresh Omnisense data into sensor_snapshot.json in-place.
+def update_snapshot_omnisense(key, omnisense_df):
+    """Merge fresh Omnisense data for one dataset into sensor_snapshot.json.
     Existing snapshot entries for each logger are preserved; fresh data is
     merged in and duplicate timestamps deduplicated, so historical data older
     than the 90-day CSV window is never discarded."""
@@ -8377,15 +9286,16 @@ def update_snapshot_omnisense(omnisense_df):
         snapshot = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
     except Exception:
         return
-    if "house5" not in snapshot:
+    if key not in snapshot:
         return
-    loggers = snapshot["house5"].setdefault("loggers", {})
+    tz = dataset_tz(key)
+    loggers = snapshot[key].setdefault("loggers", {})
     for logger_id, fresh_ldf in omnisense_df.groupby("logger_id"):
         existing = loggers.get(logger_id, {})
         if existing.get("timestamps"):
             existing_idx = pd.DatetimeIndex(existing["timestamps"], name="datetime")
             if existing_idx.tz is not None:
-                existing_idx = existing_idx.tz_convert(TIMEZONE)
+                existing_idx = existing_idx.tz_convert(tz)
             existing_ldf = pd.DataFrame({
                 "temperature": existing["temperature"],
                 "humidity": existing["humidity"],
@@ -8410,12 +9320,16 @@ def load_sensor_snapshot():
     raw = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
     datasets_dfs = {}
     for key, ds_data in raw.items():
+        if key not in DATASETS:
+            print(f"  Skipping unknown dataset '{key}' in snapshot")
+            continue
+        tz = dataset_tz(key)
         dfs = []
         for logger_id, ldata in ds_data["loggers"].items():
             idx = pd.DatetimeIndex(ldata["timestamps"], name="datetime")
             # Normalise timezone to match what load_dataset() produces
             if idx.tz is not None:
-                idx = idx.tz_convert(TIMEZONE)
+                idx = idx.tz_convert(tz)
             ldf = pd.DataFrame({
                 "temperature": ldata["temperature"],
                 "humidity": ldata["humidity"],
@@ -8443,7 +9357,7 @@ def load_sensor_snapshot():
             ldata = raw[source_key]["loggers"][logger_id]
             idx = pd.DatetimeIndex(ldata["timestamps"], name="datetime")
             if idx.tz is not None:
-                idx = idx.tz_convert(TIMEZONE)
+                idx = idx.tz_convert(dataset_tz(key))
             imported = pd.DataFrame({
                 "temperature": ldata["temperature"],
                 "humidity": ldata["humidity"],
@@ -8462,6 +9376,9 @@ def generate_loggers_manifest(all_data):
     """Generate data/loggers.json: default logger names/sections/visibility for config.html."""
     manifest = {}
     for key, ds in all_data.items():
+        # config.html edits buildings only; a region inherits its members' edits
+        if DATASETS[key].get("combine"):
+            continue
         meta = ds["meta"]
         series = ds["series"]
         ext_set     = set(meta.get("externalLoggers", []))
@@ -8518,6 +9435,18 @@ def generate_loggers_manifest(all_data):
     return manifest
 
 
+def region_overrides(key, user_config):
+    """Logger overrides for a region: its members' config.json entries, with any
+    entry set on the region itself taking precedence. config.html only ever
+    writes building entries, so without this a logger renamed on House 5 would
+    keep its default name under ARC Tanzania."""
+    merged = {}
+    for m in DATASETS[key].get("combine", []):
+        merged.update(user_config.get(m, {}).get("loggers", {}))
+    merged.update(user_config.get(key, {}).get("loggers", {}))
+    return merged
+
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(description="Build ARC temperature & humidity dashboard")
@@ -8550,91 +9479,98 @@ def main():
         ext_df = pd.DataFrame()
         if not ext_df_raw.empty:
             # Localise the Open-Meteo timestamps (same as load_dataset does)
-            ext_df_raw["datetime"] = (
-                pd.to_datetime(ext_df_raw["datetime"], errors="coerce")
-                .dt.tz_localize(TIMEZONE, nonexistent="shift_forward", ambiguous="NaT")
-            )
+            ext_df_raw["datetime"] = localize(
+                pd.to_datetime(ext_df_raw["datetime"], errors="coerce"), OPENMETEO_TZ)
             ext_df_raw = ext_df_raw.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-            ext_df_raw["iso_year"] = ext_df_raw.index.isocalendar().year.astype(int)
-            ext_df_raw["iso_week"] = ext_df_raw.index.isocalendar().week.astype(int)
-            ext_df = ext_df_raw
+            ext_df = add_iso_week(ext_df_raw)
             print(f"  Open-Meteo: {len(ext_df):,} records")
 
-        # Load fresh Omnisense data (replaces snapshot Omnisense if available)
+        # Load fresh Omnisense data per dataset (replaces snapshot Omnisense
+        # where available). Each Omnisense source is read once and shared by the
+        # datasets that draw from it.
         print("Loading fresh Omnisense data...")
-        omnisense_df = pd.DataFrame()
-        omnisense_files = sorted(OMNISENSE_DIR.glob("omnisense_*.csv"))
-        if not omnisense_files:
-            omnisense_files = sorted(DATA_FOLDER.glob("omnisense_*.csv"))
-        if omnisense_files:
-            print(f"  Using {omnisense_files[-1].name}")
-            os_df = load_omnisense_csv(omnisense_files[-1], sensor_filter=OMNISENSE_T_H_SENSORS)
-            if not os_df.empty:
-                # Weather Station T&RH (320E02D1): only reliable from 2026-02-17 12:00 EAT onwards
-                cutoff = pd.Timestamp("2026-02-17 12:00:00")
-                os_df = os_df[~((os_df["logger_id"] == "320E02D1") & (os_df["datetime"] < cutoff))]
-                os_df["datetime"] = (
-                    pd.to_datetime(os_df["datetime"], errors="coerce")
-                    .dt.tz_localize(TIMEZONE, nonexistent="shift_forward", ambiguous="NaT")
-                )
-                os_df = os_df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-                os_df["iso_year"] = os_df.index.isocalendar().year.astype(int)
-                os_df["iso_week"] = os_df.index.isocalendar().week.astype(int)
-                omnisense_df = os_df
-                print(f"  Fresh Omnisense: {len(omnisense_df):,} records (replacing snapshot Omnisense)")
-                update_snapshot_omnisense(omnisense_df)
-        else:
-            print("  No fresh Omnisense CSV found, using snapshot Omnisense data as fallback.")
+        omnisense_dfs = {}
+        for key in BUILDING_KEYS:
+            if not DATASETS[key].get("omnisense"):
+                continue
+            os_df = load_dataset_omnisense(key)
+            if os_df.empty:
+                print(f"  {DATASETS[key]['label']}: no fresh CSV, using snapshot Omnisense as fallback.")
+                continue
+            os_df["datetime"] = localize(
+                pd.to_datetime(os_df["datetime"], errors="coerce"), dataset_tz(key))
+            os_df = os_df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
+            omnisense_dfs[key] = add_iso_week(os_df)
+            print(f"  {DATASETS[key]['label']}: {len(os_df):,} fresh records (replacing snapshot Omnisense)")
+            update_snapshot_omnisense(key, omnisense_dfs[key])
 
-        for key, cfg in DATASETS.items():
+        # Buildings first — a region is the union of its members' final data.
+        for key in BUILDING_KEYS:
+            cfg = DATASETS[key]
             df = datasets_dfs.get(key, pd.DataFrame())
             # Only merge Open-Meteo into datasets that use it as external logger
-            if cfg["external_logger"] in OPENMETEO_IDS and not ext_df.empty:
+            if cfg.get("external_logger") in OPENMETEO_IDS and not ext_df.empty:
                 ext_sensors = set(cfg.get("external_sensors", []))
                 filtered_ext = ext_df[ext_df["logger_id"].isin(ext_sensors)] if ext_sensors else ext_df
                 df = pd.concat([df, filtered_ext]).sort_index()
-            # If fresh Omnisense available, merge with snapshot Omnisense for house5.
-            # Preserve snapshot data before the fresh CSV window so historical data
-            # older than the 90-day lookback is never discarded.
-            if key == "house5" and not omnisense_df.empty:
-                fresh_start = omnisense_df.index.min()
-                pre_window = df[
-                    df["logger_id"].isin(OMNISENSE_T_H_SENSORS) & (df.index < fresh_start)
-                ]
-                df = df[~df["logger_id"].isin(OMNISENSE_T_H_SENSORS)]
-                df = pd.concat([df, pre_window, omnisense_df]).sort_index()
+            # If fresh Omnisense is available, merge it over the snapshot copy.
+            # Snapshot data older than the fresh CSV's window is preserved, so
+            # history beyond the 90-day lookback is never discarded.
+            fresh = omnisense_dfs.get(key)
+            if fresh is not None and not fresh.empty:
+                sensors = cfg["omnisense"]["sensors"]
+                fresh_start = fresh.index.min()
+                pre_window = df[df["logger_id"].isin(sensors) & (df.index < fresh_start)]
+                df = df[~df["logger_id"].isin(sensors)]
+                df = pd.concat([df, pre_window, fresh]).sort_index()
             # Exclude loggers not belonging to this dataset
             exclude = cfg.get("exclude_loggers", set())
             if exclude:
                 df = df[~df["logger_id"].isin(exclude)]
-            # Apply per-logger date filters
-            for logger_id, filt in cfg.get("logger_date_filters", {}).items():
-                if "before" in filt:
-                    cutoff = pd.Timestamp(filt["before"]).tz_localize(TIMEZONE)
-                    df = df[~((df["logger_id"] == logger_id) & (df.index >= cutoff))]
-                if "from" in filt:
-                    cutoff = pd.Timestamp(filt["from"]).tz_localize(TIMEZONE)
-                    df = df[~((df["logger_id"] == logger_id) & (df.index < cutoff))]
+            df = apply_date_filters(key, df)
+            datasets_dfs[key] = df
             print(f"Processing {cfg['label']}...")
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
             logger_overrides = user_config.get(key, {}).get("loggers", {})
             all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides)
+
+        for key in COMBINED_KEYS:
+            cfg = DATASETS[key]
+            df = combine_datasets(key, [datasets_dfs.get(m, pd.DataFrame()) for m in cfg["combine"]])
+            datasets_dfs[key] = df
+            print(f"Processing {cfg['label']} (combined)...")
+            print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
+            logger_overrides = region_overrides(key, user_config)
+            members = {m: all_data[m] for m in cfg["combine"] if m in all_data}
+            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides,
+                                               member_data=members)
     else:
-        # Full build: load everything from source files
+        # Full build: load everything from source files. Buildings first, then
+        # the regions that are unions of them.
         datasets_dfs = {}
-        for key, cfg in DATASETS.items():
+        for key in BUILDING_KEYS + COMBINED_KEYS:
+            cfg = DATASETS[key]
             print(f"Loading {cfg['label']}...")
-            df = load_dataset(key)
+            if cfg.get("combine"):
+                df = combine_datasets(key, [datasets_dfs[m] for m in cfg["combine"]])
+            else:
+                df = load_dataset(key)
             datasets_dfs[key] = df
             print(f"  {len(df):,} records · {df['logger_id'].nunique()} loggers")
             print(f"  {df.index.min().date()} → {df.index.max().date()}")
             print("  Processing...")
-            logger_overrides = user_config.get(key, {}).get("loggers", {})
-            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides)
+            logger_overrides = (region_overrides(key, user_config) if cfg.get("combine")
+                                else user_config.get(key, {}).get("loggers", {}))
+            members = {m: all_data[m] for m in cfg.get("combine", []) if m in all_data}
+            all_data[key] = build_dataset_json(key, df, logger_overrides=logger_overrides,
+                                               member_data=members)
 
         # Save sensor snapshot for future --auto builds
         print("Saving sensor snapshot...")
         save_sensor_snapshot(datasets_dfs)
+
+    # Emit datasets in declaration order so the selector matches DATASETS
+    all_data = {k: all_data[k] for k in DATASETS if k in all_data}
 
 
 
@@ -8661,6 +9597,18 @@ def main():
         fetch_times["omnisense"] = format_fetch_time(os_dt)
         if os_dt:
             data_freshness["omnisense_fetch_ms"] = int(os_dt.timestamp() * 1000)
+    # UK Omnisense export is still added by hand, so it gets its own fetch time
+    # rather than being folded into the Tanzanian one's staleness check — a
+    # manual file would trip the "fetched N days ago" warning permanently.
+    os_uk_files = sorted(OMNISENSE_UK_DIR.glob("omnisense_uk_*.csv"))
+    if os_uk_files:
+        os_uk_dt = parse_fetch_time(os_uk_files[-1])
+        fetch_times["omnisense_uk"] = format_fetch_time(os_uk_dt)
+        uk_last = [e["timestamps"][-1]
+                   for k in ("grove", "holywell") if k in all_data
+                   for e in all_data[k]["series"].values() if e["timestamps"]]
+        if uk_last:
+            data_freshness["omnisense_uk_last_ms"] = max(uk_last)
     # Cycle data fetch timestamp
     cycle_ts_files = sorted(CYCLES_DIR.glob("cycles_fetched_*.txt"))
     if cycle_ts_files:

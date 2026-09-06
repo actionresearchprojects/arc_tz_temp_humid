@@ -355,5 +355,71 @@
         "external_source": "External Historical (Open-Meteo)"
       }
     ]
+  },
+  "grove": {
+    "label": "Grove Cottage",
+    "hasCategories": true,
+    "externalLoggers": [
+      {
+        "id": "1C290049",
+        "label": "External Ambient (Omnisense)"
+      }
+    ],
+    "loggers": [
+      {
+        "id": "1C290049",
+        "name": "External Ambient",
+        "source": "Omnisense",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
+      {
+        "id": "169502D1",
+        "name": "Living Room (No. 57)",
+        "source": "Omnisense",
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": true,
+        "external_source": "1C290049"
+      }
+    ]
+  },
+  "holywell": {
+    "label": "Holywell Barn",
+    "hasCategories": true,
+    "externalLoggers": [
+      {
+        "id": "19550131",
+        "label": "External Ambient (full shade) (Omnisense)"
+      }
+    ],
+    "loggers": [
+      {
+        "id": "19550131",
+        "name": "External Ambient (full shade)",
+        "source": "Omnisense",
+        "section": "external",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": false
+      },
+      {
+        "id": "0E3C12EC",
+        "name": "Internal Ambient",
+        "source": "Omnisense",
+        "section": "room",
+        "showInLine": true,
+        "showInHistogram": true,
+        "showInPeriodic": true,
+        "showInComfort": true,
+        "external_source": "19550131"
+      }
+    ]
   }
 }

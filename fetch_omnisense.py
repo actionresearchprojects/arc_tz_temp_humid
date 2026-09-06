@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Fetch Omnisense sensor data using requests.Session.
+
+One site per run: `--site tz` (default) or any other key in SITES below.
 Input dates must be in dd/mm/yyyy format.
 """
 
@@ -15,11 +17,38 @@ from pathlib import Path
 import requests  # requires: pip install requests
 
 # ── Configuration ─────────────────────────────────────────────────────────────
-SITE_NBR = "152865"
 BASE = "https://omnisense.com"
-OUTPUT_DIR = Path("data/omnisense")
-LEGACY_DIR = OUTPUT_DIR / "legacy"
-EARLIEST_DATA = "2026-01-25"          # first day with sensor data
+
+# One entry per Omnisense site. Each site exports a single multi-block CSV
+# covering every sensor on it; build.py's OMNISENSE_SOURCES picks the file up and
+# each dataset filters it down to the sensors it wants.
+#
+# To switch on the ARC UK feed (Grove Cottage + Holywell Barn), fill in "uk"
+# below with the site number from its omnisense.com URL and the first day it has
+# data for, then add `--site uk` as a step in update-dashboard-data.yml. If that
+# site sits under a different omnisense.com login, give it "username_env" /
+# "password_env" naming its own repository secrets; it falls back to the shared
+# OMNISENSE_USERNAME / OMNISENSE_PASSWORD otherwise. Until then the UK export is
+# added by hand to data/omnisense_uk/ as omnisense_uk_YYYYMMDD_HHMM.csv.
+SITES = {
+    "tz": {
+        "site_nbr": "152865",
+        "outdir": Path("data/omnisense"),
+        "prefix": "omnisense",
+        "earliest": "2026-01-25",     # first day with sensor data
+        "tz_offset_hours": 3,         # EAT, for working out "today" at the site
+    },
+    # "uk": {
+    #     "site_nbr": "",             # ← site number from the omnisense.com URL
+    #     "outdir": Path("data/omnisense_uk"),
+    #     "prefix": "omnisense_uk",
+    #     "earliest": "2026-07-31",   # first day in the manual export
+    #     "tz_offset_hours": 1,       # BST; only decides which day to ask up to
+    #     "username_env": "OMNISENSE_UK_USERNAME",
+    #     "password_env": "OMNISENSE_UK_PASSWORD",
+    # },
+}
+DEFAULT_SITE = "tz"
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -33,33 +62,44 @@ HEADERS = {
     "Origin": BASE,
 }
 
-def rotate_legacy():
-    existing = sorted(OUTPUT_DIR.glob("omnisense_*.csv"))
+def rotate_legacy(outdir: Path, prefix: str):
+    existing = sorted(outdir.glob(f"{prefix}_*.csv"))
     if not existing:
         return
-    LEGACY_DIR.mkdir(parents=True, exist_ok=True)
+    legacy_dir = outdir / "legacy"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
     for p in existing:
-        shutil.move(str(p), str(LEGACY_DIR / p.name))
+        shutil.move(str(p), str(legacy_dir / p.name))
         print(f"  Archived {p.name} → legacy/")
 
 def main():
-    username = os.environ.get("OMNISENSE_USERNAME", "")
-    password = os.environ.get("OMNISENSE_PASSWORD", "")
-    if not username or not password:
-        print("ERROR: OMNISENSE_USERNAME and OMNISENSE_PASSWORD must be set.", file=sys.stderr)
-        sys.exit(1)
-
     parser = argparse.ArgumentParser()
+    parser.add_argument("--site", default=DEFAULT_SITE, choices=sorted(SITES),
+                        help="Which Omnisense site to fetch (default: %(default)s)")
     parser.add_argument("--debug", action="store_true",
                         help="Save HTML responses for debugging")
     args = parser.parse_args()
 
+    site = SITES[args.site]
+    site_nbr = site["site_nbr"]
+    if not site_nbr:
+        print(f"ERROR: site '{args.site}' has no site_nbr configured yet.", file=sys.stderr)
+        sys.exit(1)
+
+    user_env = site.get("username_env", "OMNISENSE_USERNAME")
+    pass_env = site.get("password_env", "OMNISENSE_PASSWORD")
+    username = os.environ.get(user_env, "")
+    password = os.environ.get(pass_env, "")
+    if not username or not password:
+        print(f"ERROR: {user_env} and {pass_env} must be set.", file=sys.stderr)
+        sys.exit(1)
+
     now_utc = datetime.now(timezone.utc)
-    now_eat = now_utc + timedelta(hours=3)
-    today_str = now_eat.strftime("%Y-%m-%d")
+    now_local = now_utc + timedelta(hours=site.get("tz_offset_hours", 0))
+    today_str = now_local.strftime("%Y-%m-%d")
     now_tag = now_utc.strftime("%Y%m%d_%H%M")
 
-    start_date = EARLIEST_DATA
+    start_date = site["earliest"]
 
     # Server expects M/D/YYYY (American format, no leading zeros) for input dates.
     # Using dd/mm/yyyy causes ambiguous dates (e.g. 08/05 read as August 5 not May 8).
@@ -70,7 +110,7 @@ def main():
     start_mdy = to_mdy(start_date)
     end_mdy   = to_mdy(today_str)
 
-    print(f"Omnisense fetch — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
+    print(f"Omnisense fetch [{args.site}] — {now_utc.strftime('%Y-%m-%d %H:%M UTC')}")
     print(f"  Date range: {start_date} → {today_str}")
     print(f"  Form dates (m/d/yyyy): {start_mdy} → {end_mdy}")
 
@@ -97,7 +137,7 @@ def main():
     print("  Login successful.")
 
     # Step 2: Visit download page (establishes site context)
-    dnld_url = f"{BASE}/dnld_rqst.asp?siteNbr={SITE_NBR}"
+    dnld_url = f"{BASE}/dnld_rqst.asp?siteNbr={site_nbr}"
     print("\n[2/4] Visiting download page...")
     resp = session.get(dnld_url, headers={"Referer": f"{BASE}/site_select.asp"})
     if resp.status_code != 200:
@@ -111,7 +151,7 @@ def main():
     # Step 3: POST the download form
     print("\n[3/4] Submitting data export request...")
     form_data = {
-        "siteNbr": SITE_NBR,
+        "siteNbr": site_nbr,
         "sensorId": "",
         "gwayId": "",
         "dateFormat": "SE",          # required by server stored proc; SE = yyyy-mm-dd hh:mm:ss
@@ -184,9 +224,10 @@ def main():
         print(f"  Content preview:\n{csv_text[:600]}", file=sys.stderr)
         sys.exit(1)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    rotate_legacy()
-    out_path = OUTPUT_DIR / f"omnisense_{now_tag}.csv"
+    outdir = site["outdir"]
+    outdir.mkdir(parents=True, exist_ok=True)
+    rotate_legacy(outdir, site["prefix"])
+    out_path = outdir / f"{site['prefix']}_{now_tag}.csv"
     out_path.write_bytes(csv_data)
     size_mb = len(csv_data) / (1024 * 1024)
     print(f"  Wrote {size_mb:.1f} MB → {out_path}")

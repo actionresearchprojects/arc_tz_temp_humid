@@ -116,7 +116,7 @@ This stages only the data directories and `index.html`. If `git diff --cached --
     curl -X POST \
       -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
       https://api.github.com/repos/actionresearchprojects/actionresearchprojects.github.io/dispatches \
-      -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_temp_humid"}}'
+      -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_temp_humid"}}'
 ```
 
 If data was committed, this sends a `repository_dispatch` event to the main site repo (`actionresearchprojects.github.io`), telling it to pull in the updated dashboard. This uses a Personal Access Token stored as the `MAIN_SITE_PAT` secret.

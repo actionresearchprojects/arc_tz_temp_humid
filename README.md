@@ -1,20 +1,20 @@
-# ARC Ecovillage Temperature & Humidity Dashboard
+# ARC Temperature & Humidity Dashboard
 
-Interactive environmental monitoring dashboard for the **Architecture for Resilient Communities (ARC) Cool Buildings Programme**. Tracks temperature and humidity inside buildings at the Al-Mizan Children's Ecovillage (CEV) near Mkuranga, Tanzania.
+Interactive environmental monitoring dashboard for the **Architecture for Resilient Communities (ARC) Cool Buildings Programme**. Tracks temperature and humidity inside ARC buildings in two regions: the Al-Mizan Children's Ecovillage (CEV) near Mkuranga, Tanzania, and the UK.
 
 The dashboard is a self-contained HTML page that updates automatically and works offline once loaded.
 
-**Live dashboard:** [actionresearchprojects.net/graphs/arc-tz-temp-humid](https://actionresearchprojects.net/graphs/arc-tz-temp-humid)
+**Live dashboard:** [actionresearchprojects.net/graphs/arc-temp-humid](https://actionresearchprojects.net/graphs/arc-temp-humid)
 
 ---
 
 ## What This Project Does
 
-This project collects temperature and humidity data from sensors placed inside and around two buildings at the ecovillage. It combines that data with external weather information and climate patterns, then builds an interactive dashboard where you can explore it all visually.
+This project collects temperature and humidity data from sensors placed inside and around ARC buildings. It combines that data with external weather information and climate patterns, then builds an interactive dashboard where you can explore it all visually.
 
 The main goals are:
 
-- **Monitor indoor conditions** in House 5 and the Schoolteacher's House over time
+- **Monitor indoor conditions** in House 5, the Schoolteacher's House, Grove Cottage and Holywell Barn over time
 - **Assess thermal comfort** using the EN16798-1 adaptive comfort standard for naturally ventilated buildings
 - **Compare indoor vs outdoor temperatures** to understand how building design affects conditions inside
 - **Track climate patterns** like El Nino, the Indian Ocean Dipole, and the Madden-Julian Oscillation that influence local weather
@@ -32,6 +32,39 @@ The dashboard pulls data from four different sources:
 | **Omnisense sensors** | Indoor temperature and humidity from 10 wireless IoT sensors | Automatically fetched twice daily by GitHub Actions |
 | **Open-Meteo API** | Outdoor temperature and humidity (historical + 7-day forecast) | Automatically fetched twice daily by GitHub Actions |
 | **Climate indices** | ENSO (El Nino/La Nina), IOD (Indian Ocean Dipole), MJO (Madden-Julian Oscillation) | Automatically fetched weekly by GitHub Actions |
+
+---
+
+## Buildings and Regions
+
+The building selector offers each building on its own, plus a combined view per region:
+
+```
+ARC Tanzania            <- both Tanzanian buildings on one chart
+     House 5
+     Schoolteacher's House
+ARC UK                  <- both UK buildings on one chart
+     Grove Cottage
+     Holywell Barn
+```
+
+Region rows are selectable in their own right. In a region view the sidebar
+groups loggers under a heading per building, because names repeat across
+buildings (both House 5 and the Schoolteacher's House have a "Bedroom 1").
+
+Each region carries its own timezone and season names:
+
+| Region | Timezone | Seasons |
+|---|---|---|
+| ARC Tanzania | Africa/Dar_es_Salaam (EAT, no DST) | Kiangazi, Masika, Kiangazi, Vuli |
+| ARC UK | Europe/London (GMT/BST, observes DST) | Winter, Spring, Summer, Autumn |
+
+Timestamps always display as wall-clock time at the site, whatever timezone the
+viewer's browser is in.
+
+The UK buildings have no Open-Meteo feed yet -- each carries its own external
+ambient sensor, which is what its adaptive comfort running mean uses. To add
+one, see the commented `LOCATIONS["uk"]` entry in `fetch_openmeteo.py`.
 
 ---
 
@@ -87,7 +120,7 @@ This applies to the adaptive comfort scatter plot, its comfort band, and the run
 ## Project Structure
 
 ```
-arc_tz_temp_humid/
+arc_temp_humid/
 |
 |-- build.py                 Core build script (generates index.html)
 |-- fetch_openmeteo.py       Downloads weather data from Open-Meteo API
@@ -100,12 +133,14 @@ arc_tz_temp_humid/
 |   |-- config.json          User overrides for logger names (tracked)
 |   |-- loggers.json         Logger manifest (generated, tracked)
 |   |-- sensor_snapshot.json Pre-processed TinyTag data for fast rebuilds
-|   |-- openmeteo/           Weather API data files (tracked)
-|   |-- omnisense/           IoT sensor data files (tracked)
+|   |-- openmeteo/           Weather API data files, Tanzania (tracked)
+|   |-- omnisense/           IoT sensor data files, Tanzania (tracked)
+|   |-- omnisense_uk/        IoT sensor data files, UK (tracked)
 |   |-- cycles/              Climate index data (tracked)
 |   |-- hist_proj/           Long-term climate projection data (tracked)
 |   |-- house5/              TinyTag Excel files for House 5 (local only)
 |   |-- schoolteacher/               TinyTag Excel files for Schoolteacher's House (local only)
+|                            (Grove Cottage and Holywell Barn are Omnisense-only -- no Excel files)
 |
 |-- .github/workflows/      GitHub Actions automation
 |-- UPDATE.md                Instructions for data updates and git workflow
