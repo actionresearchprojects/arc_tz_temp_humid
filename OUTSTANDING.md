@@ -1,52 +1,14 @@
 # arc_temp_humid - outstanding work
 
-Updated 6 September 2026.
+Updated 6 September 2026. The repository rename and the main-site move are
+complete and are no longer listed here; see `CHANGELOG.md` for what was done.
 
 Everything described below is **not yet done**. What *is* done is in
 `CHANGELOG.md`; the architecture is in `CLAUDE.md`.
 
 ---
 
-## 1. Rename the GitHub repository - DONE
-
-`actionresearchprojects/arc_tz_temp_humid` is now `arc_temp_humid`, and
-everything that depended on the old name has been dealt with.
-
-The hazard here was that the main site's `sync-embedded.yml` derives its
-destination folder from the dispatch payload's `source_repo`. A rename alone
-would have started filling a new `embedded/arc_temp_humid/` while the published
-page went on iframing the old folder, frozen: no 404, no error, just a dashboard
-that silently stopped updating.
-
-That was headed off by mapping **both** names to the same folder:
-
-```
-arc_tz_temp_humid|arc_temp_humid)    FOLDER="arc_temp_humid" ;;
-```
-
-so the repository and the site never had to change in lockstep. The live state:
-
-| URL | Status |
-|---|---|
-| `/graphs/arc-temp-humid/` | live, iframes `embedded/arc_temp_humid/` |
-| `/graphs/arc-temp-humid/config` | live |
-| `/explainers/arc-temp-humid/` | live, regenerated from the current README |
-| `/graphs/arc-tz-temp-humid/` | redirects to the new address |
-| `/explainers/arc-tz-temp-humid/` | redirects to the new address |
-
-The git remote, both workflow payloads and the header info-icon link now all
-use the new name.
-
-The superseded `embedded/arc_tz_temp_humid/` copy has been removed from the site
-repo, and the data flow explainer regenerated so it documents the new name.
-
-Note the Pages URL for this repo changed with the rename, from
-`actionresearchprojects.net/arc_tz_temp_humid/` to `.../arc_temp_humid/`.
-Nothing links to it - the public route is `/graphs/arc-temp-humid/`.
-
----
-
-## 2. Automate the ARC UK Omnisense fetch
+## 1. Automate the ARC UK Omnisense fetch
 
 **This is the only item still blocked on information I do not have.**
 
@@ -92,55 +54,115 @@ rather than plotted. Those two sets are what to update if sensors change.
 
 ---
 
-## 3. Decide the UK overheating threshold
+## 2. Decide the UK overheating threshold
 
 Currently **none**: the three UK datasets have `"threshold": None`, so no red
-band is drawn and the sidebar control is hidden rather than offering a
-meaningless toggle. Tanzania keeps 32-35 C.
+band is drawn and the sidebar control is hidden. Tanzania keeps 32-35 C.
 
-No UK figure was assumed because the sensible source, CIBSE TM52 / TM59, is
-**per room type**. TM59 uses 26 C for bedrooms, but Grove's sensor is a living
-room and Holywell's is "Internal Ambient".
+Having now read CIBSE TM59 (2017), the position is clearer than "pick a
+number", and leaving it off may well be the right answer.
 
-Once decided it is one line per dataset:
+### What TM59 actually requires
 
-```python
-"threshold": {"low": 26, "high": 28},
-```
+Compliance for a naturally ventilated home is **both** of (section 4.2):
 
-The label, the band on all three chart types and the sidebar control follow
-automatically.
+- **(a) Living rooms, kitchens and bedrooms.** The hours where dT is at least
+  1 K, May to September, must be no more than 3% of occupied hours. This is
+  TM52 Criterion 1, and dT is measured against the **adaptive** comfort limit,
+  not a fixed temperature.
+- **(b) Bedrooms only.** Operative temperature between 22:00 and 07:00 must not
+  exceed **26 C** for more than 1% of annual hours. TM59 spells out the count:
+  32 hours, so 33 or more is a fail.
 
----
+So the only fixed number in TM59 is 26 C, and it applies **to bedrooms, at
+night, counted over the year**. For a living room or kitchen there is no fixed
+threshold at all - the test is the adaptive one, which the adaptive comfort
+chart already serves.
 
-## 4. Confirm the UK Open-Meteo coordinates
+### What that means for the two UK sensors
 
-**Done and live**, but with one assumption worth correcting.
+| Logger | Name | Room type | Fixed threshold applies? |
+|---|---|---|---|
+| `169502D1` | Living Room (No. 57), Grove | living room | **no** - criterion (a) only |
+| `0E3C12EC` | Internal Ambient, Holywell | **unknown** | only if it is a bedroom |
 
-Both UK buildings now have their own Open-Meteo feed. Each drives its own
-building's adaptive comfort running mean and both appear on the ARC UK chart.
-They are fetched daily alongside the Tanzanian feed.
+Grove's sensor is a living room, so TM59 gives it no fixed band. Holywell's is
+labelled only "Internal Ambient"; **that is the room type worth confirming**.
 
-The coordinates in `fetch_openmeteo.py` are **town-centre positions** for
-Hereford and Criccieth, not the buildings themselves:
+### Three honest options
+
+1. **Leave the threshold off** (current state). Defensible: neither sensor is a
+   confirmed bedroom, and criterion (a) is already covered by the adaptive
+   chart.
+2. **Add 26 C only where a logger is a bedroom.** Correct, but the threshold is
+   currently per-region, so this needs a per-logger threshold - a real change,
+   though not a large one.
+3. **Draw 26 C across the UK region as a rough reference.** Quickest, and the
+   least honest: TM59's 26 C is night-only and bedroom-only, so a permanent band
+   across a 24-hour living-room chart misrepresents the standard.
+
+### Two caveats before quoting TM59 numbers from this dashboard
+
+- TM59 is a **design and modelling** methodology. It assumes standard occupancy
+  profiles and dynamic simulation, and evaluates **operative** temperature. This
+  dashboard plots **measured air** temperature, which is already listed as a
+  known limitation in `adaptivecomfort.md`. Numbers taken from here are
+  indicative of TM59, not a TM59 assessment.
+- Criterion (a) is adaptive against **TM52 Category II**, whose upper limit is
+  `0.33 x Trm + 18.8 + 3`. The dashboard currently offers ASHRAE 55 and the
+  Vellei models, neither of which is that line. If the UK datasets are ever to
+  be read against TM52/TM59, adding a TM52 Cat II band to the comfort model
+  dropdown is the change that would do it - and is probably worth more than the
+  threshold band.
+
+## 3. Confirm the UK Open-Meteo coordinates
+
+**Working and live**, on one assumption worth correcting.
+
+Both UK buildings have their own Open-Meteo feed, fetched daily. Each drives its
+own building's adaptive comfort running mean and both appear on the ARC UK
+chart. The coordinates in `fetch_openmeteo.py` are **town-centre positions**:
 
 ```python
 "grove":    {"lat": 52.0567, "lon": -2.7160, ...}   # Hereford
 "holywell": {"lat": 52.9186, "lon": -4.2372, ...}   # Criccieth
 ```
 
-Open-Meteo's historical model runs on a roughly 11 km grid, so a town-centre
-fix is usually the same grid cell as the building - but if the exact positions
-(or postcodes) are to hand, replace the two lat/lon pairs. It is a one-line
-change per site and needs no other edits; the next daily run picks it up.
+### How much the precision matters
 
-As a sanity check that the two feeds are genuinely distinct: Grove averages
-1.03 C warmer than Holywell across 30,497 paired hours, with only 611 hours
-identical - consistent with inland Herefordshire against coastal North Wales.
+Measured, not assumed. Open-Meteo snaps a request to its model grid, and that
+grid is finer than the 11 km often quoted. Comparing the returned hourly series
+against the town-centre baseline, June to August 2026 (2208 hours):
 
----
+| Offset from baseline | Mean difference | Max | Hours differing by >0.5 C |
+|---|---|---|---|
+| ~0.5 km | 0.18 C | 1.6 C | 4.9% |
+| ~2 km | 0.51 C | 4.0 C | 32.8% |
+| ~9 km | 1.52 C | 4.9 C | 95.6% |
+| ~20 km | 1.63 C | 8.0 C | 83.0% |
 
-## 5. Known limitation, not a task
+So getting within roughly half a kilometre is worth doing; beyond about two
+kilometres the series starts to drift meaningfully from the site.
+
+### The privacy point
+
+These are private homes and **this repository is public**, so an exact
+coordinate committed here is effectively a published home location.
+
+Half a kilometre of precision is enough, and that is about **two decimal
+places**: 0.01 degrees of latitude is around 1.1 km, and of longitude at these
+latitudes around 0.7 km. So the resolution to commit is two decimals - it puts
+the request in the right grid cell without pinpointing a dwelling.
+
+If exact positions or postcodes are supplied, round them to two decimals before
+they go in the file. It is a one-line change per site and the next daily run
+picks it up.
+
+As a check that the two feeds are genuinely distinct: Grove averages 1.03 C
+warmer than Holywell across 30 497 paired hours, only 611 of them identical -
+consistent with inland Herefordshire against coastal North Wales.
+
+## 4. Known limitation, not a task
 
 ASHRAE 55 Section 5.4.1(a) requires that no heating is in operation. Nothing at
 any site records heating status, and nothing in a temperature and humidity trace
