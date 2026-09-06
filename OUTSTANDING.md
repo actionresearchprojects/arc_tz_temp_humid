@@ -7,51 +7,46 @@ Everything described below is **not yet done**. What *is* done is in
 
 ---
 
-## 1. Rename the GitHub repository
+## 1. Rename the GitHub repository - DONE
 
-`actionresearchprojects/arc_tz_temp_humid` -> `arc_temp_humid`.
+`actionresearchprojects/arc_tz_temp_humid` is now `arc_temp_humid`, and
+everything that depended on the old name has been dealt with.
 
-**This is now safe to do at any time, with nothing else to coordinate.**
-
-It was not safe before. The main site's `sync-embedded.yml` derives its
-destination folder from the dispatch payload's `source_repo`, so a rename would
-have started filling a new `embedded/arc_temp_humid/` while the published page
-went on iframing the old folder, frozen - no 404, no error, just a dashboard
+The hazard here was that the main site's `sync-embedded.yml` derives its
+destination folder from the dispatch payload's `source_repo`. A rename alone
+would have started filling a new `embedded/arc_temp_humid/` while the published
+page went on iframing the old folder, frozen: no 404, no error, just a dashboard
 that silently stopped updating.
 
-That is fixed. `sync-embedded.yml` now maps **both** names to the same folder:
+That was headed off by mapping **both** names to the same folder:
 
 ```
 arc_tz_temp_humid|arc_temp_humid)    FOLDER="arc_temp_humid" ;;
 ```
 
-So the rename is a no-op for the site. The public pages already live at their
-new addresses and already read from `embedded/arc_temp_humid/`:
+so the repository and the site never had to change in lockstep. The live state:
 
 | URL | Status |
 |---|---|
-| `/graphs/arc-temp-humid/` | live |
+| `/graphs/arc-temp-humid/` | live, iframes `embedded/arc_temp_humid/` |
 | `/graphs/arc-temp-humid/config` | live |
-| `/explainers/arc-temp-humid/` | live |
+| `/explainers/arc-temp-humid/` | live, regenerated from the current README |
 | `/graphs/arc-tz-temp-humid/` | redirects to the new address |
 | `/explainers/arc-tz-temp-humid/` | redirects to the new address |
 
-### After renaming
+The git remote, both workflow payloads and the header info-icon link now all
+use the new name.
 
-Two tidy-ups, neither urgent:
+### One tidy-up left
 
-1. `git remote set-url origin https://github.com/actionresearchprojects/arc_temp_humid.git`
-   in any local clone. GitHub redirects the old URL, so this is cosmetic.
-2. Optionally set `source_repo` to `arc_temp_humid` in both workflows here. The
-   mapping accepts either, so this is cosmetic too.
+`embedded/arc_tz_temp_humid/` is still present on the site repo: a dead copy of
+roughly 16 MB, superseded by `embedded/arc_temp_humid/`. It was kept as a
+fallback while the move settled and can be deleted whenever you like. Nothing
+references it.
 
-Then delete `embedded/arc_tz_temp_humid/` from the site repo - a dead ~16 MB
-copy, superseded by `embedded/arc_temp_humid/`. Left in place for now so there
-is a fallback if anything unexpected turns up.
-
-Note the Pages URL for this repo also changes on rename, from
-`actionresearchprojects.net/arc_tz_temp_humid/` to
-`.../arc_temp_humid/`. Nothing links to it - the public route is `/graphs/`.
+Note the Pages URL for this repo changed with the rename, from
+`actionresearchprojects.net/arc_tz_temp_humid/` to `.../arc_temp_humid/`.
+Nothing links to it - the public route is `/graphs/arc-temp-humid/`.
 
 ---
 

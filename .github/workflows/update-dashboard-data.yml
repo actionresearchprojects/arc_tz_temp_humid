@@ -115,15 +115,14 @@ jobs:
       - name: Trigger main site sync
         if: steps.push.outputs.changed == 'true'
         run: |
-          # source_repo must name the repo AS IT IS ON GITHUB: the main site's
-          # sync-embedded.yml clones it by that name and writes into an embedded/
-          # folder called the same thing. It stays arc_tz_temp_humid until the
-          # repository is actually renamed -- see OUTSTANDING.md section 1.
+          # source_repo names the repo as it is on GitHub. The main site's
+          # sync-embedded.yml maps both this and the former arc_tz_temp_humid to
+          # embedded/arc_temp_humid/, so the two never had to change in lockstep.
           curl -sf -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.MAIN_SITE_PAT }}" \
             https://api.github.com/repos/actionresearchprojects/actionresearchprojects.github.io/dispatches \
-            -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_tz_temp_humid"}}'
+            -d '{"event_type":"sync-embedded","client_payload":{"source_repo":"arc_temp_humid"}}'
 
       # ── cascade: trigger dependent dashboards so they always get fresh data ──
       - name: Trigger arc_tz_line update

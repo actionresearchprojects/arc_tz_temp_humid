@@ -1,5 +1,8 @@
 ## Changelog
 
+### 2026-09-07 00:12:17 CST
+- **Repository renamed to `arc_temp_humid`; follow-ups applied** - The rename went through cleanly because the main site now maps both the old and new names to `embedded/arc_temp_humid/`, so nothing had to change in lockstep. The git remote, both workflow `repository_dispatch` payloads and `dataflow.md` now use the new name, and `OUTSTANDING.md` section 1 records the move as done. The only remnant is the superseded `embedded/arc_tz_temp_humid/` folder on the site repo, kept as a fallback and safe to delete.
+
 ### 2026-09-06 21:42:40 CST
 - **Open-Meteo for Grove Cottage and Holywell Barn, one feed each** - The two buildings are about 150 km apart, so a single UK feed would have been wrong for at least one of them. `OPENMETEO_FEEDS` now holds a feed per location, each with its own logger IDs, output directory and timezone, and `fetch_openmeteo.py` gained matching `LOCATIONS` entries fetched daily by the workflow. Each building's feed drives its own adaptive comfort running mean, and both appear on the ARC UK chart. The Tanzanian IDs keep their original names, which are baked into `config.json`, the snapshot and every saved user override.
   - Running-mean fallbacks are now scoped to the owning building. Previously the fallback list was every Open-Meteo series in the dataset, which in a region would have quietly mixed Grove and Holywell weather into one running mean on days the primary was missing.
