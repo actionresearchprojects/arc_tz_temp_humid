@@ -37,12 +37,8 @@ so the repository and the site never had to change in lockstep. The live state:
 The git remote, both workflow payloads and the header info-icon link now all
 use the new name.
 
-### One tidy-up left
-
-`embedded/arc_tz_temp_humid/` is still present on the site repo: a dead copy of
-roughly 16 MB, superseded by `embedded/arc_temp_humid/`. It was kept as a
-fallback while the move settled and can be deleted whenever you like. Nothing
-references it.
+The superseded `embedded/arc_tz_temp_humid/` copy has been removed from the site
+repo, and the data flow explainer regenerated so it documents the new name.
 
 Note the Pages URL for this repo changed with the rename, from
 `actionresearchprojects.net/arc_tz_temp_humid/` to `.../arc_temp_humid/`.

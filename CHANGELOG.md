@@ -1,5 +1,10 @@
 ## Changelog
 
+### 2026-09-07 00:28:15 CST
+- **Main site moved to the rebranded addresses** - `/graphs/arc-temp-humid/`, its `/config` page and `/explainers/arc-temp-humid/` are live and read from `embedded/arc_temp_humid/`. The old addresses are redirects rather than removals, so existing links keep working. The explainer is regenerated from this repo's current README, and the data flow explainer from its current `dataflow.md`.
+- **`sync-embedded.yml` maps both repository names to one folder** - This is what made the rename safe to do at any moment rather than something that had to be choreographed with the site. Without it the first sync after the rename would have filled a second folder while the published page went on serving the first, frozen.
+- **Removed the superseded `embedded/arc_tz_temp_humid/` copy** - Roughly 16 MB, no longer referenced by anything, deleted once the new folder was confirmed serving.
+
 ### 2026-09-07 00:12:17 CST
 - **Repository renamed to `arc_temp_humid`; follow-ups applied** - The rename went through cleanly because the main site now maps both the old and new names to `embedded/arc_temp_humid/`, so nothing had to change in lockstep. The git remote, both workflow `repository_dispatch` payloads and `dataflow.md` now use the new name, and `OUTSTANDING.md` section 1 records the move as done. The only remnant is the superseded `embedded/arc_tz_temp_humid/` folder on the site repo, kept as a fallback and safe to delete.
 
