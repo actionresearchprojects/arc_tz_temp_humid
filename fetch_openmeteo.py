@@ -30,12 +30,23 @@ from pathlib import Path
 # longitude. Adding a site therefore means adding an entry here and a matching
 # feed in build.py's OPENMETEO_FEEDS.
 #
-# NOTE ON THE UK COORDINATES: these are town-centre positions for Hereford and
-# Criccieth, not the buildings themselves, because the exact addresses were not
-# to hand. Open-Meteo's historical model runs on a ~11 km grid so a town-centre
-# fix is usually the same grid cell as the building, but replace lat/lon here
-# with the real positions when known - it is a one-line change per site and
-# needs no other edits.
+# NOTE ON THE UK COORDINATES: these are the Open-Meteo model grid cell centres
+# for the two buildings, not the buildings themselves. Requesting any point
+# inside a cell returns that cell's series, so asking for the centre gives
+# byte-identical data to asking for the building - while the number committed to
+# this public repository is a fixed feature of the weather model rather than a
+# private address. The cell centres sit 0.60 km (Grove) and 0.65 km (Holywell)
+# from the buildings.
+#
+# To move a site, request its real position once, read "latitude"/"longitude"
+# back from the API response, and put those here.
+#
+# start_date is the first day of that building's own sensor record minus a
+# 30-day lead-in. The lead-in is not padding: the EN16798-1 running mean is
+# seeded from its first day and decays that seed by alpha=0.8 per day, so
+# without a run-up the first fortnight of comfort points would be measured
+# against a running mean still carrying an arbitrary starting value. Thirty days
+# reduces the seed's weight to about 0.1%.
 LOCATIONS = {
     "tz": {
         "lat": -7.0650263,
@@ -48,23 +59,23 @@ LOCATIONS = {
         "outdir": Path("data/openmeteo"),
     },
     "grove": {                        # Grove Cottage, Hereford
-        "lat": 52.0567,               # approximate - see note above
-        "lon": -2.7160,
+        "lat": 52.057774,             # model grid cell centre - see note above
+        "lon": -2.704697,
         "elevation": "",
         "timezone": "Europe/London",
         "tz_abbr": "GMT",
         "utc_offset_seconds": "0",    # only used to pick "today" at the site
-        "start_date": "2023-03-15",
+        "start_date": "2026-07-01",   # sensors start 2026-07-31, less 30 days
         "outdir": Path("data/openmeteo_grove"),
     },
     "holywell": {                     # Holywell Barn, Criccieth
-        "lat": 52.9186,               # approximate - see note above
-        "lon": -4.2372,
+        "lat": 52.926643,             # model grid cell centre - see note above
+        "lon": -4.230377,
         "elevation": "",
         "timezone": "Europe/London",
         "tz_abbr": "GMT",
         "utc_offset_seconds": "0",
-        "start_date": "2023-03-15",
+        "start_date": "2026-07-01",   # sensors start 2026-07-31, less 30 days
         "outdir": Path("data/openmeteo_holywell"),
     },
 }

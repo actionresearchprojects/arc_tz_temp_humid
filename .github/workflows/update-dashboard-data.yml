@@ -46,12 +46,21 @@ jobs:
         continue-on-error: true
         run: python fetch_openmeteo.py --location holywell
 
-      - name: Fetch Omnisense data
+      - name: Fetch Omnisense data (Tanzania)
         continue-on-error: true
         env:
           OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
           OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
-        run: python fetch_omnisense.py
+        run: python fetch_omnisense.py --site tz
+
+      # One export covers Grove Cottage and Holywell Barn; build.py filters it
+      # by sensor id. Same credentials as the Tanzanian site, different site_nbr.
+      - name: Fetch Omnisense data (UK)
+        continue-on-error: true
+        env:
+          OMNISENSE_USERNAME: ${{ secrets.OMNISENSE_USERNAME }}
+          OMNISENSE_PASSWORD: ${{ secrets.OMNISENSE_PASSWORD }}
+        run: python fetch_omnisense.py --site uk
 
       # ── staleness check ────────────────────────────────────────────────────
       # Runs after all fetches (even if some fail) and always writes

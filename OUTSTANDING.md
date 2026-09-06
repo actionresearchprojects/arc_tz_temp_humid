@@ -8,49 +8,11 @@ Everything described below is **not yet done**. What *is* done is in
 
 ---
 
-## 1. Automate the ARC UK Omnisense fetch
+## 1. Confirm the Holywell room type
 
-**This is the only item still blocked on information I do not have.**
-
-The UK export is added **by hand** to
-`data/omnisense_uk/omnisense_uk_YYYYMMDD_HHMM.csv`. The timestamp is the fetch
-time and is what the sidebar's freshness note reads, so keep the format.
-
-`fetch_omnisense.py` is already parameterised by site. To switch it on:
-
-1. Fill in the commented-out `SITES["uk"]` entry, in particular **`site_nbr`**.
-2. Add a `--site uk` step to `.github/workflows/update-dashboard-data.yml`,
-   next to the existing Omnisense step, with the same `continue-on-error`.
-
-### Finding the site number
-
-It is not in the CSV: the export carries site *names*, not ids, and the
-`download_935909450.csv` filename was a download-job id.
-
-Log in at omnisense.com, select the site, and read `siteNbr=` from the address
-bar. That is where the Tanzanian `152865` came from - it appears in
-`fetch_omnisense.py` as `dnld_rqst.asp?siteNbr=152865`.
-
-The site is named **"Simmonds.Mills Retrofits"** - the `site_name` on every
-block of the UK export.
-
-### Credentials are probably already correct
-
-The UK export contains a sensor labelled `House 5 Metal Roof S.E` alongside the
-Grove, Holywell, Chestnuts and No. 59 sensors, so one login already sees both
-the Tanzanian and UK material. The existing `OMNISENSE_USERNAME` /
-`OMNISENSE_PASSWORD` secrets will very likely work, with only `site_nbr`
-differing.
-
-If not, `SITES["uk"]` accepts `username_env` / `password_env` naming its own
-secrets, falling back to the shared pair when absent.
-
-### When it runs
-
-The UK export is one CSV covering several sites - Grove, Holywell, Chestnuts,
-No. 59 - of which this dashboard uses four sensors. `GROVE_SENSORS` and
-`HOLYWELL_SENSORS` in `build.py` filter by sensor id, so the rest are ignored
-rather than plotted. Those two sets are what to update if sensors change.
+**The only thing still genuinely blocked.** See section 2 - if `0E3C12EC`
+("Internal Ambient", Holywell Barn) is a bedroom, TM59's 26 C night criterion
+applies to it; if it is a living space, no fixed threshold does.
 
 ---
 
@@ -115,54 +77,55 @@ labelled only "Internal Ambient"; **that is the room type worth confirming**.
   dropdown is the change that would do it - and is probably worth more than the
   threshold band.
 
-## 3. Confirm the UK Open-Meteo coordinates
+## 3. UK Open-Meteo coordinates - DONE
 
-**Working and live**, on one assumption worth correcting.
-
-Both UK buildings have their own Open-Meteo feed, fetched daily. Each drives its
-own building's adaptive comfort running mean and both appear on the ARC UK
-chart. The coordinates in `fetch_openmeteo.py` are **town-centre positions**:
+Both feeds now use the **Open-Meteo model grid cell centre** for their building:
 
 ```python
-"grove":    {"lat": 52.0567, "lon": -2.7160, ...}   # Hereford
-"holywell": {"lat": 52.9186, "lon": -4.2372, ...}   # Criccieth
+"grove":    {"lat": 52.057774, "lon": -2.704697, "start_date": "2026-07-01"}
+"holywell": {"lat": 52.926643, "lon": -4.230377, "start_date": "2026-07-01"}
 ```
 
-### How much the precision matters
+Requesting any point inside a grid cell returns that cell's series, so asking
+for the centre gives byte-identical data to asking for the building, while the
+number committed to this public repository is a fixed feature of the weather
+model rather than a private address. The cell centres sit 0.60 km (Grove) and
+0.65 km (Holywell) from the buildings.
 
-Measured, not assumed. Open-Meteo snaps a request to its model grid, and that
-grid is finer than the 11 km often quoted. Comparing the returned hourly series
-against the town-centre baseline, June to August 2026 (2208 hours):
+Worth recording: the town-centre coordinates used before were **already in the
+same grid cell** as both buildings, so the weather data was correct all along.
+The change is about what gets published, not about accuracy.
 
-| Offset from baseline | Mean difference | Max | Hours differing by >0.5 C |
-|---|---|---|---|
-| ~0.5 km | 0.18 C | 1.6 C | 4.9% |
-| ~2 km | 0.51 C | 4.0 C | 32.8% |
-| ~9 km | 1.52 C | 4.9 C | 95.6% |
-| ~20 km | 1.63 C | 8.0 C | 83.0% |
+`start_date` is each building's first sensor reading (2026-07-31) minus a
+30-day lead-in. The lead-in is not padding: the EN16798-1 running mean is seeded
+from its first day and decays that seed by alpha=0.8 per day, so without a
+run-up the first fortnight of comfort points would be measured against a running
+mean still carrying an arbitrary starting value. Thirty days reduces the seed's
+weight to about 0.1%, and in practice reproduces the running means obtained from
+three and a half years of history to within 0.1-0.3 C.
 
-So getting within roughly half a kilometre is worth doing; beyond about two
-kilometres the series starts to drift meaningfully from the site.
+If sensors are ever installed earlier than July 2026, move `start_date` back to
+30 days before the new earliest reading.
 
-### The privacy point
+## 4. ARC UK Omnisense fetch - DONE, untested in CI
 
-These are private homes and **this repository is public**, so an exact
-coordinate committed here is effectively a published home location.
+`SITES["uk"]` is filled in with site number **58345**
+("Simmonds.Mills Retrofits") and a `--site uk` step runs in
+`update-dashboard-data.yml` alongside the Tanzanian one, using the same
+`OMNISENSE_USERNAME` / `OMNISENSE_PASSWORD` secrets.
 
-Half a kilometre of precision is enough, and that is about **two decimal
-places**: 0.01 degrees of latitude is around 1.1 km, and of longitude at these
-latitudes around 0.7 km. So the resolution to commit is two decimals - it puts
-the request in the right grid cell without pinpointing a dwelling.
+**It has not run yet.** The credentials live in repository secrets and are not
+available locally, so the login and download path could not be exercised here.
+The first scheduled run (04:00 UTC) is the test. The step is
+`continue-on-error`, so a failure will not block the rest of the build; check
+the run log, and the sidebar's "Omnisense (UK) last updated" note, afterwards.
 
-If exact positions or postcodes are supplied, round them to two decimals before
-they go in the file. It is a one-line change per site and the next daily run
-picks it up.
+Until it succeeds the hand-added export in `data/omnisense_uk/` remains the
+source, and nothing breaks if the fetch fails.
 
-As a check that the two feeds are genuinely distinct: Grove averages 1.03 C
-warmer than Holywell across 30 497 paired hours, only 611 of them identical -
-consistent with inland Herefordshire against coastal North Wales.
+---
 
-## 4. Known limitation, not a task
+## 5. Known limitation, not a task
 
 ASHRAE 55 Section 5.4.1(a) requires that no heating is in operation. Nothing at
 any site records heating status, and nothing in a temperature and humidity trace

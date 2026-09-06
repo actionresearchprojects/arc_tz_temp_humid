@@ -23,13 +23,9 @@ BASE = "https://omnisense.com"
 # covering every sensor on it; build.py's OMNISENSE_SOURCES picks the file up and
 # each dataset filters it down to the sensors it wants.
 #
-# To switch on the ARC UK feed (Grove Cottage + Holywell Barn), fill in "uk"
-# below with the site number from its omnisense.com URL and the first day it has
-# data for, then add `--site uk` as a step in update-dashboard-data.yml. If that
-# site sits under a different omnisense.com login, give it "username_env" /
-# "password_env" naming its own repository secrets; it falls back to the shared
-# OMNISENSE_USERNAME / OMNISENSE_PASSWORD otherwise. Until then the UK export is
-# added by hand to data/omnisense_uk/ as omnisense_uk_YYYYMMDD_HHMM.csv.
+# A site whose omnisense.com login differs from the shared one can name its own
+# secrets with "username_env" / "password_env"; otherwise it falls back to the
+# shared OMNISENSE_USERNAME / OMNISENSE_PASSWORD.
 SITES = {
     "tz": {
         "site_nbr": "152865",
@@ -38,15 +34,18 @@ SITES = {
         "earliest": "2026-01-25",     # first day with sensor data
         "tz_offset_hours": 3,         # EAT, for working out "today" at the site
     },
-    # "uk": {
-    #     "site_nbr": "",             # ← site number from the omnisense.com URL
-    #     "outdir": Path("data/omnisense_uk"),
-    #     "prefix": "omnisense_uk",
-    #     "earliest": "2026-07-31",   # first day in the manual export
-    #     "tz_offset_hours": 1,       # BST; only decides which day to ask up to
-    #     "username_env": "OMNISENSE_UK_USERNAME",
-    #     "password_env": "OMNISENSE_UK_PASSWORD",
-    # },
+    "uk": {
+        # "Simmonds.Mills Retrofits" - covers Grove Cottage and Holywell Barn,
+        # plus Chestnuts and No. 59 sensors this dashboard does not use.
+        # GROVE_SENSORS / HOLYWELL_SENSORS in build.py filter the export down.
+        "site_nbr": "58345",
+        "outdir": Path("data/omnisense_uk"),
+        "prefix": "omnisense_uk",
+        "earliest": "2026-07-31",   # first day in the manual export
+        "tz_offset_hours": 1,       # BST; only decides which day to ask up to
+        # No username_env/password_env: one login already sees both sites, so
+        # this falls back to the shared OMNISENSE_USERNAME / OMNISENSE_PASSWORD.
+    },
 }
 DEFAULT_SITE = "tz"
 
