@@ -31,9 +31,12 @@ actionresearchprojects.net/graphs/arc-tz-temp-humid/
 ```
 
 `sync-embedded.yml` derives the destination folder straight from the
-`source_repo` value in the dispatch payload. That payload now says
-`arc_temp_humid` (updated in both workflows in this repo), so after the rename
-the next sync will:
+`source_repo` value in the dispatch payload. **That payload deliberately still
+says `arc_tz_temp_humid`** — it names the repo as it exists on GitHub, and it
+was briefly set to the new name during the rebrand, which broke the very first
+sync after the push (`fatal: could not read Username for 'https://github.com'`
+— the clone of a repo that does not exist yet). Both workflows are commented to
+say so. Once the payload does say `arc_temp_humid`, the next sync will:
 
 1. clone `github.com/actionresearchprojects/arc_temp_humid.git` — fine;
 2. write into a **new** folder, `embedded/arc_temp_humid/`;
@@ -55,6 +58,7 @@ All in `actionresearchprojects/actionresearchprojects.github.io`:
 | 3 | Delete `embedded/arc_tz_temp_humid/` once the first new sync has run | Dead copy, ~16 MB |
 | 4 | `explainers/arc-tz-temp-humid/` → `explainers/arc-temp-humid/`, then flip the header info-icon link in `build.py` to match | The dashboard's info icon deliberately still points at the **old** slug, so nothing 404s in the meantime |
 | 5 | Redirect the old `/graphs/arc-tz-temp-humid/` URL to the new one | Existing links and any published references |
+| 7 | **In this repo**: flip `source_repo` to `arc_temp_humid` in both workflows, and `git remote set-url origin` to the new URL | Until this, syncs keep filling the old folder; flip it *before* the rename and every sync fails |
 | 6 | Update remaining mentions: `README.md`, `explainers/data-flow/viewer.html`, `explainers/arc-tz-weather/viewer.html` | Stale cross-links |
 
 Item 4 is deliberately two-sided. The dashboard's header info icon was left
@@ -64,13 +68,20 @@ change the one link in `build.py` (it is commented to say so) and rebuild.
 
 ### Recommended order
 
-1. Make the main-site changes (1, 2, 4, 5, 6) **first**, pointing at the new
+The ordering matters more than it looks, because the payload and the repo name
+have to change together — either one alone breaks the sync.
+
+1. Make the main-site changes 1, 2, 5 and 6 **first**, pointing at the new
    folder names before they exist. The site briefly serves the old embedded
    copy from a new path, which is harmless.
-2. Rename the repository.
-3. Trigger a sync (push anything, or run `update-dashboard-data.yml` manually)
-   and confirm `embedded/arc_temp_humid/` appears.
-4. Delete `embedded/arc_tz_temp_humid/` (item 3).
+2. Rename the repository on GitHub.
+3. Immediately do item 7: flip `source_repo` in both workflows and update the
+   git remote. Between steps 2 and 3 the sync is broken, so keep the gap short.
+4. Rename the explainer folder (item 4) and flip the info-icon link in
+   `build.py`, then rebuild.
+5. Push, and confirm the sync run on the main site succeeds and that
+   `embedded/arc_temp_humid/` appears.
+6. Delete `embedded/arc_tz_temp_humid/` (item 3).
 
 Also check that the Pages URL change is acceptable: this repo publishes to
 `actionresearchprojects.net/arc_tz_temp_humid/`, which becomes

@@ -1,5 +1,10 @@
 ## Changelog
 
+### 2026-09-06 20:51:29 CST
+- **Fix: the rebrand broke the main-site sync** — Both workflows had their `repository_dispatch` payload changed to `"source_repo":"arc_temp_humid"` as part of the rebrand, but the repository has not been renamed yet. The main site's `sync-embedded.yml` clones the repo by that name, so the first sync after the push failed with `fatal: could not read Username for 'https://github.com'` — git prompting for credentials on a repository that does not exist. The payload now names the repo as it actually is, `arc_tz_temp_humid`, in both workflows and in `dataflow.md`, each commented to say when to flip it. Same mistake as the explainer link, caught for the same reason: a value that follows the *live* GitHub state cannot be updated ahead of that state changing.
+  - The live dashboard was never at risk — the sync simply failed, leaving the previous embedded copy in place.
+- **`OUTSTANDING.md`: the rename is now a strictly ordered checklist** — The payload and the repository name have to change together; either alone breaks the sync, so the gap between renaming and flipping the payload should be as short as possible. Added as item 7, with the ordering rewritten around it.
+
 ### 2026-09-06 20:47:31 CST
 - **Keep the header explainer link on the old slug until the site catches up** — The rebrand changed the info-icon link to `/explainers/arc-temp-humid`, but that path does not exist yet: the explainer folder on the main site is still `explainers/arc-tz-temp-humid`. Shipping the new link would have put a live 404 behind the icon for however long the rename takes. It now points at the working path, with a comment saying why and when to switch it.
 - **Add `OUTSTANDING.md` and `OUTSTANDING.pdf`** — What is left to do, why, and in what order. Covers the repository rename and the main-site changes that must accompany it, automating the UK Omnisense fetch, the undecided UK overheating threshold, an optional UK Open-Meteo feed, and the heating-status limitation that no amount of code will close. Rendered to PDF with the shared explainer stylesheet via `.explainer-tools/genviewer.py`.
